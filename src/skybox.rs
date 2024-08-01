@@ -3,6 +3,7 @@ use std::array::IntoIter;
 use bevy::asset::LoadState;
 use bevy::core_pipeline::Skybox;
 use bevy::prelude::*;
+use bevy::render::render_asset::RenderAssetUsages;
 use bevy::render::render_resource::Extent3d;
 use bevy::render::render_resource::TextureDimension;
 use bevy::render::render_resource::TextureViewDescriptor;
@@ -49,11 +50,11 @@ fn is_skybox_parts_loaded(
 	asset_server: Res<AssetServer>,
 ) -> bool
 {
-	current_skybox.parts().all(|image| image.is_some_and(|image| match asset_server.get_load_state(image).unwrap() {
+	current_skybox.parts().all(|image| image.is_some_and(|image| match asset_server.get_load_state(image.id()).expect("Could not load image state") {
 		LoadState::NotLoaded => false,
 		LoadState::Loading => false,
 		LoadState::Loaded => true,
-		LoadState::Failed => panic!("Skybox loading failed"),
+		LoadState::Failed(error) => panic!("Skybox loading failed: {error}"),
 	}))
 }
 
@@ -75,7 +76,7 @@ fn stitch_skybox(
 	mut current_skybox: ResMut<CurrentSkybox>,
 )
 {
-	let sides: Vec<&Image> = current_skybox.parts().map(|side| images.get(side.unwrap()).unwrap()).collect();
+	let sides: Vec<&Image> = current_skybox.parts().map(|side| images.get(side.unwrap().id()).unwrap()).collect();
 	let first_side_image = *sides.first().unwrap();
 
 	let mut skybox = Image::new(
@@ -87,7 +88,8 @@ fn stitch_skybox(
 		},
 		TextureDimension::D2,
 		sides.into_iter().flat_map(|texture| texture.data.as_slice()).copied().collect(),
-		first_side_image.texture_descriptor.format
+		first_side_image.texture_descriptor.format,
+		RenderAssetUsages::RENDER_WORLD
 	);
 	skybox.reinterpret_stacked_2d_as_array(6);
 	skybox.texture_view_descriptor = Some(TextureViewDescriptor
@@ -106,6 +108,6 @@ fn add_skybox(
 )
 {
 	for camera in camera.iter() {
-		commands.entity(camera).insert(Skybox(current_skybox.skybox.clone().unwrap()));
+		commands.entity(camera).insert(Skybox { image: current_skybox.skybox.clone().unwrap(), brightness: 1.0 });
 	}
 }

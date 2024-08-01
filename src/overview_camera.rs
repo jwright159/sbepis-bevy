@@ -19,7 +19,7 @@ impl Plugin for OverviewCameraPlugin
 			))
 			.add_systems(Update, (
 				toggle_camera.run_if(input_just_pressed(KeyCode::Tab)),
-				set_cameras.run_if(resource_changed::<UsingOverviewCamera>()),
+				set_cameras.run_if(resource_changed::<UsingOverviewCamera>),
 			))
 			;
 	}

@@ -1,5 +1,4 @@
 use bevy::prelude::*;
-use bevy_trait_query::{One, queryable, RegisterExt};
 use bevy_xpbd_3d::{prelude::*, SubstepSchedule, SubstepSet};
 use itertools::Itertools;
 
@@ -15,7 +14,6 @@ impl Plugin for GravityPlugin
 			.insert_resource(Gravity(Vec3::ZERO))
 			.register_type::<GravityPriority>()
 			.register_type::<GravityPoint>()
-			.register_component_as::<dyn GravitationalField, GravityPoint>()
 			;
 		
 		app.get_schedule_mut(SubstepSchedule)
@@ -30,7 +28,6 @@ impl Plugin for GravityPlugin
 #[derive(Component, Reflect)]
 pub struct GravityPriority(pub u32);
 
-#[queryable]
 pub trait GravitationalField
 {
 	/// How much this acceleration affects an object, but also how much this priority should override lower priorities.
@@ -87,13 +84,13 @@ impl Default for GravityRigidbodyBundle
 
 pub fn calculate_gravity(
 	mut rigidbodies: Query<(&Position, &mut AffectedByGravity)>,
-	gravity_fields: Query<(&GlobalTransform, &GravityPriority, One<&dyn GravitationalField>)>,
+	gravity_fields: Query<(&GlobalTransform, &GravityPriority, &GravityPoint)>,
 )
 {
-	let field_groups: Vec<Vec<(&GlobalTransform, &GravityPriority, Ref<dyn GravitationalField>)>> = gravity_fields
+	let field_groups: Vec<Vec<(&GlobalTransform, &GravityPriority, &GravityPoint)>> = gravity_fields
 		.into_iter()
 		.sorted_by_cached_key(|(_, priority, _)| priority.0)
-		.group_by(|(_, priority, _)| priority.0)
+		.chunk_by(|(_, priority, _)| priority.0)
 		.into_iter()
 		.map(|(_, group)| group.collect())
 		.collect();

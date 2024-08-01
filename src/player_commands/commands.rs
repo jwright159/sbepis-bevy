@@ -1,16 +1,7 @@
-use std::marker::PhantomData;
-
 use bevy::audio::PlaybackMode;
 use bevy::prelude::*;
 
 use super::notes::{Note, NotePlayedEvent};
-
-#[derive(Resource)]
-pub struct NotePattern<T: Event>
-{
-	pub pattern: Vec<Note>,
-	event_type: PhantomData<T>,
-}
 
 pub fn check_note_patterns<T: Event + NotePatternEvent>(
 	note_holder: Res<NotePatternPlayer>,
@@ -99,7 +90,7 @@ pub struct PingCommandEvent;
 
 impl PingCommandEvent
 {
-	const PATTERN: &[Note] = &[Note::C4, Note::D4, Note::E4];
+	const PATTERN: &'static [Note] = &[Note::C4, Note::D4, Note::E4];
 }
 
 impl NotePatternEvent for PingCommandEvent
@@ -133,7 +124,7 @@ pub struct KillCommandEvent(pub bool);
 
 impl KillCommandEvent
 {
-	const PATTERN: &[Note] = &[Note::D4, Note::D4, Note::D5];
+	const PATTERN: &'static [Note] = &[Note::D4, Note::D4, Note::D5];
 }
 
 impl NotePatternEvent for KillCommandEvent
@@ -148,13 +139,13 @@ impl NotePatternEvent for KillCommandEvent
 
 pub fn kill(
 	mut ev_kill: EventReader<KillCommandEvent>,
-	mut ev_quit: EventWriter<bevy::app::AppExit>,
+	mut ev_quit: EventWriter<AppExit>,
 )
 {
 	for ev in ev_kill.read() {
 		println!("Tried to kill {}", ev.0);
 		if ev.0 {
-			ev_quit.send(bevy::app::AppExit);
+			ev_quit.send(AppExit::Success);
 		}
 	}
 }

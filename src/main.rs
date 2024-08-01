@@ -46,12 +46,13 @@ fn main()
 			PhysicsPlugins::default(),
 			#[cfg(feature = "inspector")]
 			bevy_inspector_egui::quick::WorldInspectorPlugin::new(),
+			
 			#[cfg(feature = "overview_camera")]
-			self::overview_camera::OverviewCameraPlugin,
-			self::gravity::GravityPlugin,
-			self::player_commands::PlayerCommandsPlugin,
-			self::skybox::SkyboxPlugin,
-			self::player_controller::PlayerControllerPlugin,
+			overview_camera::OverviewCameraPlugin,
+			gravity::GravityPlugin,
+			player_commands::PlayerCommandsPlugin,
+			skybox::SkyboxPlugin,
+			player_controller::PlayerControllerPlugin,
 		))
 		.add_systems(Startup, (
 			set_window_icon,
@@ -107,7 +108,7 @@ fn setup(
 
 	commands.spawn((Name::new("Planet"), PlanetBundle::new(Vec3::Y * -1000.0, 1000.0, 10.0, &mut meshes, gray_material)));
 
-	let cube_mesh = meshes.add(Mesh::from(shape::Cube { size: 1.0 }));
+	let cube_mesh = meshes.add(Cuboid::from_size(Vec3::ONE));
 	commands.spawn((Name::new("Cube 1"), BoxBundle::new(Vec3::new(0.0, 4.0, 0.0), cube_mesh.clone(), green_material.clone())));
 	commands.spawn((Name::new("Cube 2"), BoxBundle::new(Vec3::new(0.5, 5.5, 0.0), cube_mesh.clone(), green_material.clone())));
 	commands.spawn((Name::new("Cube 3"), BoxBundle::new(Vec3::new(-0.5, 7.0, 0.0), cube_mesh.clone(), green_material.clone())));
@@ -139,8 +140,8 @@ fn hide_mouse(
 }
 
 fn quit(
-	mut ev_quit: EventWriter<bevy::app::AppExit>,
+	mut ev_quit: EventWriter<AppExit>,
 )
 {
-	ev_quit.send(bevy::app::AppExit);
+	ev_quit.send(AppExit::Success);
 }

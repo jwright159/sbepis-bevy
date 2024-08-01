@@ -17,7 +17,7 @@ pub fn spawn_input_manager<Action: Actionlike>(
 }
 
 pub fn spawn_input_manager_with_bindings<Action: Actionlike>(
-	bindings: impl IntoIterator<Item = (impl Into<UserInput>, Action)>,
+	bindings: impl IntoIterator<Item = (Action, impl Into<UserInput>)>,
 ) -> SystemConfigs
 {
 	spawn_input_manager(InputMap::new(bindings))
@@ -50,7 +50,7 @@ pub fn button_event<Action: Actionlike + Copy, EventType: Event>(
 	|
 	{
 		let input = input.single();
-		if input.just_pressed(action) { event.send(event_generator()); }
+		if input.just_pressed(&action) { event.send(event_generator()); }
 	}).after(InputManagerSystem::ManualControl)
 }
 
@@ -63,7 +63,7 @@ pub fn button_input<Action: Actionlike + Copy>(
 	|
 	{
 		let input = input.single();
-		input.pressed(action)
+		input.pressed(&action)
 	}
 }
 
@@ -76,7 +76,7 @@ pub fn dual_axes_input<Action: Actionlike + Copy>(
 	|
 	{
 		let input = input.single();
-		input.axis_pair(action).unwrap_or_default().xy()
+		input.axis_pair(&action).unwrap_or_default().xy()
 	}
 }
 
@@ -89,6 +89,6 @@ pub fn clamped_dual_axes_input<Action: Actionlike + Copy>(
 	|
 	{
 		let input = input.single();
-		input.clamped_axis_pair(action).unwrap_or_default().xy()
+		input.clamped_axis_pair(&action).unwrap_or_default().xy()
 	}
 }

@@ -1,6 +1,5 @@
 use bevy::prelude::*;
 use leafwing_input_manager::{prelude::ToggleActions, Actionlike};
-
 use crate::player_controller::MovementAction;
 
 use super::{note_holder::NoteNodeHolder, notes::{ClearNotesEvent, PlayNoteAction}};
@@ -48,7 +47,7 @@ pub fn spawn_staff(
 					display: Display::None,
 					..default()
 				},
-				background_color: Color::BEIGE.into(),
+				background_color: bevy::color::palettes::css::BEIGE.into(),
 				..default()
 			},
 			CommandStaff::default(),
@@ -133,7 +132,7 @@ pub fn spawn_debug_notes(
 		});
 }
 
-#[derive(Actionlike, Clone, Copy, Reflect)]
+#[derive(Actionlike, Clone, Copy, Eq, PartialEq, Hash, Reflect)]
 pub enum ToggleStaffAction {
 	ToggleStaff,
 }

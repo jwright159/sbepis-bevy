@@ -11,6 +11,7 @@ use self::air_movement::*;
 pub use self::camera_controls::{PlayerCamera, PlayerBody, MouseSensitivity};
 
 use bevy::prelude::*;
+use bevy::render::mesh::CapsuleUvProfile;
 use bevy_xpbd_3d::math::PI;
 use bevy_xpbd_3d::{prelude::*, SubstepSchedule, SubstepSet};
 use leafwing_input_manager::prelude::*;
@@ -32,13 +33,15 @@ impl Plugin for PlayerControllerPlugin
 			.insert_resource(PlayerSpeed { speed: 5.0, sprint_modifier: 2.0, air_acceleration: 20.0 })
 			
 			.add_plugins(InputManagerPlugin::<MovementAction>::default())
+			.init_resource::<ActionState<MovementAction>>()
 
 			.add_systems(Startup, (
 				setup,
 				spawn_input_manager(InputMap::default()
-					.insert(VirtualDPad::wasd(), MovementAction::Move)
-					.insert(KeyCode::Space, MovementAction::Jump)
-					.insert(DualAxis::mouse_motion(), MovementAction::Look)
+					.insert(MovementAction::Move, VirtualDPad::wasd())
+					.insert(MovementAction::Jump, KeyCode::Space)
+					.insert(MovementAction::Look, DualAxis::mouse_motion())
+					.insert(MovementAction::Sprint, KeyCode::ShiftLeft)
 					.build()
 				),
 			))
@@ -71,7 +74,7 @@ fn setup(
 	let body = commands.spawn((
 		Name::new("Player Body"),
 		PbrBundle {
-			mesh: meshes.add(Mesh::from(shape::Capsule { radius: 0.25, rings: 1, depth: 1.0, latitudes: 8, longitudes: 16, uv_profile: shape::CapsuleUvProfile::Fixed })),
+			mesh: meshes.add(Capsule3d::new(0.25, 1.0).mesh().rings(1).latitudes(8).longitudes(16).uv_profile(CapsuleUvProfile::Fixed)),
 			material: gridbox_material("white", &mut materials, &asset_server),
 			..default()
 		},
@@ -88,20 +91,23 @@ fn setup(
 		Name::new("Football"),
 		Football { radius: 0.5 },
 		PbrBundle {
-			mesh: meshes.add(Mesh::try_from(shape::Icosphere { radius: 0.5, subdivisions: 2 }).unwrap()),
+			mesh: meshes.add(Sphere::new(0.5).mesh().ico(2).unwrap()),
 			material: gridbox_material("grey4", &mut materials, &asset_server),
 			..default()
 		},
 		GravityRigidbodyBundle::default(),
 		Position(position + football_local_position),
-		Collider::ball(0.5),
+		Collider::sphere(0.5),
 		AngularVelocity::default(),
 		Friction::new(100.0).with_combine_rule(CoefficientCombine::Multiply),
 	)).id();
 
 	commands.spawn((
 		Name::new("Football Ground Caster"),
-		RayCaster::new(football_local_position, Vec3::NEG_Y).with_solidness(false).with_max_time_of_impact(1.0).with_query_filter(SpatialQueryFilter::default().without_entities([body, football])),
+		RayCaster::new(football_local_position, Dir3::NEG_Y)
+			.with_solidness(false)
+			.with_max_time_of_impact(1.0)
+			.with_query_filter(SpatialQueryFilter::default().with_excluded_entities([body, football])),
 		FootballGroundCaster,
 	)).set_parent(body);
 
@@ -130,10 +136,11 @@ fn setup(
 	)).set_parent(body);
 }
 
-#[derive(Actionlike, Clone, Copy, Reflect)]
+#[derive(Actionlike, Clone, Copy, Eq, PartialEq, Hash, Reflect)]
 pub enum MovementAction
 {
 	Move,
 	Jump,
 	Look,
+	Sprint,
 }

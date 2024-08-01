@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy_xpbd_3d::prelude::*;
-
-use super::{PlayerBody, football::PlayerSpeed};
+use leafwing_input_manager::action_state::ActionState;
+use super::{PlayerBody, football::PlayerSpeed, MovementAction};
 
 pub fn air_strafe(
 	In(velocity): In<Vec2>,
@@ -23,11 +23,11 @@ pub fn is_football_on_ground(
 
 pub fn axes_to_air_acceleration(
 	In(axes_input): In<Vec2>,
-	input: Res<Input<KeyCode>>,
+	input: Res<ActionState<MovementAction>>,
 	speed: Res<PlayerSpeed>,
 ) -> Vec2
 {
-	axes_input * speed.air_acceleration * if input.pressed(KeyCode::ShiftLeft) { speed.sprint_modifier } else { 1.0 }
+	axes_input * speed.air_acceleration * if input.pressed(&MovementAction::Sprint) { speed.sprint_modifier } else { 1.0 }
 }
 
 #[derive(Component)]

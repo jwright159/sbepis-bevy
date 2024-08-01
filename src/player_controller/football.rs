@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy_xpbd_3d::prelude::*;
-
-use super::PlayerBody;
+use leafwing_input_manager::prelude::ActionState;
+use super::{MovementAction, PlayerBody};
 
 #[derive(Component)]
 pub struct Football
@@ -27,11 +27,11 @@ pub struct PlayerSpeed
 
 pub fn axes_to_ground_velocity(
 	In(axes_input): In<Vec2>,
-	input: Res<Input<KeyCode>>,
+	input: Res<ActionState<MovementAction>>,
 	speed: Res<PlayerSpeed>,
 ) -> Vec2
 {
-	axes_input * speed.speed * if input.pressed(KeyCode::ShiftLeft) { speed.sprint_modifier } else { 1.0 }
+	axes_input * speed.speed * if input.pressed(&MovementAction::Sprint) { speed.sprint_modifier } else { 1.0 }
 }
 
 pub fn spin_football(
