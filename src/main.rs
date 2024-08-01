@@ -117,7 +117,7 @@ fn setup(
 		Name::new("Sun"),
 		DirectionalLightBundle {
 			directional_light: DirectionalLight {
-				illuminance: 10000.0,
+				illuminance: 4000.0,
 				shadows_enabled: true,
 				..default()
 			},
