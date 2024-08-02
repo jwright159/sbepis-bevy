@@ -21,6 +21,7 @@ pub trait TransformEx
 {
 	fn transform_vector3(&self, vector: Vec3) -> Vec3;
 	fn inverse_transform_point(&self, point: Vec3) -> Vec3;
+	#[allow(dead_code)]
 	fn inverse_transform_vector3(&self, vector: Vec3) -> Vec3;
 }
 impl TransformEx for GlobalTransform

@@ -37,11 +37,7 @@ impl Plugin for PlayerCommandsPlugin
 
 			.add_systems(Startup, (
 				spawn_staff,
-				#[cfg(feature = "spawn_debug_notes_on_staff")]
-				(
-					apply_deferred,
-					spawn_debug_notes,
-				).chain().after(spawn_staff),
+				
 				spawn_input_manager_with_bindings([
 					(PlayNoteAction::C4, KeyCode::KeyZ),
 					(PlayNoteAction::CS4, KeyCode::KeyS),
@@ -84,6 +80,12 @@ impl Plugin for PlayerCommandsPlugin
 				spawn_input_manager_with_bindings([
 					(ToggleStaffAction::ToggleStaff, KeyCode::Backquote),
 				])
+			))
+			
+			.add_systems(PostStartup, (
+				#[cfg(feature = "spawn_debug_notes_on_staff")]
+				spawn_debug_notes,
+				setup_staff_camera,
 			))
 
 			.add_systems(PreUpdate, (

@@ -1,8 +1,8 @@
 use bevy::prelude::*;
 use leafwing_input_manager::{prelude::ToggleActions, Actionlike};
-use crate::player_controller::MovementAction;
-
-use super::{note_holder::NoteNodeHolder, notes::{ClearNotesEvent, PlayNoteAction}};
+use crate::player_commands::note_holder::NoteNodeHolder;
+use crate::player_commands::notes::{ClearNotesEvent, PlayNoteAction};
+use crate::player_controller::{MovementAction, PlayerCamera};
 
 #[derive(Component, Default)]
 pub struct CommandStaff
@@ -111,6 +111,15 @@ pub fn spawn_staff(
 					}
 				});
 		});
+}
+
+pub fn setup_staff_camera(
+	mut commands: Commands,
+	staff: Query<Entity, With<CommandStaff>>,
+	camera: Query<Entity, With<PlayerCamera>>,
+)
+{
+	commands.entity(staff.single()).insert(TargetCamera(camera.single()));
 }
 
 #[cfg(feature = "spawn_debug_notes_on_staff")]
