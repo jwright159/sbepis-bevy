@@ -27,10 +27,11 @@ pub struct PlayerSpeed
 
 pub fn axes_to_ground_velocity(
 	In(axes_input): In<Vec2>,
-	input: Res<ActionState<MovementAction>>,
+	input: Query<&ActionState<MovementAction>>,
 	speed: Res<PlayerSpeed>,
 ) -> Vec2
 {
+	let input = input.single();
 	axes_input * speed.speed * if input.pressed(&MovementAction::Sprint) { speed.sprint_modifier } else { 1.0 }
 }
 

@@ -33,8 +33,7 @@ impl Plugin for PlayerControllerPlugin
 			.insert_resource(PlayerSpeed { speed: 5.0, sprint_modifier: 2.0, air_acceleration: 20.0 })
 			
 			.add_plugins(InputManagerPlugin::<MovementAction>::default())
-			.init_resource::<ActionState<MovementAction>>()
-
+			
 			.add_systems(Startup, (
 				setup,
 				spawn_input_manager(InputMap::default()
