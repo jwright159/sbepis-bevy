@@ -108,6 +108,6 @@ fn add_skybox(
 )
 {
 	for camera in camera.iter() {
-		commands.entity(camera).insert(Skybox { image: current_skybox.skybox.clone().unwrap(), brightness: 1.0 });
+		commands.entity(camera).insert(Skybox { image: current_skybox.skybox.clone().unwrap(), brightness: 1000.0 });
 	}
 }
