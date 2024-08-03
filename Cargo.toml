@@ -16,10 +16,10 @@ terminal = []
 opt-level = 3
 
 [dependencies]
-bevy = { version = "0.14.0", features = ["wav", "mp3"] }
+bevy = { version = "0.14.1", features = ["wav", "mp3"] }
 bevy-inspector-egui = { version = "0.25.1", optional = true }
 bevy_panorbit_camera = { version = "0.19.1", optional = true }
-bevy_xpbd_3d = "0.5.0"
+bevy_rapier3d = "0.27.0"
 image = "0.25.2"
 itertools = "0.13.0"
 leafwing-input-manager = "0.14.0"

@@ -1,5 +1,4 @@
 use bevy::prelude::*;
-use bevy_xpbd_3d::prelude::*;
 
 use crate::gravity::AffectedByGravity;
 
@@ -7,10 +6,10 @@ use crate::gravity::AffectedByGravity;
 pub struct GravityOrientation;
 
 pub fn orient(
-	mut rigidbodies: Query<(&mut Rotation, &AffectedByGravity), With<GravityOrientation>>,
+	mut rigidbodies: Query<(&mut Transform, &AffectedByGravity), With<GravityOrientation>>,
 )
 {
-	for (mut rotation, gravity) in rigidbodies.iter_mut() {
-		rotation.0 = Quat::from_rotation_arc(rotation.rotate(Vec3::Y), gravity.up) * rotation.0;
+	for (mut transform, gravity) in rigidbodies.iter_mut() {
+		transform.rotation = Quat::from_rotation_arc(transform.rotation * Vec3::Y, gravity.up) * transform.rotation;
 	}
 }

@@ -18,12 +18,17 @@ use bevy::input::common_conditions::input_just_pressed;
 use bevy::prelude::*;
 use bevy::window::{PrimaryWindow, CursorGrabMode};
 use bevy::winit::WinitWindows;
-use bevy_xpbd_3d::prelude::*;
+use bevy_rapier3d::prelude::*;
 use winit::window::Icon;
 
 fn main()
 {
+	let mut rapier_config = RapierConfiguration::new(1.);
+	rapier_config.gravity = Vec3::ZERO;
+	let rapier_config = rapier_config;
+	
 	App::new()
+		.insert_resource(rapier_config)
 		.add_plugins((
 			DefaultPlugins
 				.set(WindowPlugin
@@ -43,7 +48,9 @@ fn main()
 						..default()
 					}.into(),
 				}),
-			PhysicsPlugins::default(),
+			RapierPhysicsPlugin::<NoUserData>::default(),
+			RapierDebugRenderPlugin::default(),
+			
 			#[cfg(feature = "inspector")]
 			bevy_inspector_egui::quick::WorldInspectorPlugin::new(),
 			

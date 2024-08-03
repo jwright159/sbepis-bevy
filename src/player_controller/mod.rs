@@ -3,6 +3,7 @@ mod orientation;
 mod camera_controls;
 mod air_movement;
 
+use std::f32::consts::PI;
 use self::football::*;
 use self::orientation::*;
 use self::camera_controls::*;
@@ -12,12 +13,10 @@ pub use self::camera_controls::{PlayerCamera, PlayerBody, MouseSensitivity};
 
 use bevy::prelude::*;
 use bevy::render::mesh::CapsuleUvProfile;
-use bevy_xpbd_3d::math::PI;
-use bevy_xpbd_3d::{prelude::*, SubstepSchedule, SubstepSet};
+use bevy_rapier3d::prelude::*;
 use leafwing_input_manager::prelude::*;
 
 use crate::gravity::GravityRigidbodyBundle;
-use crate::gravity::apply_gravity;
 use crate::gridbox_material;
 use crate::input::button_input;
 use crate::input::clamped_dual_axes_input;
@@ -45,18 +44,16 @@ impl Plugin for PlayerControllerPlugin
 				),
 			))
 			.add_systems(Update, (
-				dual_axes_input(MovementAction::Look).pipe(rotate_camera_and_body),
+				(
+					orient,
+					dual_axes_input(MovementAction::Look).pipe(rotate_camera_and_body),
+					clamped_dual_axes_input(MovementAction::Move).pipe(axes_to_ground_velocity).pipe(spin_football),
+					clamped_dual_axes_input(MovementAction::Move).pipe(axes_to_air_acceleration).pipe(air_strafe).run_if(not(is_football_on_ground)),
+				).chain(),
+				
+				button_input(MovementAction::Jump).pipe(jump),
 			))
 			;
-		
-		app.get_schedule_mut(SubstepSchedule)
-			.expect("add SubstepSchedule first")
-			.add_systems((
-				orient.after(apply_gravity),
-				button_input(MovementAction::Jump).pipe(jump),
-				clamped_dual_axes_input(MovementAction::Move).pipe(axes_to_ground_velocity).pipe(spin_football).after(orient),
-				clamped_dual_axes_input(MovementAction::Move).pipe(axes_to_air_acceleration).pipe(air_strafe).run_if(not(is_football_on_ground)).after(spin_football),
-			).in_set(SubstepSet::SolveUserConstraints));
 	}
 }
 
@@ -68,57 +65,51 @@ fn setup(
 )
 {
 	let position = Vec3::new(5.0, 10.0, 0.0);
-	let football_local_position = Vec3::NEG_Y * 1.25;
+	let football_local_position = Vec3::NEG_Y * 1.3;
 
 	let body = commands.spawn((
 		Name::new("Player Body"),
 		PbrBundle {
+			transform: Transform::from_translation(position),
 			mesh: meshes.add(Capsule3d::new(0.25, 1.0).mesh().rings(1).latitudes(8).longitudes(16).uv_profile(CapsuleUvProfile::Fixed)),
 			material: gridbox_material("white", &mut materials, &asset_server),
 			..default()
 		},
 		GravityRigidbodyBundle::default(),
-		Position(position),
-		Collider::capsule(1.0, 0.25),
+		Collider::capsule_y(0.5, 0.25),
 		GravityOrientation,
 		PlayerBody,
-		Rotation::default(),
-		AngularVelocity::default(),
+		LockedAxes::ROTATION_LOCKED_X | LockedAxes::ROTATION_LOCKED_Z,
 	)).id();
 
-	let football = commands.spawn((
+	commands.spawn((
 		Name::new("Football"),
 		Football { radius: 0.5 },
 		PbrBundle {
+			transform: Transform::from_translation(position + football_local_position),
 			mesh: meshes.add(Sphere::new(0.5).mesh().ico(2).unwrap()),
 			material: gridbox_material("grey4", &mut materials, &asset_server),
 			..default()
 		},
 		GravityRigidbodyBundle::default(),
-		Position(position + football_local_position),
-		Collider::sphere(0.5),
-		AngularVelocity::default(),
-		Friction::new(100.0).with_combine_rule(CoefficientCombine::Multiply),
-	)).id();
-
-	commands.spawn((
-		Name::new("Football Ground Caster"),
-		RayCaster::new(football_local_position, Dir3::NEG_Y)
-			.with_solidness(false)
-			.with_max_time_of_impact(1.0)
-			.with_query_filter(SpatialQueryFilter::default().with_excluded_entities([body, football])),
-		FootballGroundCaster,
-	)).set_parent(body);
-
-	commands.spawn((
-		Name::new("Football Joint"),
-		SphericalJoint::new(body, football).with_local_anchor_1(football_local_position),
+		Collider::ball(0.5),
+		Friction::new(10.0),
 		FootballJoint {
 			rest_local_position: football_local_position,
 			jump_local_position: football_local_position + Vec3::NEG_Y * 0.25,
 			jump_speed: 10.0,
 		},
+		ImpulseJoint::new(body, SphericalJointBuilder::new().local_anchor1(football_local_position)),
 	));
+
+	commands.spawn((
+		Name::new("Football Ground Caster"),
+		// RayCaster::new(football_local_position, Dir3::NEG_Y)
+		// 	.with_solidness(false)
+		// 	.with_max_time_of_impact(1.0)
+		// 	.with_query_filter(SpatialQueryFilter::default().with_excluded_entities([body, football])),
+		FootballGroundCaster,
+	)).set_parent(body);
 
 	commands.spawn((
 		Name::new("Player Camera"),

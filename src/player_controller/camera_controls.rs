@@ -1,5 +1,6 @@
+use std::f32::consts::PI;
 use bevy::prelude::*;
-use bevy_xpbd_3d::{prelude::{Rotation, AngularVelocity}, math::PI};
+use bevy_rapier3d::prelude::*;
 
 #[derive(Component)]
 pub struct PlayerCamera;
@@ -17,8 +18,8 @@ pub struct MouseSensitivity(pub f32);
 pub fn rotate_camera_and_body(
 	In(delta): In<Vec2>,
 	sensitivity: Res<MouseSensitivity>,
-	mut player_camera: Query<(&mut Transform, &mut Pitch, &Camera), With<PlayerCamera>>,
-	mut player_body: Query<(&mut Rotation, &mut AngularVelocity), With<PlayerBody>>,
+	mut player_camera: Query<(&mut Transform, &mut Pitch, &Camera), (With<PlayerCamera>, Without<PlayerBody>)>,
+	mut player_body: Query<(&mut Transform, &mut Velocity), (Without<PlayerCamera>, With<PlayerBody>)>,
 )
 {
 	{
@@ -31,12 +32,12 @@ pub fn rotate_camera_and_body(
 	}
 
 	{
-		let (mut body_rotation, mut body_angular_velocity) = player_body.single_mut();
+		let (mut body_transform, mut body_velocity) = player_body.single_mut();
 
-		body_rotation.0 *= Quat::from_rotation_y(-delta.x * sensitivity.0);
+		body_transform.rotation *= Quat::from_rotation_y(-delta.x * sensitivity.0);
 
 		// Football imparts torque on body and LockedAxes doesn't work
 		// reject_from is projection on the plane normal to the vec
-		body_angular_velocity.0 = body_angular_velocity.0.reject_from(body_rotation.0 * Vec3::Y);
+		body_velocity.angvel = body_velocity.angvel.reject_from(body_transform.rotation * Vec3::Y);
 	}
 }

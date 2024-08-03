@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use bevy_xpbd_3d::prelude::*;
+use bevy_rapier3d::prelude::*;
 use leafwing_input_manager::prelude::ActionState;
 use super::{MovementAction, PlayerBody};
 
@@ -37,24 +37,25 @@ pub fn axes_to_ground_velocity(
 
 pub fn spin_football(
 	In(input_velocity): In<Vec2>,
-	mut football: Query<(&mut Rotation, &PreviousRotation, &Football), Without<PlayerBody>>,
-	player_body: Query<&Rotation, With<PlayerBody>>,
-	time: Res<Time>,
+	mut football: Query<(&mut Velocity, &Football), Without<PlayerBody>>,
+	player_body: Query<&Transform, With<PlayerBody>>,
 )
 {
-	let (mut rotation, prev_rotation, football) = football.single_mut();
-	let body_rotation = player_body.single();
-	let delta = body_rotation.0 * Vec3::new(-input_velocity.y, 0., -input_velocity.x) / football.radius * time.delta_seconds();
-	rotation.0 = Quat::from_scaled_axis(delta) * prev_rotation.0.0;
+	let (mut velocity, football) = football.single_mut();
+	let body_transform = player_body.single();
+	velocity.angvel = body_transform.rotation * Vec3::new(-input_velocity.y, 0., -input_velocity.x) / football.radius;
 }
 
 pub fn jump(
 	In(is_jumping): In<bool>,
-	mut football_joint: Query<(&mut SphericalJoint, &FootballJoint)>,
+	mut football_joint: Query<(&mut ImpulseJoint, &FootballJoint)>,
 	time: Res<Time>,
 )
 {
-	let (mut joint, joint_params) = football_joint.single_mut();
-	let target = if is_jumping { joint_params.jump_local_position } else { joint_params.rest_local_position };
-	joint.local_anchor1 = joint.local_anchor1 + (target - joint.local_anchor1).clamp_length_max(time.delta_seconds() * joint_params.jump_speed);
+	for (mut joint, joint_params) in football_joint.iter_mut() {
+		if let TypedJoint::SphericalJoint(joint) = &mut joint.data {
+			let target = if is_jumping { joint_params.jump_local_position } else { joint_params.rest_local_position };
+			joint.set_local_anchor1(joint.local_anchor1() + (target - joint.local_anchor1()).clamp_length_max(time.delta_seconds() * joint_params.jump_speed));
+		}
+	}
 }

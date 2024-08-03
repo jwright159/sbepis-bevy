@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use bevy_xpbd_3d::{prelude::*, SubstepSchedule, SubstepSet};
+use bevy_rapier3d::prelude::*;
 use itertools::Itertools;
 
 use crate::util::{TransformEx, IterElements};
@@ -11,17 +11,13 @@ impl Plugin for GravityPlugin
 	fn build(&self, app: &mut App)
 	{
 		app
-			.insert_resource(Gravity(Vec3::ZERO))
 			.register_type::<GravityPriority>()
 			.register_type::<GravityPoint>()
-			;
-		
-		app.get_schedule_mut(SubstepSchedule)
-			.expect("add SubstepSchedule first")
-			.add_systems((
+			
+			.add_systems(Update, (
 				calculate_gravity,
 				apply_gravity,
-			).chain().in_set(SubstepSet::SolveUserConstraints));
+			).chain());
 	}
 }
 
@@ -69,6 +65,7 @@ pub struct GravityRigidbodyBundle
 {
 	pub gravity: AffectedByGravity,
 	pub rigidbody: RigidBody,
+	pub velocity: Velocity,
 }
 
 impl Default for GravityRigidbodyBundle
@@ -78,12 +75,13 @@ impl Default for GravityRigidbodyBundle
 		{
 			gravity: AffectedByGravity::default(),
 			rigidbody: RigidBody::Dynamic,
+			velocity: Velocity::default(),
 		}
 	}
 }
 
 pub fn calculate_gravity(
-	mut rigidbodies: Query<(&Position, &mut AffectedByGravity)>,
+	mut rigidbodies: Query<(&Transform, &mut AffectedByGravity)>,
 	gravity_fields: Query<(&GlobalTransform, &GravityPriority, &GravityPoint)>,
 )
 {
@@ -95,9 +93,9 @@ pub fn calculate_gravity(
 		.map(|(_, group)| group.collect())
 		.collect();
 
-	for (position, mut gravity) in rigidbodies.iter_mut() {
+	for (transform, mut gravity) in rigidbodies.iter_mut() {
 		let acceleration = field_groups.iter().fold(Vec3::ZERO, |lower_priority_acceleration, group| {
-				let local_positions: Vec<Vec3> = group.iter().map(|(transform, _, _)| transform.inverse_transform_point(position.0)).collect();
+				let local_positions: Vec<Vec3> = group.iter().map(|(global_transform, _, _)| global_transform.inverse_transform_point(transform.translation)).collect();
 				let priority_factors: Vec<f32> = group.iter().zip(&local_positions).map(|((_, _, field), local_position)| field.get_priority_factor_at(*local_position).iter_elements().product()).collect();
 				let accelerations: Vec<Vec3> = group.iter().zip(&local_positions).map(|((transform, _, field), local_position)| transform.transform_vector3(field.get_acceleration_at(*local_position))).collect();
 				let accelerations: Vec<Vec3> = accelerations.into_iter().zip(&priority_factors).map(|(acceleration, priority_factor)| acceleration * *priority_factor).collect();
@@ -113,11 +111,11 @@ pub fn calculate_gravity(
 }
 
 pub fn apply_gravity(
-	mut rigidbodies: Query<(&mut Position, &AffectedByGravity)>,
+	mut rigidbodies: Query<(&mut Velocity, &AffectedByGravity)>,
 	time: Res<Time>,
 )
 {
-	for (mut position, gravity) in rigidbodies.iter_mut() {
-		position.0 += 0.5 * gravity.acceleration * time.delta_seconds() * time.delta_seconds();
+	for (mut velocity, gravity) in rigidbodies.iter_mut() {
+		velocity.linvel += gravity.acceleration * time.delta_seconds();
 	}
 }

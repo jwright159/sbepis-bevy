@@ -1,7 +1,6 @@
 use std::f32::consts::{PI, TAU};
-
 use bevy::prelude::*;
-use bevy_xpbd_3d::prelude::*;
+use bevy_rapier3d::prelude::*;
 use super::gravity::*;
 
 #[derive(Bundle)]
@@ -10,8 +9,6 @@ pub struct PlanetBundle
 	pbr: PbrBundle,
 	rigidbody: RigidBody,
 	collider: Collider,
-	position: Position,
-	rotation: Rotation,
 	gravity: GravityPoint,
 	gravity_priority: GravityPriority,
 }
@@ -37,22 +34,22 @@ impl PlanetBundle
 					uv[1] *= radius * PI;
 				}
 			},
-			_ => panic!()
+			_ => panic!("Got a UV that wasn't a Float32x2")
 		}
-
-		let collider = Collider::trimesh_from_mesh(&mesh).expect("couldn't make a planet collider");
+		
+		let collider = Collider::from_bevy_mesh(&mesh, &ComputedColliderShape::TriMesh).expect("Couldn't make a planet collider");
+		
 		PlanetBundle
 		{
 			pbr: PbrBundle
 			{
+				transform: Transform::from_translation(position).with_rotation(Quat::from_axis_angle(Vec3::X, PI/2.)),
 				mesh: meshes.add(mesh),
 				material,
 				..default()
 			},
-			rigidbody: RigidBody::Static,
+			rigidbody: RigidBody::Fixed,
 			collider,
-			position: Position(position),
-			rotation: Rotation(Quat::from_axis_angle(Vec3::X, PI/2.)),
 			gravity: GravityPoint { standard_radius: radius, acceleration_at_radius: gravity },
 			gravity_priority: GravityPriority(0),
 		}
@@ -64,11 +61,8 @@ impl PlanetBundle
 pub struct BoxBundle
 {
 	pbr: PbrBundle,
-	rigidbody: RigidBody,
-	position: Position,
-	angular_velocity: AngularVelocity,
 	collider: Collider,
-	gravity: AffectedByGravity,
+	gravity_rigidbody_bundle: GravityRigidbodyBundle,
 }
 
 impl BoxBundle
@@ -82,15 +76,19 @@ impl BoxBundle
 		BoxBundle
 		{
 			pbr: PbrBundle {
+				transform: Transform::from_translation(position),
 				mesh,
 				material,
 				..default()
 			},
-			rigidbody: RigidBody::Dynamic,
-			position: Position(position),
-			angular_velocity: AngularVelocity(Vec3::new(2.5, 3.4, 1.6)),
-			collider: Collider::cuboid(1.0, 1.0, 1.0),
-			gravity: AffectedByGravity::default(),
+			gravity_rigidbody_bundle: GravityRigidbodyBundle {
+				velocity: Velocity{
+					linvel: Vec3::ZERO,
+					angvel: Vec3::new(2.5, 3.4, 1.6),
+				},
+				..default()
+			},
+			collider: Collider::cuboid(0.5, 0.5, 0.5),
 		}
 	}
 }
