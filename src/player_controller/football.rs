@@ -1,7 +1,10 @@
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 use leafwing_input_manager::prelude::ActionState;
+use component_groups::generate_unique_types;
 use super::{MovementAction, PlayerBody};
+
+generate_unique_types!(PlayerBody, Football);
 
 #[derive(Component)]
 pub struct Football
@@ -37,8 +40,8 @@ pub fn axes_to_ground_velocity(
 
 pub fn spin_football(
 	In(input_velocity): In<Vec2>,
-	mut football: Query<(&mut Velocity, &Football), Without<PlayerBody>>,
-	player_body: Query<&Transform, With<PlayerBody>>,
+	mut football: Query<(&mut Velocity, &Football), UniqueFootball>,
+	player_body: Query<&Transform, UniquePlayerBody>,
 )
 {
 	let (mut velocity, football) = football.single_mut();

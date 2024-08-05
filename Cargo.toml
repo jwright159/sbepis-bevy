@@ -25,6 +25,7 @@ itertools = "0.13.0"
 leafwing-input-manager = "0.14.0"
 num-traits = "0.2.19"
 winit = "0.30.4"
+component_groups = { path = "component_groups" }
 
 [build-dependencies]
 winres = "0.1"

@@ -1,0 +1,8 @@
+/.idea
+/.plastic
+/.vscode
+
+/target
+/Cargo.lock
+
+**/tempCodeRunnerFile.rs
