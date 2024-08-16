@@ -74,7 +74,6 @@ fn main()
 
 fn set_window_icon(
 	windows: NonSend<WinitWindows>,
-	primary_window: Query<Entity, With<PrimaryWindow>>,
 )
 {
 	let icon_buf = Cursor::new(include_bytes!("../assets/house.png"));
@@ -83,11 +82,10 @@ fn set_window_icon(
 	let (width, height) = image.dimensions();
 	let rgba = image.into_raw();
 	let icon = Icon::from_rgba(rgba, width, height).unwrap();
-
-	let primary_entity = primary_window.single();
-	let primary = windows.get_window(primary_entity).unwrap();
-
-	primary.set_window_icon(Some(icon));
+	
+	for window in windows.windows.values() {
+		window.set_window_icon(Some(icon.clone()));
+	}
 }
 
 fn gridbox_texture(color: &str) -> String
