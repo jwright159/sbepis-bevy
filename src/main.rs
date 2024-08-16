@@ -56,10 +56,10 @@ fn main()
 			
 			#[cfg(feature = "overview_camera")]
 			overview_camera::OverviewCameraPlugin,
-			gravity::GravityPlugin,
 			player_commands::PlayerCommandsPlugin,
 			skybox::SkyboxPlugin,
 			player_controller::PlayerControllerPlugin,
+			gravity::GravityPlugin,
 		))
 		.add_systems(Startup, (
 			set_window_icon,

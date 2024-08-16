@@ -67,6 +67,19 @@ pub fn button_input<Action: Actionlike + Copy>(
 	}
 }
 
+pub fn button_just_pressed<Action: Actionlike + Copy>(
+	action: Action,
+) -> impl Fn(Query<&ActionState<Action>>) -> bool
+{
+	move |
+		input: Query<&ActionState<Action>>,
+	|
+	{
+		let input = input.single();
+		input.just_pressed(&action)
+	}
+}
+
 pub fn dual_axes_input<Action: Actionlike + Copy>(
 	action: Action,
 ) -> impl Fn(Query<&ActionState<Action>>) -> Vec2
