@@ -49,6 +49,7 @@ fn main()
 					}.into(),
 				}),
 			RapierPhysicsPlugin::<NoUserData>::default(),
+			#[cfg(feature = "rapier_debug")]
 			RapierDebugRenderPlugin::default(),
 			
 			#[cfg(feature = "inspector")]
