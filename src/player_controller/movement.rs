@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::{*, Real};
 use leafwing_input_manager::prelude::ActionState;
-use super::{MovementAction, PlayerBody};
+use super::{PlayerBody, PlayerAction};
 
 #[derive(Resource)]
 pub struct PlayerSpeed
@@ -13,12 +13,12 @@ pub struct PlayerSpeed
 
 pub fn axes_to_ground_velocity(
 	In(axes_input): In<Vec2>,
-	input: Query<&ActionState<MovementAction>>,
+	input: Query<&ActionState<PlayerAction>>,
 	speed: Res<PlayerSpeed>,
 ) -> Vec2
 {
 	let input = input.single();
-	axes_input * speed.speed * if input.pressed(&MovementAction::Sprint) { speed.sprint_modifier } else { 1.0 }
+	axes_input * speed.speed * if input.pressed(&PlayerAction::Sprint) { speed.sprint_modifier } else { 1.0 }
 }
 
 pub fn strafe(

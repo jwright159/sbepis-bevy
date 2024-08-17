@@ -3,7 +3,7 @@ use leafwing_input_manager::Actionlike;
 use leafwing_input_manager::prelude::ActionState;
 use crate::player_commands::note_holder::NoteNodeHolder;
 use crate::player_commands::notes::{ClearNotesEvent, PlayNoteAction};
-use crate::player_controller::{MovementAction, PlayerCamera};
+use crate::player_controller::{PlayerAction, PlayerCamera};
 
 #[derive(Component, Default)]
 pub struct CommandStaff
@@ -194,14 +194,14 @@ pub fn enable_note_input(
 }
 
 pub fn disable_movement_input(
-	mut movement_input: Query<&mut ActionState<MovementAction>>,
+	mut movement_input: Query<&mut ActionState<PlayerAction>>,
 )
 {
 	movement_input.single_mut().disable();
 }
 
 pub fn enable_movement_input(
-	mut movement_input: Query<&mut ActionState<MovementAction>>,
+	mut movement_input: Query<&mut ActionState<PlayerAction>>,
 )
 {
 	movement_input.single_mut().enable();

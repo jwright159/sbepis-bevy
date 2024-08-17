@@ -25,19 +25,19 @@ pub fn rotate_camera_and_body(
 	{
 		let (mut camera_transform, mut camera_pitch, camera) = player_camera.single_mut();
 		if !camera.is_active { return; }
-
+		
 		camera_pitch.0 += delta.y * sensitivity.0;
 		camera_pitch.0 = camera_pitch.0.clamp(-PI / 2., PI / 2.);
 		camera_transform.rotation = Quat::from_rotation_x(-camera_pitch.0);
 	}
-
+	
 	{
 		let (mut body_transform, mut body_velocity) = player_body.single_mut();
-
+		
 		body_transform.rotation *= Quat::from_rotation_y(-delta.x * sensitivity.0);
-
+		
 		// Football imparts torque on body and LockedAxes doesn't work
 		// reject_from is projection on the plane normal to the vec
-		body_velocity.angvel = body_velocity.angvel.reject_from(body_transform.rotation * Vec3::Y);
+		body_velocity.angvel = body_velocity.angvel.reject_from(body_transform.rotation * Vec3::Z);
 	}
 }

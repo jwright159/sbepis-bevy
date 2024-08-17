@@ -1,5 +1,4 @@
 use bevy::prelude::*;
-
 use crate::gravity::AffectedByGravity;
 
 #[derive(Component)]
@@ -10,6 +9,6 @@ pub fn orient(
 )
 {
 	for (mut transform, gravity) in rigidbodies.iter_mut() {
-		transform.rotation = Quat::from_rotation_arc(transform.rotation * Vec3::Y, gravity.up) * transform.rotation;
+		transform.rotation = Quat::from_rotation_arc(transform.up().into(), gravity.up) * transform.rotation;
 	}
 }

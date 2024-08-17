@@ -1,11 +1,13 @@
 mod movement;
 mod orientation;
 mod camera_controls;
+mod interaction;
 
 use std::f32::consts::PI;
 use self::movement::*;
 use self::orientation::*;
 use self::camera_controls::*;
+use self::interaction::*;
 
 pub use self::camera_controls::{PlayerCamera, PlayerBody, MouseSensitivity};
 
@@ -13,13 +15,9 @@ use bevy::prelude::*;
 use bevy::render::mesh::CapsuleUvProfile;
 use bevy_rapier3d::prelude::*;
 use leafwing_input_manager::prelude::*;
-
 use crate::gravity::GravityRigidbodyBundle;
 use crate::gridbox_material;
-use crate::input::button_just_pressed;
-use crate::input::clamped_dual_axes_input;
-use crate::input::dual_axes_input;
-use crate::input::spawn_input_manager;
+use crate::input::*;
 
 pub struct PlayerControllerPlugin;
 impl Plugin for PlayerControllerPlugin
@@ -29,22 +27,24 @@ impl Plugin for PlayerControllerPlugin
 			.insert_resource(MouseSensitivity(0.003))
 			.insert_resource(PlayerSpeed { speed: 5.0, sprint_modifier: 2.0, jump_speed: 5.0 })
 			
-			.add_plugins(InputManagerPlugin::<MovementAction>::default())
+			.add_plugins(InputManagerPlugin::<PlayerAction>::default())
 			
 			.add_systems(Startup, (
 				setup,
 				spawn_input_manager(InputMap::default()
-					.with_dual_axis(MovementAction::Move, KeyboardVirtualDPad::WASD)
-					.with(MovementAction::Jump, KeyCode::Space)
-					.with_dual_axis(MovementAction::Look, MouseMove::default())
-					.with(MovementAction::Sprint, KeyCode::ShiftLeft)
+					.with_dual_axis(PlayerAction::Move, KeyboardVirtualDPad::WASD)
+					.with(PlayerAction::Jump, KeyCode::Space)
+					.with_dual_axis(PlayerAction::Look, MouseMove::default())
+					.with(PlayerAction::Sprint, KeyCode::ShiftLeft)
+					.with(PlayerAction::Use, MouseButton::Left)
 				),
 			))
 			.add_systems(Update, (
 				orient,
-				dual_axes_input(MovementAction::Look).pipe(rotate_camera_and_body),
-				clamped_dual_axes_input(MovementAction::Move).pipe(axes_to_ground_velocity).pipe(strafe),
-				jump.run_if(button_just_pressed(MovementAction::Jump)),
+				dual_axes_input(PlayerAction::Look).pipe(rotate_camera_and_body),
+				clamped_dual_axes_input(PlayerAction::Move).pipe(axes_to_ground_velocity).pipe(strafe),
+				jump.run_if(button_just_pressed(PlayerAction::Jump)),
+				button_input(PlayerAction::Use).pipe(attack),
 			))
 			;
 	}
@@ -57,12 +57,10 @@ fn setup(
 	asset_server: Res<AssetServer>,
 )
 {
-	let position = Vec3::new(5.0, 10.0, 0.0);
-	
 	let body = commands.spawn((
 		Name::new("Player Body"),
 		PbrBundle {
-			transform: Transform::from_translation(position),
+			transform: Transform::from_translation(Vec3::new(5.0, 10.0, 0.0)),
 			mesh: meshes.add(Capsule3d::new(0.25, 1.0).mesh().rings(1).latitudes(8).longitudes(16).uv_profile(CapsuleUvProfile::Fixed)),
 			material: gridbox_material("white", &mut materials, &asset_server),
 			..default()
@@ -72,7 +70,8 @@ fn setup(
 		GravityOrientation,
 		PlayerBody,
 		LockedAxes::ROTATION_LOCKED,
-	)).id();
+	))
+		.id();
 	
 	commands.spawn((
 		Name::new("Player Camera"),
@@ -86,25 +85,51 @@ fn setup(
 		},
 		PlayerCamera,
 		Pitch(0.0),
-	)).set_parent(body);
+	))
+		.set_parent(body);
+	
+	let hammer_pivot = commands.spawn((
+		Name::new("Hammer Pivot"),
+		TransformBundle::from_transform(Transform::from_translation(Vec3::ZERO)),
+		VisibilityBundle::default(),
+		HammerPivot,
+	))
+		.set_parent(body)
+		.id();
+	
+	commands.spawn((
+		Name::new("Hammer Head"),
+		PbrBundle {
+			transform: Transform::default()
+				.with_translation(Vec3::Y * 1.)
+				.with_rotation(Quat::from_rotation_x(PI / 2.)),
+			mesh: meshes.add(Capsule3d::new(0.1, 0.5).mesh().rings(1).latitudes(8).longitudes(16).uv_profile(CapsuleUvProfile::Fixed)),
+			material: gridbox_material("red", &mut materials, &asset_server),
+			..default()
+		},
+		Collider::capsule_y(0.25, 0.1),
+	))
+		.set_parent(hammer_pivot);
 }
 
 #[derive(Clone, Copy, Eq, PartialEq, Hash, Reflect, Debug)]
-pub enum MovementAction
+pub enum PlayerAction
 {
 	Move,
 	Jump,
 	Look,
 	Sprint,
+	Use,
 }
 
-impl Actionlike for MovementAction {
+impl Actionlike for PlayerAction {
 	fn input_control_kind(&self) -> InputControlKind {
 		match self {
-			MovementAction::Move => InputControlKind::DualAxis,
-			MovementAction::Jump => InputControlKind::Button,
-			MovementAction::Look => InputControlKind::DualAxis,
-			MovementAction::Sprint => InputControlKind::Button,
+			PlayerAction::Move => InputControlKind::DualAxis,
+			PlayerAction::Jump => InputControlKind::Button,
+			PlayerAction::Look => InputControlKind::DualAxis,
+			PlayerAction::Sprint => InputControlKind::Button,
+			PlayerAction::Use => InputControlKind::Button,
 		}
 	}
 }
