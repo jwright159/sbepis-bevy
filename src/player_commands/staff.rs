@@ -1,5 +1,6 @@
 use bevy::prelude::*;
-use leafwing_input_manager::{prelude::ToggleActions, Actionlike};
+use leafwing_input_manager::Actionlike;
+use leafwing_input_manager::prelude::ActionState;
 use crate::player_commands::note_holder::NoteNodeHolder;
 use crate::player_commands::notes::{ClearNotesEvent, PlayNoteAction};
 use crate::player_controller::{MovementAction, PlayerCamera};
@@ -141,7 +142,7 @@ pub fn spawn_debug_notes(
 		});
 }
 
-#[derive(Actionlike, Clone, Copy, Eq, PartialEq, Hash, Reflect)]
+#[derive(Actionlike, Clone, Copy, Eq, PartialEq, Hash, Reflect, Debug)]
 pub enum ToggleStaffAction {
 	ToggleStaff,
 }
@@ -179,31 +180,31 @@ pub fn hide_staff(
 }
 
 pub fn disable_note_input(
-	mut note_input: ResMut<ToggleActions<PlayNoteAction>>,
+	mut note_input: Query<&mut ActionState<PlayNoteAction>>,
 )
 {
-	note_input.enabled = false;
+	note_input.single_mut().disable();
 }
 
 pub fn enable_note_input(
-	mut note_input: ResMut<ToggleActions<PlayNoteAction>>,
+	mut note_input: Query<&mut ActionState<PlayNoteAction>>,
 )
 {
-	note_input.enabled = true;
+	note_input.single_mut().enable();
 }
 
 pub fn disable_movement_input(
-	mut movement_input: ResMut<ToggleActions<MovementAction>>,
+	mut movement_input: Query<&mut ActionState<MovementAction>>,
 )
 {
-	movement_input.enabled = false;
+	movement_input.single_mut().disable();
 }
 
 pub fn enable_movement_input(
-	mut movement_input: ResMut<ToggleActions<MovementAction>>,
+	mut movement_input: Query<&mut ActionState<MovementAction>>,
 )
 {
-	movement_input.enabled = true;
+	movement_input.single_mut().enable();
 }
 
 pub fn send_clear_notes(

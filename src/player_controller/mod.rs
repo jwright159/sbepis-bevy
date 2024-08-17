@@ -34,11 +34,10 @@ impl Plugin for PlayerControllerPlugin
 			.add_systems(Startup, (
 				setup,
 				spawn_input_manager(InputMap::default()
-					.insert(MovementAction::Move, VirtualDPad::wasd())
-					.insert(MovementAction::Jump, KeyCode::Space)
-					.insert(MovementAction::Look, DualAxis::mouse_motion())
-					.insert(MovementAction::Sprint, KeyCode::ShiftLeft)
-					.build()
+					.with_dual_axis(MovementAction::Move, KeyboardVirtualDPad::WASD)
+					.with(MovementAction::Jump, KeyCode::Space)
+					.with_dual_axis(MovementAction::Look, MouseMove::default())
+					.with(MovementAction::Sprint, KeyCode::ShiftLeft)
 				),
 			))
 			.add_systems(Update, (
@@ -90,11 +89,22 @@ fn setup(
 	)).set_parent(body);
 }
 
-#[derive(Actionlike, Clone, Copy, Eq, PartialEq, Hash, Reflect)]
+#[derive(Clone, Copy, Eq, PartialEq, Hash, Reflect, Debug)]
 pub enum MovementAction
 {
 	Move,
 	Jump,
 	Look,
 	Sprint,
+}
+
+impl Actionlike for MovementAction {
+	fn input_control_kind(&self) -> InputControlKind {
+		match self {
+			MovementAction::Move => InputControlKind::DualAxis,
+			MovementAction::Jump => InputControlKind::Button,
+			MovementAction::Look => InputControlKind::DualAxis,
+			MovementAction::Sprint => InputControlKind::Button,
+		}
+	}
 }

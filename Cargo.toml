@@ -22,7 +22,7 @@ bevy_panorbit_camera = { version = "0.19.1", optional = true }
 bevy_rapier3d = "0.27.0"
 image = "0.25.2"
 itertools = "0.13.0"
-leafwing-input-manager = "0.14.0"
+leafwing-input-manager = "0.15.0"
 num-traits = "0.2.19"
 winit = "0.30.4"
 component_groups = { path = "component_groups" }

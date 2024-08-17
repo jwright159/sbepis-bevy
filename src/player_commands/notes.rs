@@ -153,7 +153,7 @@ pub struct NotePlayedEvent(pub Note);
 #[derive(Event)]
 pub struct ClearNotesEvent;
 
-#[derive(Actionlike, Clone, Copy, Eq, PartialEq, Hash, Reflect)]
+#[derive(Actionlike, Clone, Copy, Eq, PartialEq, Hash, Reflect, Debug)]
 pub enum PlayNoteAction {
 	C0, CS0, D0, DS0, E0, F0, FS0, G0, GS0, A0, AS0, B0,
 	C1, CS1, D1, DS1, E1, F1, FS1, G1, GS1, A1, AS1, B1,

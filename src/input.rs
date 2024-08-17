@@ -16,13 +16,6 @@ pub fn spawn_input_manager<Action: Actionlike>(
 	}).into_configs()
 }
 
-pub fn spawn_input_manager_with_bindings<Action: Actionlike>(
-	bindings: impl IntoIterator<Item = (Action, impl Into<UserInput>)>,
-) -> SystemConfigs
-{
-	spawn_input_manager(InputMap::new(bindings))
-}
-
 pub fn action_event<Action: Actionlike + Copy, EventType: Event>(
 	event_generator: impl Fn(Action) -> EventType + Send + Sync + 'static,
 ) -> SystemConfigs
@@ -89,7 +82,7 @@ pub fn dual_axes_input<Action: Actionlike + Copy>(
 	|
 	{
 		let input = input.single();
-		input.axis_pair(&action).unwrap_or_default().xy()
+		input.axis_pair(&action)
 	}
 }
 
@@ -102,6 +95,6 @@ pub fn clamped_dual_axes_input<Action: Actionlike + Copy>(
 	|
 	{
 		let input = input.single();
-		input.clamped_axis_pair(&action).unwrap_or_default().xy()
+		input.clamped_axis_pair(&action)
 	}
 }
