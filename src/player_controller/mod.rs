@@ -45,7 +45,8 @@ impl Plugin for PlayerControllerPlugin
 				dual_axes_input(PlayerAction::Look).pipe(rotate_camera_and_body),
 				clamped_dual_axes_input(PlayerAction::Move).pipe(axes_to_ground_velocity).pipe(strafe),
 				jump.run_if(button_just_pressed(PlayerAction::Jump)),
-				button_input(PlayerAction::Use).pipe(attack),
+				attack.run_if(button_just_pressed(PlayerAction::Use)),
+				animate_hammer,
 				collide_hammer,
 				kill_entities_with_no_health,
 			))
@@ -115,6 +116,7 @@ fn setup(
 		ActiveEvents::COLLISION_EVENTS,
 		Hammer {
 			damage: 1.0,
+			pivot: hammer_pivot,
 		},
 	))
 		.set_parent(hammer_pivot);

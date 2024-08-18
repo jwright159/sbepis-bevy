@@ -1,19 +1,20 @@
 use bevy::prelude::*;
 use num_traits::Float;
 use std::{ops::{Add, Sub, Mul, Div}, array::IntoIter};
+use std::ops::Range;
 
 pub trait MapRange<T>
 {
-	fn map(self, min_x: T, max_x: T, min_y: T, max_y: T) -> T;
+	fn map_range(self, range_in: Range<T>, range_out: Range<T>) -> T;
 }
 impl<T, F> MapRange<T> for F
 where
 	T: Add<Output = T> + Sub<Output = T> + Div<Output = T> + Mul<Output = T> + Copy,
 	F: Float + Sub<T, Output = T>,
 {
-	fn map(self, min_x: T, max_x: T, min_y: T, max_y: T) -> T
+	fn map_range(self, range_in: Range<T>, range_out: Range<T>) -> T
 	{
-		(self - min_x) / (max_x - min_x) * (max_y - min_y) + min_y
+		(self - range_in.start) / (range_in.end - range_in.start) * (range_out.end - range_out.start) + range_out.start
 	}
 }
 

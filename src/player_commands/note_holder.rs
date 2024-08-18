@@ -19,7 +19,7 @@ impl NoteNodeHolder
 
 	pub fn note_top(&self, note: &Note) -> f32
 	{
-		(note.position() as f32).map(Note::E4.position() as f32, Note::F5.position() as f32, F5_LINE_TOP + STAFF_HEIGHT - QUARTER_NOTE_WEIRD_SPACING_OFFSET, F5_LINE_TOP) - QUARTER_NOTE_TOP_OFFSET
+		(note.position() as f32).map_range((Note::E4.position() as f32)..(Note::F5.position() as f32), (F5_LINE_TOP + STAFF_HEIGHT - QUARTER_NOTE_WEIRD_SPACING_OFFSET)..F5_LINE_TOP) - QUARTER_NOTE_TOP_OFFSET
 	}
 }
 
