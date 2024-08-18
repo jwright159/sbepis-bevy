@@ -10,6 +10,7 @@ use self::camera_controls::*;
 use self::interaction::*;
 
 pub use self::camera_controls::{PlayerCamera, PlayerBody, MouseSensitivity};
+pub use self::interaction::Health;
 
 use bevy::prelude::*;
 use bevy::render::mesh::CapsuleUvProfile;
@@ -45,6 +46,8 @@ impl Plugin for PlayerControllerPlugin
 				clamped_dual_axes_input(PlayerAction::Move).pipe(axes_to_ground_velocity).pipe(strafe),
 				jump.run_if(button_just_pressed(PlayerAction::Jump)),
 				button_input(PlayerAction::Use).pipe(attack),
+				collide_hammer,
+				kill_entities_with_no_health,
 			))
 			;
 	}
@@ -108,6 +111,11 @@ fn setup(
 			..default()
 		},
 		Collider::capsule_y(0.25, 0.1),
+		Sensor,
+		ActiveEvents::COLLISION_EVENTS,
+		Hammer {
+			damage: 1.0,
+		},
 	))
 		.set_parent(hammer_pivot);
 }

@@ -1,6 +1,7 @@
 use std::f32::consts::{PI, TAU};
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
+use crate::player_controller::Health;
 use super::gravity::*;
 
 #[derive(Bundle)]
@@ -63,6 +64,7 @@ pub struct BoxBundle
 	pbr: PbrBundle,
 	collider: Collider,
 	gravity_rigidbody_bundle: GravityRigidbodyBundle,
+	health: Health,
 }
 
 impl BoxBundle
@@ -89,6 +91,7 @@ impl BoxBundle
 				..default()
 			},
 			collider: Collider::cuboid(0.5, 0.5, 0.5),
+			health: Health { health: 5.0 },
 		}
 	}
 }
