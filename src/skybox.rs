@@ -65,7 +65,7 @@ fn is_skybox_parts_loaded(
 				LoadState::NotLoaded => false,
 				LoadState::Loading => false,
 				LoadState::Loaded => true,
-				LoadState::Failed(error) => panic!("Skybox loading failed: {error}"),
+				LoadState::Failed(error) => panic!("Skybox loading failed: {}", error),
 			}
 		})
 	})
