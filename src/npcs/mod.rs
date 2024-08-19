@@ -8,18 +8,22 @@ use bevy_rapier3d::geometry::Collider;
 
 use crate::gravity::GravityRigidbodyBundle;
 use crate::gridbox_material;
-use crate::player_controller::{strafe, GravityOrientation, Health};
+use crate::player_controller::{strafe, GravityOrientation, Health, PlayerBody};
 
 pub struct NpcPlugin;
 impl Plugin for NpcPlugin {
 	fn build(&self, app: &mut App) {
 		app.add_systems(Startup, setup);
-		app.add_systems(Update, random_vec2.pipe(strafe::<Npc>));
+		app.add_systems(Update, random_vec2.pipe(strafe::<Consort>));
+		app.add_systems(Update, target_player.pipe(strafe::<Imp>));
 	}
 }
 
 #[derive(Component)]
-pub struct Npc;
+pub struct Consort;
+
+#[derive(Component)]
+pub struct Imp;
 
 fn setup(
 	mut commands: Commands,
@@ -45,7 +49,32 @@ fn setup(
 		GravityRigidbodyBundle::default(),
 		Collider::capsule_y(0.25, 0.25),
 		GravityOrientation,
-		Npc,
+		Consort,
+		LockedAxes::ROTATION_LOCKED,
+		RandomInput::default(),
+		Health(3.0),
+	));
+
+	commands.spawn((
+		Name::new("Imp"),
+		PbrBundle {
+			transform: Transform::from_translation(Vec3::new(-6.0, 10.0, 0.0)),
+			mesh: meshes.add(
+				Capsule3d::new(0.25, 0.5)
+					.mesh()
+					.rings(1)
+					.latitudes(8)
+					.longitudes(16)
+					.uv_profile(CapsuleUvProfile::Fixed),
+			),
+			material: gridbox_material("brown", &mut materials, &asset_server),
+			..default()
+		},
+		GravityRigidbodyBundle::default(),
+		Collider::capsule_y(0.25, 0.25),
+		GravityOrientation,
+		Imp,
+		TargetPlayer,
 		LockedAxes::ROTATION_LOCKED,
 		RandomInput::default(),
 		Health(3.0),
@@ -78,6 +107,27 @@ pub fn random_vec2(
 		}
 
 		map.insert(entity, random_input.input);
+	}
+	map
+}
+
+#[derive(Component)]
+pub struct TargetPlayer;
+
+pub fn target_player(
+	target_players: Query<(Entity, &Transform), With<TargetPlayer>>,
+	player: Query<&Transform, With<PlayerBody>>,
+) -> HashMap<Entity, Vec2> {
+	let mut map = HashMap::default();
+	let player_transform = match player.get_single() {
+		Ok(player) => player,
+		Err(_) => return map,
+	};
+	for (entity, transform) in target_players.iter() {
+		let direction = player_transform.translation - transform.translation;
+		let direction_local = transform.rotation.inverse() * direction;
+		let input = direction_local.xz().normalize();
+		map.insert(entity, input);
 	}
 	map
 }

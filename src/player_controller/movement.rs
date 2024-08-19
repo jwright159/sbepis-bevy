@@ -13,11 +13,12 @@ pub struct PlayerSpeed {
 }
 
 pub fn axes_to_ground_velocity(
-	In(axes_input): In<Vec2>,
+	In(mut axes_input): In<Vec2>,
 	input: Query<&ActionState<PlayerAction>>,
 	speed: Res<PlayerSpeed>,
 ) -> Vec2 {
 	let input = input.single();
+	axes_input.y *= -1.;
 	axes_input
 		* speed.speed
 		* if input.pressed(&PlayerAction::Sprint) {
@@ -45,7 +46,7 @@ pub fn strafe<Marker: Component>(
 			Some(speed) => speed,
 			None => continue,
 		};
-		let delta = transform.rotation * Vec3::new(speed.x, 0., -speed.y);
+		let delta = transform.rotation * Vec3::new(speed.x, 0., speed.y);
 		velocity.linvel = velocity.linvel.project_onto(transform.up().into()) + delta;
 	}
 }
