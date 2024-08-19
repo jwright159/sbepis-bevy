@@ -3,7 +3,7 @@ use std::f32::consts::{PI, TAU};
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 
-use crate::player_controller::Health;
+use crate::player_controller::{GravityOrientation, Health, MovementInput};
 
 use super::gravity::*;
 
@@ -84,6 +84,41 @@ impl BoxBundle {
 			},
 			collider: Collider::cuboid(0.5, 0.5, 0.5),
 			health: Health(5.0),
+		}
+	}
+}
+
+#[derive(Bundle)]
+pub struct EntityBundle {
+	pbr: PbrBundle,
+	gravity_rigidbody: GravityRigidbodyBundle,
+	collider: Collider,
+	orientation: GravityOrientation,
+	movement_input: MovementInput,
+	locked_axes: LockedAxes,
+	health: Health,
+}
+
+impl EntityBundle {
+	pub fn new(
+		transform: Transform,
+		mesh: Handle<Mesh>,
+		material: Handle<StandardMaterial>,
+		collider: Collider,
+	) -> Self {
+		EntityBundle {
+			pbr: PbrBundle {
+				transform,
+				mesh,
+				material,
+				..default()
+			},
+			gravity_rigidbody: GravityRigidbodyBundle::default(),
+			collider,
+			orientation: GravityOrientation,
+			movement_input: MovementInput::default(),
+			locked_axes: LockedAxes::ROTATION_LOCKED,
+			health: Health(3.0),
 		}
 	}
 }

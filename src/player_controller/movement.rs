@@ -1,5 +1,4 @@
 use bevy::prelude::*;
-use bevy::utils::HashMap;
 use bevy_rapier3d::prelude::*;
 use leafwing_input_manager::prelude::ActionState;
 
@@ -12,41 +11,30 @@ pub struct PlayerSpeed {
 	pub jump_speed: f32,
 }
 
+#[derive(Component, Deref, DerefMut, Default)]
+pub struct MovementInput(pub Vec2);
+
 pub fn axes_to_ground_velocity(
 	In(mut axes_input): In<Vec2>,
-	input: Query<&ActionState<PlayerAction>>,
+	key_input: Query<&ActionState<PlayerAction>>,
+	mut input: Query<&mut MovementInput, With<PlayerBody>>,
 	speed: Res<PlayerSpeed>,
-) -> Vec2 {
-	let input = input.single();
+) {
+	let key_input = key_input.single();
+	let mut input = input.single_mut();
 	axes_input.y *= -1.;
-	axes_input
+	input.0 = axes_input
 		* speed.speed
-		* if input.pressed(&PlayerAction::Sprint) {
+		* if key_input.pressed(&PlayerAction::Sprint) {
 			speed.sprint_modifier
 		} else {
 			1.0
-		}
-}
-
-pub fn wrap_velocity_in_hashmap(
-	In(speed): In<Vec2>,
-	mut body: Query<Entity, With<PlayerBody>>,
-) -> HashMap<Entity, Vec2> {
-	let mut map = HashMap::default();
-	map.insert(body.single_mut(), speed);
-	map
-}
-
-pub fn strafe<Marker: Component>(
-	In(speeds): In<HashMap<Entity, Vec2>>,
-	mut bodies: Query<(Entity, &mut Velocity, &Transform), With<Marker>>,
-) {
-	for (entity, mut velocity, transform) in bodies.iter_mut() {
-		let speed = match speeds.get(&entity) {
-			Some(speed) => speed,
-			None => continue,
 		};
-		let delta = transform.rotation * Vec3::new(speed.x, 0., speed.y);
+}
+
+pub fn strafe(mut bodies: Query<(&mut Velocity, &Transform, &MovementInput)>) {
+	for (mut velocity, transform, input) in bodies.iter_mut() {
+		let delta = transform.rotation * Vec3::new(input.x, 0., input.y);
 		velocity.linvel = velocity.linvel.project_onto(transform.up().into()) + delta;
 	}
 }

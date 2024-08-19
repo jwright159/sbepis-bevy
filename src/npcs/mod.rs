@@ -2,28 +2,20 @@ use std::time::Duration;
 
 use bevy::prelude::*;
 use bevy::render::mesh::CapsuleUvProfile;
-use bevy::utils::HashMap;
-use bevy_rapier3d::dynamics::LockedAxes;
 use bevy_rapier3d::geometry::Collider;
 
-use crate::gravity::GravityRigidbodyBundle;
 use crate::gridbox_material;
-use crate::player_controller::{strafe, GravityOrientation, Health, PlayerBody};
+use crate::main_bundles::EntityBundle;
+use crate::player_controller::{MovementInput, PlayerBody};
 
 pub struct NpcPlugin;
 impl Plugin for NpcPlugin {
 	fn build(&self, app: &mut App) {
 		app.add_systems(Startup, setup);
-		app.add_systems(Update, random_vec2.pipe(strafe::<Consort>));
-		app.add_systems(Update, target_player.pipe(strafe::<Imp>));
+		app.add_systems(Update, random_vec2);
+		app.add_systems(Update, target_player);
 	}
 }
-
-#[derive(Component)]
-pub struct Consort;
-
-#[derive(Component)]
-pub struct Imp;
 
 fn setup(
 	mut commands: Commands,
@@ -33,9 +25,9 @@ fn setup(
 ) {
 	commands.spawn((
 		Name::new("Consort"),
-		PbrBundle {
-			transform: Transform::from_translation(Vec3::new(-5.0, 10.0, 0.0)),
-			mesh: meshes.add(
+		EntityBundle::new(
+			Transform::from_translation(Vec3::new(-5.0, 10.0, 0.0)),
+			meshes.add(
 				Capsule3d::new(0.25, 0.5)
 					.mesh()
 					.rings(1)
@@ -43,23 +35,17 @@ fn setup(
 					.longitudes(16)
 					.uv_profile(CapsuleUvProfile::Fixed),
 			),
-			material: gridbox_material("magenta", &mut materials, &asset_server),
-			..default()
-		},
-		GravityRigidbodyBundle::default(),
-		Collider::capsule_y(0.25, 0.25),
-		GravityOrientation,
-		Consort,
-		LockedAxes::ROTATION_LOCKED,
+			gridbox_material("magenta", &mut materials, &asset_server),
+			Collider::capsule_y(0.25, 0.25),
+		),
 		RandomInput::default(),
-		Health(3.0),
 	));
 
 	commands.spawn((
 		Name::new("Imp"),
-		PbrBundle {
-			transform: Transform::from_translation(Vec3::new(-6.0, 10.0, 0.0)),
-			mesh: meshes.add(
+		EntityBundle::new(
+			Transform::from_translation(Vec3::new(-6.0, 10.0, 0.0)),
+			meshes.add(
 				Capsule3d::new(0.25, 0.5)
 					.mesh()
 					.rings(1)
@@ -67,17 +53,10 @@ fn setup(
 					.longitudes(16)
 					.uv_profile(CapsuleUvProfile::Fixed),
 			),
-			material: gridbox_material("brown", &mut materials, &asset_server),
-			..default()
-		},
-		GravityRigidbodyBundle::default(),
-		Collider::capsule_y(0.25, 0.25),
-		GravityOrientation,
-		Imp,
+			gridbox_material("brown", &mut materials, &asset_server),
+			Collider::capsule_y(0.25, 0.25),
+		),
 		TargetPlayer,
-		LockedAxes::ROTATION_LOCKED,
-		RandomInput::default(),
-		Health(3.0),
 	));
 }
 
@@ -88,13 +67,8 @@ pub struct RandomInput {
 	pub time_to_change: Duration,
 }
 
-pub fn random_vec2(
-	mut input: Query<(Entity, &mut RandomInput)>,
-	time: Res<Time>,
-) -> HashMap<Entity, Vec2> {
-	let mut map = HashMap::default();
-
-	for (entity, mut random_input) in input.iter_mut() {
+pub fn random_vec2(mut input: Query<(&mut RandomInput, &mut MovementInput)>, time: Res<Time>) {
+	for (mut random_input, mut movement_input) in input.iter_mut() {
 		random_input.time_since_last_change += time.delta();
 
 		if random_input.time_since_last_change >= random_input.time_to_change {
@@ -106,28 +80,22 @@ pub fn random_vec2(
 				Duration::from_secs_f32(rand::random::<f32>() * 2.0 + 1.0);
 		}
 
-		map.insert(entity, random_input.input);
+		movement_input.0 = random_input.input;
 	}
-	map
 }
 
 #[derive(Component)]
 pub struct TargetPlayer;
 
 pub fn target_player(
-	target_players: Query<(Entity, &Transform), With<TargetPlayer>>,
+	mut target_players: Query<(&Transform, &mut MovementInput), With<TargetPlayer>>,
 	player: Query<&Transform, With<PlayerBody>>,
-) -> HashMap<Entity, Vec2> {
-	let mut map = HashMap::default();
-	let player_transform = match player.get_single() {
-		Ok(player) => player,
-		Err(_) => return map,
-	};
-	for (entity, transform) in target_players.iter() {
+) {
+	let player_transform = player.single();
+	for (transform, mut input) in target_players.iter_mut() {
 		let direction = player_transform.translation - transform.translation;
 		let direction_local = transform.rotation.inverse() * direction;
-		let input = direction_local.xz().normalize();
-		map.insert(entity, input);
+		let input_direction = direction_local.xz().normalize();
+		input.0 = input_direction;
 	}
-	map
 }

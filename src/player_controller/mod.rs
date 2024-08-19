@@ -5,16 +5,16 @@ use bevy::render::mesh::CapsuleUvProfile;
 use bevy_rapier3d::prelude::*;
 use leafwing_input_manager::prelude::*;
 
-use crate::gravity::GravityRigidbodyBundle;
 use crate::gridbox_material;
 use crate::input::*;
+use crate::main_bundles::EntityBundle;
 
 use self::camera_controls::*;
 pub use self::camera_controls::{MouseSensitivity, PlayerBody, PlayerCamera};
 pub use self::interaction::Health;
 use self::interaction::*;
 use self::movement::*;
-pub use self::movement::{axes_to_ground_velocity, jump, strafe};
+pub use self::movement::{axes_to_ground_velocity, jump, MovementInput};
 pub use self::orientation::GravityOrientation;
 use self::orientation::*;
 
@@ -52,10 +52,8 @@ impl Plugin for PlayerControllerPlugin {
 				(
 					orient,
 					dual_axes_input(PlayerAction::Look).pipe(rotate_camera_and_body),
-					clamped_dual_axes_input(PlayerAction::Move)
-						.pipe(axes_to_ground_velocity)
-						.pipe(wrap_velocity_in_hashmap)
-						.pipe(strafe::<PlayerBody>),
+					clamped_dual_axes_input(PlayerAction::Move).pipe(axes_to_ground_velocity),
+					strafe,
 					jump::<PlayerBody>.run_if(button_just_pressed(PlayerAction::Jump)),
 					attack.run_if(button_just_pressed(PlayerAction::Use)),
 					animate_hammer,
@@ -75,9 +73,9 @@ fn setup(
 	let body = commands
 		.spawn((
 			Name::new("Player Body"),
-			PbrBundle {
-				transform: Transform::from_translation(Vec3::new(5.0, 10.0, 0.0)),
-				mesh: meshes.add(
+			EntityBundle::new(
+				Transform::from_translation(Vec3::new(5.0, 10.0, 0.0)),
+				meshes.add(
 					Capsule3d::new(0.25, 1.0)
 						.mesh()
 						.rings(1)
@@ -85,14 +83,10 @@ fn setup(
 						.longitudes(16)
 						.uv_profile(CapsuleUvProfile::Fixed),
 				),
-				material: gridbox_material("white", &mut materials, &asset_server),
-				..default()
-			},
-			GravityRigidbodyBundle::default(),
-			Collider::capsule_y(0.5, 0.25),
-			GravityOrientation,
+				gridbox_material("white", &mut materials, &asset_server),
+				Collider::capsule_y(0.5, 0.25),
+			),
 			PlayerBody,
-			LockedAxes::ROTATION_LOCKED,
 		))
 		.id();
 
