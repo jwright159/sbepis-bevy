@@ -1,24 +1,27 @@
-mod camera_controls;
-mod interaction;
-mod movement;
-mod orientation;
-
-use self::camera_controls::*;
-use self::interaction::*;
-use self::movement::*;
-use self::orientation::*;
 use std::f32::consts::PI;
 
-pub use self::camera_controls::{MouseSensitivity, PlayerBody, PlayerCamera};
-pub use self::interaction::Health;
-
-use crate::gravity::GravityRigidbodyBundle;
-use crate::gridbox_material;
-use crate::input::*;
 use bevy::prelude::*;
 use bevy::render::mesh::CapsuleUvProfile;
 use bevy_rapier3d::prelude::*;
 use leafwing_input_manager::prelude::*;
+
+use crate::gravity::GravityRigidbodyBundle;
+use crate::gridbox_material;
+use crate::input::*;
+
+use self::camera_controls::*;
+pub use self::camera_controls::{MouseSensitivity, PlayerBody, PlayerCamera};
+pub use self::interaction::Health;
+use self::interaction::*;
+use self::movement::*;
+pub use self::movement::{axes_to_ground_velocity, jump, strafe};
+pub use self::orientation::GravityOrientation;
+use self::orientation::*;
+
+mod camera_controls;
+mod interaction;
+mod movement;
+mod orientation;
 
 pub struct PlayerControllerPlugin;
 impl Plugin for PlayerControllerPlugin {
@@ -51,8 +54,9 @@ impl Plugin for PlayerControllerPlugin {
 					dual_axes_input(PlayerAction::Look).pipe(rotate_camera_and_body),
 					clamped_dual_axes_input(PlayerAction::Move)
 						.pipe(axes_to_ground_velocity)
-						.pipe(strafe),
-					jump.run_if(button_just_pressed(PlayerAction::Jump)),
+						.pipe(wrap_velocity_in_hashmap)
+						.pipe(strafe::<PlayerBody>),
+					jump::<PlayerBody>.run_if(button_just_pressed(PlayerAction::Jump)),
 					attack.run_if(button_just_pressed(PlayerAction::Use)),
 					animate_hammer,
 					collide_hammer,

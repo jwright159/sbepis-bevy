@@ -1,8 +1,11 @@
-use super::gravity::*;
-use crate::player_controller::Health;
+use std::f32::consts::{PI, TAU};
+
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
-use std::f32::consts::{PI, TAU};
+
+use crate::player_controller::Health;
+
+use super::gravity::*;
 
 #[derive(Bundle)]
 pub struct PlanetBundle {
@@ -80,7 +83,7 @@ impl BoxBundle {
 				..default()
 			},
 			collider: Collider::cuboid(0.5, 0.5, 0.5),
-			health: Health { health: 5.0 },
+			health: Health(5.0),
 		}
 	}
 }

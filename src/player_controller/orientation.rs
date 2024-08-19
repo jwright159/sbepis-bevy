@@ -1,5 +1,8 @@
-use crate::gravity::AffectedByGravity;
 use bevy::prelude::*;
+
+use crate::gravity::AffectedByGravity;
+
+// FIXME: Move this to a different plugin
 
 #[derive(Component)]
 pub struct GravityOrientation;

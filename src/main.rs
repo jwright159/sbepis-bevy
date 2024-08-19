@@ -1,17 +1,5 @@
 #![cfg_attr(not(feature = "terminal"), windows_subsystem = "windows")]
 
-mod gravity;
-mod input;
-mod main_bundles;
-#[cfg(feature = "overview_camera")]
-mod overview_camera;
-mod player_commands;
-mod player_controller;
-mod skybox;
-mod util;
-
-use self::main_bundles::*;
-
 use std::io::Cursor;
 
 use bevy::input::common_conditions::input_just_pressed;
@@ -20,6 +8,19 @@ use bevy::window::{CursorGrabMode, PrimaryWindow};
 use bevy::winit::WinitWindows;
 use bevy_rapier3d::prelude::*;
 use winit::window::Icon;
+
+use self::main_bundles::*;
+
+mod gravity;
+mod input;
+mod main_bundles;
+mod npcs;
+#[cfg(feature = "overview_camera")]
+mod overview_camera;
+mod player_commands;
+mod player_controller;
+mod skybox;
+mod util;
 
 fn main() {
 	let mut rapier_config = RapierConfiguration::new(1.);
@@ -56,6 +57,7 @@ fn main() {
 			player_commands::PlayerCommandsPlugin,
 			skybox::SkyboxPlugin,
 			player_controller::PlayerControllerPlugin,
+			npcs::NpcPlugin,
 			gravity::GravityPlugin,
 		))
 		.add_systems(Startup, (set_window_icon, setup, hide_mouse))
