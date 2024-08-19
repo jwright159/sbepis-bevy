@@ -11,6 +11,7 @@ use winit::window::Icon;
 
 use self::main_bundles::*;
 
+mod entity;
 mod gravity;
 mod input;
 mod main_bundles;
@@ -56,6 +57,7 @@ fn main() {
 			overview_camera::OverviewCameraPlugin,
 			player_commands::PlayerCommandsPlugin,
 			skybox::SkyboxPlugin,
+			entity::EntityPlugin,
 			player_controller::PlayerControllerPlugin,
 			npcs::NpcPlugin,
 			gravity::GravityPlugin,

@@ -11,17 +11,13 @@ use crate::main_bundles::EntityBundle;
 
 use self::camera_controls::*;
 pub use self::camera_controls::{MouseSensitivity, PlayerBody, PlayerCamera};
-pub use self::interaction::Health;
 use self::interaction::*;
 use self::movement::*;
-pub use self::movement::{axes_to_ground_velocity, jump, MovementInput};
-pub use self::orientation::GravityOrientation;
-use self::orientation::*;
+use self::movement::{axes_to_ground_velocity, jump};
 
 mod camera_controls;
 mod interaction;
 mod movement;
-mod orientation;
 
 pub struct PlayerControllerPlugin;
 impl Plugin for PlayerControllerPlugin {
@@ -50,15 +46,12 @@ impl Plugin for PlayerControllerPlugin {
 			.add_systems(
 				Update,
 				(
-					orient,
 					dual_axes_input(PlayerAction::Look).pipe(rotate_camera_and_body),
 					clamped_dual_axes_input(PlayerAction::Move).pipe(axes_to_ground_velocity),
-					strafe,
 					jump::<PlayerBody>.run_if(button_just_pressed(PlayerAction::Jump)),
 					attack.run_if(button_just_pressed(PlayerAction::Use)),
 					animate_hammer,
 					collide_hammer,
-					kill_entities_with_no_health,
 				),
 			);
 	}

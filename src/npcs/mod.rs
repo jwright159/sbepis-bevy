@@ -4,9 +4,10 @@ use bevy::prelude::*;
 use bevy::render::mesh::CapsuleUvProfile;
 use bevy_rapier3d::geometry::Collider;
 
+use crate::entity::MovementInput;
 use crate::gridbox_material;
 use crate::main_bundles::EntityBundle;
-use crate::player_controller::{MovementInput, PlayerBody};
+use crate::player_controller::PlayerBody;
 
 pub struct NpcPlugin;
 impl Plugin for NpcPlugin {

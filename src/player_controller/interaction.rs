@@ -4,6 +4,8 @@ use std::time::Duration;
 use bevy::prelude::*;
 use bevy_rapier3d::pipeline::CollisionEvent;
 
+use crate::entity::health::CanDealDamage;
+use crate::entity::Health;
 use crate::util::MapRange;
 
 #[derive(Component)]
@@ -15,16 +17,10 @@ pub struct Hammer {
 	pub pivot: Entity,
 }
 
-#[derive(Component)]
-pub struct Health(pub f32);
-
 #[derive(Component, Default)]
 pub struct InAnimation {
 	pub time: Duration,
 }
-
-#[derive(Component)]
-pub struct CanDealDamage;
 
 pub fn attack(
 	mut commands: Commands,
@@ -93,12 +89,4 @@ fn damage_with_hammer(mut health: Mut<Health>, hammer: &Hammer) {
 		"Hammer dealt {} damage, health is now {}",
 		hammer.damage, health.0
 	);
-}
-
-pub fn kill_entities_with_no_health(mut commands: Commands, healths: Query<(Entity, &Health)>) {
-	for (entity, health) in healths.iter() {
-		if health.0 <= 0. {
-			commands.entity(entity).despawn_recursive();
-		}
-	}
 }

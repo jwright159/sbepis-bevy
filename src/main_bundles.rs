@@ -3,9 +3,8 @@ use std::f32::consts::{PI, TAU};
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 
-use crate::player_controller::{GravityOrientation, Health, MovementInput};
-
-use super::gravity::*;
+use crate::entity::{GravityOrientation, Health, MovementInput};
+use crate::gravity::{GravityPoint, GravityPriority, GravityRigidbodyBundle};
 
 #[derive(Bundle)]
 pub struct PlanetBundle {

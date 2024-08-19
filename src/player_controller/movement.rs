@@ -2,6 +2,8 @@ use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 use leafwing_input_manager::prelude::ActionState;
 
+use crate::entity::MovementInput;
+
 use super::{PlayerAction, PlayerBody};
 
 #[derive(Resource)]
@@ -10,9 +12,6 @@ pub struct PlayerSpeed {
 	pub sprint_modifier: f32,
 	pub jump_speed: f32,
 }
-
-#[derive(Component, Deref, DerefMut, Default)]
-pub struct MovementInput(pub Vec2);
 
 pub fn axes_to_ground_velocity(
 	In(mut axes_input): In<Vec2>,
@@ -30,13 +29,6 @@ pub fn axes_to_ground_velocity(
 		} else {
 			1.0
 		};
-}
-
-pub fn strafe(mut bodies: Query<(&mut Velocity, &Transform, &MovementInput)>) {
-	for (mut velocity, transform, input) in bodies.iter_mut() {
-		let delta = transform.rotation * Vec3::new(input.x, 0., input.y);
-		velocity.linvel = velocity.linvel.project_onto(transform.up().into()) + delta;
-	}
 }
 
 pub fn jump<Marker: Component>(
