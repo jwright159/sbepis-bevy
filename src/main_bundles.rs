@@ -3,7 +3,7 @@ use std::f32::consts::{PI, TAU};
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 
-use crate::entity::{GravityOrientation, Health, MovementInput};
+use crate::entity::{GravityOrientation, GelViscosity, MovementInput};
 use crate::gravity::{GravityPoint, GravityPriority, GravityRigidbodyBundle};
 
 #[derive(Bundle)]
@@ -62,7 +62,7 @@ pub struct BoxBundle {
 	pbr: PbrBundle,
 	collider: Collider,
 	gravity_rigidbody_bundle: GravityRigidbodyBundle,
-	health: Health,
+	health: GelViscosity,
 }
 
 impl BoxBundle {
@@ -82,7 +82,7 @@ impl BoxBundle {
 				..default()
 			},
 			collider: Collider::cuboid(0.5, 0.5, 0.5),
-			health: Health(2.0),
+			health: GelViscosity(2.0),
 		}
 	}
 }
@@ -95,7 +95,7 @@ pub struct EntityBundle {
 	orientation: GravityOrientation,
 	movement_input: MovementInput,
 	locked_axes: LockedAxes,
-	health: Health,
+	health: GelViscosity,
 }
 
 impl EntityBundle {
@@ -117,7 +117,7 @@ impl EntityBundle {
 			orientation: GravityOrientation,
 			movement_input: MovementInput::default(),
 			locked_axes: LockedAxes::ROTATION_LOCKED,
-			health: Health(3.0),
+			health: GelViscosity(3.0),
 		}
 	}
 }

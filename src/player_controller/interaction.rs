@@ -5,7 +5,7 @@ use bevy::prelude::*;
 use bevy_rapier3d::pipeline::CollisionEvent;
 
 use crate::entity::health::CanDealDamage;
-use crate::entity::Health;
+use crate::entity::GelViscosity;
 use crate::util::MapRange;
 
 #[derive(Component)]
@@ -67,26 +67,33 @@ pub fn animate_hammer(
 }
 
 pub fn collide_hammer(
+	mut commands: Commands,
 	mut collision_events: EventReader<CollisionEvent>,
 	hammers: Query<&Hammer, With<CanDealDamage>>,
-	mut healths: Query<&mut Health>,
+	mut healths: Query<(Entity, &mut GelViscosity)>,
 ) {
 	for event in collision_events.read() {
 		if let CollisionEvent::Started(a, b, _flags) = event {
-			if let (Ok(hammer), Ok(health)) = (hammers.get(*a), healths.get_mut(*b)) {
-				damage_with_hammer(health, hammer);
+			if let (Ok(hammer), Ok((entity, health))) = (hammers.get(*a), healths.get_mut(*b)) {
+				damage_with_hammer(&mut commands, entity, health, hammer);
 			}
-			if let (Ok(hammer), Ok(health)) = (hammers.get(*b), healths.get_mut(*a)) {
-				damage_with_hammer(health, hammer);
+			if let (Ok(hammer), Ok((entity, health))) = (hammers.get(*b), healths.get_mut(*a)) {
+				damage_with_hammer(&mut commands, entity, health, hammer);
 			}
 		}
 	}
 }
 
-fn damage_with_hammer(mut health: Mut<Health>, hammer: &Hammer) {
+fn damage_with_hammer(
+	commands: &mut Commands,
+	entity: Entity,
+	mut health: Mut<GelViscosity>,
+	hammer: &Hammer,
+) {
+	if health.0 <= 0.0 {
+		commands.entity(entity).despawn_recursive();
+		return;
+	}
+
 	health.0 -= hammer.damage;
-	info!(
-		"Hammer dealt {} damage, health is now {}",
-		hammer.damage, health.0
-	);
 }

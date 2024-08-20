@@ -5,7 +5,7 @@ use bevy::render::mesh::CapsuleUvProfile;
 use bevy_rapier3d::geometry::Collider;
 
 use crate::entity::health::SpawnHealthBar;
-use crate::entity::MovementInput;
+use crate::entity::{GelViscosity, MovementInput};
 use crate::gridbox_material;
 use crate::main_bundles::EntityBundle;
 use crate::player_controller::PlayerBody;
@@ -14,8 +14,7 @@ pub struct NpcPlugin;
 impl Plugin for NpcPlugin {
 	fn build(&self, app: &mut App) {
 		app.add_systems(Startup, setup);
-		app.add_systems(Update, random_vec2);
-		app.add_systems(Update, target_player);
+		app.add_systems(Update, (random_vec2, target_player, heal));
 	}
 }
 
@@ -42,6 +41,7 @@ fn setup(
 		),
 		SpawnHealthBar,
 		RandomInput::default(),
+		Healing(0.2),
 	));
 
 	commands.spawn((
@@ -101,5 +101,14 @@ pub fn target_player(
 		let direction_local = transform.rotation.inverse() * direction;
 		let input_direction = direction_local.xz().normalize();
 		input.0 = input_direction;
+	}
+}
+
+#[derive(Component)]
+pub struct Healing(pub f32);
+
+pub fn heal(mut healings: Query<(&Healing, &mut GelViscosity)>, time: Res<Time>) {
+	for (healing, mut health) in healings.iter_mut() {
+		health.0 += healing.0 * time.delta_seconds();
 	}
 }
