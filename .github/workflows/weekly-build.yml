@@ -13,6 +13,9 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v2
 
+    - name: Install dependencies
+      run: sudo apt-get update && sudo apt-get install -y libasound2-dev
+
     - name: Set up Rust
       uses: actions-rs/toolchain@v1
       with:
@@ -72,8 +75,9 @@ jobs:
 
     - name: Configure rclone
       run: |
-        mkdir -p $env:USERPROFILE\.config\rclone
-        echo "${{ secrets.RCLONE_CONFIG }}" > $env:USERPROFILE\.config\rclone\rclone.conf
+        $rcloneConfigPath = "$env:USERPROFILE\.config\rclone\rclone.conf"
+        mkdir -p (Split-Path $rcloneConfigPath)
+        Set-Content -Path $rcloneConfigPath -Value "${{ secrets.RCLONE_CONFIG }}"
 
     - name: Upload build to Google Drive
       run: |
