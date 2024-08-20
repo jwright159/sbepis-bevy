@@ -4,6 +4,7 @@ use bevy::prelude::*;
 use bevy::render::mesh::CapsuleUvProfile;
 use bevy_rapier3d::geometry::Collider;
 
+use crate::entity::health::SpawnHealthBar;
 use crate::entity::MovementInput;
 use crate::gridbox_material;
 use crate::main_bundles::EntityBundle;
@@ -39,6 +40,7 @@ fn setup(
 			gridbox_material("magenta", &mut materials, &asset_server),
 			Collider::capsule_y(0.25, 0.25),
 		),
+		SpawnHealthBar,
 		RandomInput::default(),
 	));
 
@@ -57,6 +59,7 @@ fn setup(
 			gridbox_material("brown", &mut materials, &asset_server),
 			Collider::capsule_y(0.25, 0.25),
 		),
+		SpawnHealthBar,
 		TargetPlayer,
 	));
 }

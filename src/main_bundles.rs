@@ -82,7 +82,7 @@ impl BoxBundle {
 				..default()
 			},
 			collider: Collider::cuboid(0.5, 0.5, 0.5),
-			health: Health(5.0),
+			health: Health(2.0),
 		}
 	}
 }
