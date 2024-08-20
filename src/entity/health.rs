@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 
+use crate::player_controller::PlayerCamera;
 use crate::{gridbox_material, gridbox_material_extra, util::MapRange};
 
 #[derive(Component)]
@@ -22,6 +23,7 @@ pub struct GelVial {
 	pub root: Entity,
 	pub glass: Entity,
 	pub length: f32,
+	pub height: f32,
 }
 
 pub fn spawn_health_bars(
@@ -41,11 +43,7 @@ pub fn spawn_health_bars(
 		let height = 1.5;
 
 		let root = commands
-			.spawn((
-				TransformBundle::from_transform(Transform::from_translation(Vec3::Y * height)),
-				VisibilityBundle::default(),
-			))
-			.set_parent(entity)
+			.spawn((TransformBundle::default(), VisibilityBundle::default()))
 			.id();
 
 		commands
@@ -92,6 +90,7 @@ pub fn spawn_health_bars(
 					root,
 					glass,
 					length,
+					height,
 				},
 				PbrBundle {
 					mesh: meshes.add(Cuboid::from_size(size)),
@@ -122,17 +121,31 @@ pub fn update_health_bars_health(
 }
 
 pub fn update_health_bars_size(
-	mut health_bars: Query<(&GelVial, &mut Transform)>,
-	mut transforms: Query<&mut Transform, Without<GelVial>>,
+	mut health_bars: Query<(&GelVial, &mut Transform), Without<PlayerCamera>>,
+	mut transforms: Query<&mut Transform, (Without<GelVial>, Without<PlayerCamera>)>,
+	player_camera: Query<&GlobalTransform, (Without<GelVial>, With<PlayerCamera>)>,
 ) {
 	for (health_bar, mut transform) in health_bars.iter_mut() {
 		let percentage = (health_bar.health / health_bar.max_health).max(0.0);
 		transform.translation.x = percentage.map_range(0.0..1.0, (health_bar.length * 0.5)..0.0);
 		transform.scale = Vec3::new(percentage, 1.0, 1.0);
-		let mut glass_transform = transforms
-			.get_mut(health_bar.glass)
-			.expect("Health bar glass not found");
+
+		let [mut glass_transform, mut root_transform, entity_transform] =
+			match transforms.get_many_mut([health_bar.glass, health_bar.root, health_bar.entity]) {
+				Ok(transforms) => transforms,
+				Err(_) => {
+					continue; // Should be handled by update_health_bars_health
+				}
+			};
+		let player_camera_transform = player_camera.get_single().expect("Player camera not found");
+
 		glass_transform.translation.x = percentage.map_range(0.0..1.0, health_bar.length..0.0);
+
+		root_transform.translation = entity_transform.transform_point(Vec3::Y * health_bar.height);
+		root_transform.look_at(
+			player_camera_transform.translation(),
+			player_camera_transform.up(),
+		);
 	}
 }
 
