@@ -16,19 +16,20 @@ pub struct PlayerSpeed {
 pub fn axes_to_ground_velocity(
 	In(mut axes_input): In<Vec2>,
 	key_input: Query<&ActionState<PlayerAction>>,
-	mut input: Query<&mut MovementInput, With<PlayerBody>>,
+	mut input: Query<(&mut MovementInput, &Transform), With<PlayerBody>>,
 	speed: Res<PlayerSpeed>,
 ) {
 	let key_input = key_input.single();
-	let mut input = input.single_mut();
+	let (mut input, transform) = input.single_mut();
 	axes_input.y *= -1.;
-	input.0 = axes_input
+	let velocity = axes_input
 		* speed.speed
 		* if key_input.pressed(&PlayerAction::Sprint) {
 			speed.sprint_modifier
 		} else {
 			1.0
 		};
+	input.0 = transform.rotation * Vec3::new(velocity.x, 0.0, velocity.y);
 }
 
 pub fn jump<Marker: Component>(

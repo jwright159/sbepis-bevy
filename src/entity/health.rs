@@ -127,12 +127,12 @@ pub fn update_health_bars_size(
 ) {
 	for (health_bar, mut transform) in health_bars.iter_mut() {
 		let percentage = (health_bar.health / health_bar.max_health).max(0.0);
-		transform.translation.x = percentage.map_range(0.0..1.0, (-health_bar.length * 0.5)..0.0);
+		transform.translation.x = percentage.map_range(0.0..1.0, (health_bar.length * 0.5)..0.0);
 		transform.scale = Vec3::new(percentage, 1.0, 1.0);
 		let mut glass_transform = transforms
 			.get_mut(health_bar.glass)
 			.expect("Health bar glass not found");
-		glass_transform.translation.x = percentage.map_range(0.0..1.0, (-health_bar.length)..0.0);
+		glass_transform.translation.x = percentage.map_range(0.0..1.0, health_bar.length..0.0);
 	}
 }
 

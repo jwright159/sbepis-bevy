@@ -1,9 +1,9 @@
 use bevy::prelude::*;
 
 use self::health::*;
-pub use self::health::{GelViscosity, Healing};
-pub use self::movement::MovementInput;
+pub use self::health::{GelViscosity, Healing, SpawnHealthBar};
 use self::movement::*;
+pub use self::movement::{MovementInput, RandomInput, RotateTowardMovement, TargetPlayer};
 pub use self::orientation::GravityOrientation;
 use self::orientation::*;
 
@@ -18,7 +18,10 @@ impl Plugin for EntityPlugin {
 			Update,
 			(
 				orient,
+				random_vec2,
+				target_player,
 				strafe,
+				rotate_toward_movement,
 				update_health_bars_health,
 				update_health_bars_size,
 				heal,
