@@ -89,9 +89,18 @@ fn gridbox_material(
 	materials: &mut Assets<StandardMaterial>,
 	asset_server: &AssetServer,
 ) -> Handle<StandardMaterial> {
+	gridbox_material_extra(color, materials, asset_server, StandardMaterial::default())
+}
+
+fn gridbox_material_extra(
+	color: &str,
+	materials: &mut Assets<StandardMaterial>,
+	asset_server: &AssetServer,
+	material: StandardMaterial,
+) -> Handle<StandardMaterial> {
 	materials.add(StandardMaterial {
 		base_color_texture: Some(asset_server.load(gridbox_texture(color))),
-		..default()
+		..material
 	})
 }
 

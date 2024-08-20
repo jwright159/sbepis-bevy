@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
-pub use self::health::GelViscosity;
 use self::health::*;
+pub use self::health::{GelViscosity, Healing};
 pub use self::movement::MovementInput;
 use self::movement::*;
 pub use self::orientation::GravityOrientation;
@@ -21,6 +21,7 @@ impl Plugin for EntityPlugin {
 				strafe,
 				update_health_bars_health,
 				update_health_bars_size,
+				heal,
 			),
 		);
 	}

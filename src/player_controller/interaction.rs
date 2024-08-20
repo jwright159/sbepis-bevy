@@ -90,10 +90,10 @@ fn damage_with_hammer(
 	mut health: Mut<GelViscosity>,
 	hammer: &Hammer,
 ) {
-	if health.0 <= 0.0 {
+	if health.value <= 0.0 {
 		commands.entity(entity).despawn_recursive();
 		return;
 	}
 
-	health.0 -= hammer.damage;
+	health.value -= hammer.damage;
 }

@@ -1,9 +1,12 @@
 use bevy::prelude::*;
 
-use crate::gridbox_material;
+use crate::{gridbox_material, gridbox_material_extra, util::MapRange};
 
 #[derive(Component)]
-pub struct GelViscosity(pub f32);
+pub struct GelViscosity {
+	pub value: f32,
+	pub max: f32,
+}
 
 #[derive(Component)]
 pub struct CanDealDamage;
@@ -12,10 +15,13 @@ pub struct CanDealDamage;
 pub struct SpawnHealthBar;
 
 #[derive(Component)]
-pub struct HealthBar {
+pub struct GelVial {
 	pub entity: Entity,
 	pub health: f32,
 	pub max_health: f32,
+	pub root: Entity,
+	pub glass: Entity,
+	pub length: f32,
 }
 
 pub fn spawn_health_bars(
@@ -28,59 +34,114 @@ pub fn spawn_health_bars(
 	for entity in entities.iter() {
 		commands.entity(entity).remove::<SpawnHealthBar>();
 
-		let size = Vec3::new(1.0, 0.3, 0.3);
+		let length = 1.0;
+		let size = Vec3::new(length, 0.3, 0.3);
+		let glass_outline = 0.01;
 		let outline = 0.05;
-		commands
+		let height = 1.5;
+
+		let root = commands
 			.spawn((
-				Name::new("Health Bar"),
-				HealthBar {
-					entity,
-					health: 0.,
-					max_health: 5.,
-				},
-				PbrBundle {
-					transform: Transform::from_translation(Vec3::Y * 1.5),
-					mesh: meshes.add(Cuboid::from_size(size)),
-					material: gridbox_material("red", &mut materials, &asset_server),
-					..default()
-				},
+				TransformBundle::from_transform(Transform::from_translation(Vec3::Y * height)),
+				VisibilityBundle::default(),
 			))
-			.set_parent(entity);
+			.set_parent(entity)
+			.id();
 
 		commands
 			.spawn((
-				Name::new("Health Bar Outline"),
+				Name::new("Gel Vial Outline"),
 				PbrBundle {
-					transform: Transform::from_translation(Vec3::Y * 1.5).with_scale(Vec3::NEG_ONE),
+					transform: Transform::from_scale(Vec3::NEG_ONE),
 					mesh: meshes.add(Cuboid::from_size(size + Vec3::splat(outline))),
 					material: gridbox_material("grey1", &mut materials, &asset_server),
 					..default()
 				},
 			))
-			.set_parent(entity);
+			.set_parent(root);
+
+		let glass = commands
+			.spawn((
+				Name::new("Gel Vial Glass"),
+				PbrBundle {
+					mesh: meshes.add(Cuboid::from_size(size + Vec3::splat(glass_outline))),
+					material: gridbox_material_extra(
+						"clear",
+						&mut materials,
+						&asset_server,
+						StandardMaterial {
+							alpha_mode: AlphaMode::Blend,
+							clearcoat: 1.0,
+							clearcoat_perceptual_roughness: 0.0,
+							..default()
+						},
+					),
+					..default()
+				},
+			))
+			.set_parent(root)
+			.id();
+
+		commands
+			.spawn((
+				Name::new("Gel Vial"),
+				GelVial {
+					entity,
+					health: 0.,
+					max_health: 5.,
+					root,
+					glass,
+					length,
+				},
+				PbrBundle {
+					mesh: meshes.add(Cuboid::from_size(size)),
+					material: gridbox_material("red", &mut materials, &asset_server),
+					..default()
+				},
+			))
+			.set_parent(root);
 	}
 }
 
 pub fn update_health_bars_health(
 	mut commands: Commands,
-	mut health_bars: Query<&mut HealthBar>,
+	mut health_bars: Query<&mut GelVial>,
 	healths: Query<&GelViscosity>,
 ) {
 	for mut health_bar in health_bars.iter_mut() {
 		let health = match healths.get(health_bar.entity) {
 			Ok(health) => health,
 			Err(_) => {
-				commands.entity(health_bar.entity).despawn_recursive();
+				commands.entity(health_bar.root).despawn_recursive();
 				continue;
 			}
 		};
-		health_bar.health = health.0;
+		health_bar.health = health.value;
+		health_bar.max_health = health.max;
 	}
 }
 
-pub fn update_health_bars_size(mut health_bars: Query<(&HealthBar, &mut Transform)>) {
+pub fn update_health_bars_size(
+	mut health_bars: Query<(&GelVial, &mut Transform)>,
+	mut transforms: Query<&mut Transform, Without<GelVial>>,
+) {
 	for (health_bar, mut transform) in health_bars.iter_mut() {
-		transform.translation.x = transform.scale.x * 0.5 - 0.5;
-		transform.scale = Vec3::new(health_bar.health / health_bar.max_health, 1.0, 1.0);
+		let percentage = (health_bar.health / health_bar.max_health).max(0.0);
+		transform.translation.x = percentage.map_range(0.0..1.0, (-health_bar.length * 0.5)..0.0);
+		transform.scale = Vec3::new(percentage, 1.0, 1.0);
+		let mut glass_transform = transforms
+			.get_mut(health_bar.glass)
+			.expect("Health bar glass not found");
+		glass_transform.translation.x = percentage.map_range(0.0..1.0, (-health_bar.length)..0.0);
+	}
+}
+
+#[derive(Component)]
+pub struct Healing(pub f32);
+
+pub fn heal(mut healings: Query<(&Healing, &mut GelViscosity)>, time: Res<Time>) {
+	for (healing, mut health) in healings.iter_mut() {
+		health.value += healing.0 * time.delta_seconds();
+		health.value = health.value.min(health.max);
 	}
 }
