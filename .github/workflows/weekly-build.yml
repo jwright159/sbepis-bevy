@@ -1,8 +1,9 @@
-name: Weekly Build and Upload Rust Game
+name: Weekly Build
 
 on:
   schedule:
     - cron: '0 0 * * 0'  # Runs every Sunday at midnight UTC
+  workflow_dispatch:  # Allows manual triggering
 
 jobs:
   build-linux:
