@@ -1,12 +1,20 @@
+use std::any::type_name;
+
 use bevy::{ecs::schedule::SystemConfigs, prelude::*};
 use leafwing_input_manager::{plugin::InputManagerSystem, prelude::*};
 
 pub fn spawn_input_manager<Action: Actionlike>(input_map: InputMap<Action>) -> SystemConfigs {
 	(move |mut commands: Commands| {
-		commands.spawn(InputManagerBundle::<Action> {
-			input_map: input_map.clone(),
-			..default()
-		});
+		commands.spawn((
+			Name::new(format!(
+				"InputManager<{}>",
+				type_name::<Action>().split("::").last().unwrap()
+			)),
+			InputManagerBundle::<Action> {
+				input_map: input_map.clone(),
+				..default()
+			},
+		));
 	})
 	.into_configs()
 }

@@ -63,7 +63,13 @@ fn main() {
 			gravity::GravityPlugin,
 		))
 		.add_systems(Startup, (set_window_icon, setup, hide_mouse))
-		.add_systems(Update, (quit.run_if(input_just_pressed(KeyCode::Escape)),))
+		.add_systems(
+			Update,
+			(
+				quit.run_if(input_just_pressed(KeyCode::Escape)),
+				util::despawn_after_timer,
+			),
+		)
 		.run();
 }
 

@@ -49,3 +49,25 @@ impl IterElements<f32, 3> for Vec3 {
 		[self.x, self.y, self.z].into_iter()
 	}
 }
+
+#[derive(Component, Deref, DerefMut)]
+pub struct DespawnTimer(Timer);
+
+impl DespawnTimer {
+	pub fn new(duration: f32) -> Self {
+		Self(Timer::from_seconds(duration, TimerMode::Once))
+	}
+}
+
+pub fn despawn_after_timer(
+	mut commands: Commands,
+	time: Res<Time>,
+	mut query: Query<(Entity, &mut DespawnTimer)>,
+) {
+	for (entity, mut despawn_timer) in query.iter_mut() {
+		despawn_timer.tick(time.delta());
+		if despawn_timer.finished() {
+			commands.entity(entity).despawn_recursive();
+		}
+	}
+}

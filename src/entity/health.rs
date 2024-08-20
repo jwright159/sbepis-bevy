@@ -1,6 +1,9 @@
 use bevy::prelude::*;
+use bevy_rapier3d::prelude::Velocity;
 
+use crate::gravity::GravityRigidbodyBundle;
 use crate::player_controller::PlayerCamera;
+use crate::util::DespawnTimer;
 use crate::{gridbox_material, gridbox_material_extra, util::MapRange};
 
 #[derive(Component)]
@@ -43,7 +46,11 @@ pub fn spawn_health_bars(
 		let height = 1.5;
 
 		let root = commands
-			.spawn((TransformBundle::default(), VisibilityBundle::default()))
+			.spawn((
+				Name::new("Gel Vial Root"),
+				TransformBundle::default(),
+				VisibilityBundle::default(),
+			))
 			.id();
 
 		commands
@@ -102,18 +109,49 @@ pub fn spawn_health_bars(
 	}
 }
 
-pub fn update_health_bars_health(
+pub fn despawn_invalid_health_bars(
 	mut commands: Commands,
+	health_bars: Query<&GelVial>,
+	entities: Query<Entity>,
+	transforms: Query<&Transform>,
+) {
+	for health_bar in health_bars.iter() {
+		if let Err(_) = entities.get(health_bar.entity) {
+			let root_transform = transforms
+				.get(health_bar.root)
+				.expect("Gel vial root not found");
+
+			commands.entity(health_bar.glass).remove_parent().insert((
+				TransformBundle::from_transform(
+					Transform::from_translation(
+						root_transform.transform_point(Vec3::X * health_bar.length),
+					)
+					.with_rotation(root_transform.rotation),
+				),
+				GravityRigidbodyBundle {
+					velocity: Velocity {
+						linvel: root_transform.right().as_vec3()
+							+ root_transform.up().as_vec3() * 2.0,
+						angvel: root_transform.forward().as_vec3() * 90.0,
+					},
+					..default()
+				},
+				DespawnTimer::new(1.0),
+			));
+
+			commands.entity(health_bar.root).despawn_recursive();
+		};
+	}
+}
+
+pub fn update_health_bars_health(
 	mut health_bars: Query<&mut GelVial>,
 	healths: Query<&GelViscosity>,
 ) {
 	for mut health_bar in health_bars.iter_mut() {
 		let health = match healths.get(health_bar.entity) {
 			Ok(health) => health,
-			Err(_) => {
-				commands.entity(health_bar.root).despawn_recursive();
-				continue;
-			}
+			Err(_) => continue,
 		};
 		health_bar.health = health.value;
 		health_bar.max_health = health.max;
@@ -133,9 +171,7 @@ pub fn update_health_bars_size(
 		let [mut glass_transform, mut root_transform, entity_transform] =
 			match transforms.get_many_mut([health_bar.glass, health_bar.root, health_bar.entity]) {
 				Ok(transforms) => transforms,
-				Err(_) => {
-					continue; // Should be handled by update_health_bars_health
-				}
+				Err(_) => continue,
 			};
 		let player_camera_transform = player_camera.get_single().expect("Player camera not found");
 
