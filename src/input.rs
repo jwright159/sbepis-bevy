@@ -44,6 +44,7 @@ pub fn button_event<Action: Actionlike + Copy, EventType: Event>(
 	.after(InputManagerSystem::ManualControl)
 }
 
+#[allow(dead_code)]
 pub fn button_input<Action: Actionlike + Copy>(
 	action: Action,
 ) -> impl Fn(Query<&ActionState<Action>>) -> bool {
