@@ -46,7 +46,7 @@ jobs:
     - name: Upload build to Google Drive
       run: |
         DATE=$(date +%Y-%m-%d)
-        rclone copy sbepis-linux-$DATE.tar.gz gdrive:1Ggklf44X2xCzUimQXQ0K7bTO4IbOLUEC
+        rclone copy sbepis-linux-$DATE.tar.gz "gdrive:SBEPIS Builds"
 
   build-windows:
     runs-on: windows-latest
@@ -86,13 +86,24 @@ jobs:
     - name: Upload build to Google Drive
       run: |
         $DATE = (Get-Date -Format "yyyy-MM-dd")
-        rclone copy sbepis-windows-$DATE.zip gdrive:1Ggklf44X2xCzUimQXQ0K7bTO4IbOLUEC
+        rclone copy sbepis-windows-$DATE.zip "gdrive:SBEPIS Builds"
 
   notify-discord:
     runs-on: ubuntu-latest
     needs: [build-linux, build-windows]
 
     steps:
+    - name: Install rclone
+      run: |
+        curl https://rclone.org/install.sh | sudo bash
+
+    - name: Configure rclone
+      run: |
+        mkdir -p ~/.config/rclone
+        cat <<EOF > ~/.config/rclone/rclone.conf
+        ${{ secrets.RCLONE_CONFIG }}
+        EOF
+
     - name: Send Discord notification
       env:
         DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
@@ -100,7 +111,31 @@ jobs:
         DATE=$(date +%Y-%m-%d)
         LINUX_LINK=$(rclone link gdrive:1Ggklf44X2xCzUimQXQ0K7bTO4IbOLUEC/sbepis-linux-$DATE.tar.gz)
         WINDOWS_LINK=$(rclone link gdrive:1Ggklf44X2xCzUimQXQ0K7bTO4IbOLUEC/sbepis-windows-$DATE.zip)
+        EMBED_CONTENT=$(cat <<EOF
+        {
+          "embeds": [
+            {
+              "title": "New Builds Available!",
+              "description": "Date: $DATE",
+              "color": 5814783,
+              "fields": [
+                {
+                  "name": "Windows",
+                  "value": "[Download]($WINDOWS_LINK)",
+                  "inline": true
+                },
+                {
+                  "name": "Linux",
+                  "value": "[Download]($LINUX_LINK)",
+                  "inline": true
+                }
+              ]
+            }
+          ]
+        }
+        EOF
+        )
         curl -H "Content-Type: application/json" \
              -X POST \
-             -d "{\"content\": \"New builds are available!\\nDate: $DATE\\n[Windows]($WINDOWS_LINK) [Linux]($LINUX_LINK)\"}" \
+             -d "$EMBED_CONTENT" \
              $DISCORD_WEBHOOK_URL
