@@ -12,6 +12,7 @@ use winit::window::Icon;
 use self::main_bundles::*;
 
 mod entity;
+mod fray;
 mod gravity;
 mod input;
 mod main_bundles;
@@ -61,6 +62,7 @@ fn main() {
 			player_controller::PlayerControllerPlugin,
 			npcs::NpcPlugin,
 			gravity::GravityPlugin,
+			fray::FrayPlugin,
 		))
 		.add_systems(Startup, (set_window_icon, setup, hide_mouse))
 		.add_systems(
