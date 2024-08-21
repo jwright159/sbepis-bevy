@@ -117,7 +117,7 @@ jobs:
             {
               "title": "New Builds Available!",
               "description": "Date: $DATE",
-              "color": 5814783,
+              "color": 240116,
               "fields": [
                 {
                   "name": "Windows",
