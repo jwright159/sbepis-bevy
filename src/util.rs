@@ -6,6 +6,8 @@ use std::{
 	ops::{Add, Div, Mul, Sub},
 };
 
+use crate::player_controller::{PlayerBody, PlayerCamera};
+
 pub trait MapRange<T> {
 	fn map_range(self, range_in: Range<T>, range_out: Range<T>) -> T;
 }
@@ -69,5 +71,20 @@ pub fn despawn_after_timer(
 		if despawn_timer.finished() {
 			commands.entity(entity).despawn_recursive();
 		}
+	}
+}
+
+#[derive(Component)]
+pub struct Billboard;
+
+pub fn billboard(
+	mut transforms: Query<&mut Transform, With<Billboard>>,
+	player_camera: Query<&GlobalTransform, With<PlayerCamera>>,
+	player_body: Query<&GlobalTransform, With<PlayerBody>>,
+) {
+	let player_camera = player_camera.get_single().expect("No player camera found");
+	let player_body = player_body.get_single().expect("No player body found");
+	for mut transform in transforms.iter_mut() {
+		transform.look_at(player_camera.translation(), player_body.up());
 	}
 }

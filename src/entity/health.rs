@@ -3,7 +3,7 @@ use bevy_rapier3d::prelude::Velocity;
 
 use crate::gravity::GravityRigidbodyBundle;
 use crate::player_controller::PlayerCamera;
-use crate::util::DespawnTimer;
+use crate::util::{Billboard, DespawnTimer};
 use crate::{gridbox_material, gridbox_material_extra, util::MapRange};
 
 #[derive(Component)]
@@ -50,6 +50,7 @@ pub fn spawn_health_bars(
 				Name::new("Gel Vial Root"),
 				TransformBundle::default(),
 				VisibilityBundle::default(),
+				Billboard,
 			))
 			.id();
 
@@ -161,7 +162,6 @@ pub fn update_health_bars_health(
 pub fn update_health_bars_size(
 	mut health_bars: Query<(&GelVial, &mut Transform), Without<PlayerCamera>>,
 	mut transforms: Query<&mut Transform, (Without<GelVial>, Without<PlayerCamera>)>,
-	player_camera: Query<&GlobalTransform, (Without<GelVial>, With<PlayerCamera>)>,
 ) {
 	for (health_bar, mut transform) in health_bars.iter_mut() {
 		let percentage = (health_bar.health / health_bar.max_health).max(0.0);
@@ -173,15 +173,10 @@ pub fn update_health_bars_size(
 				Ok(transforms) => transforms,
 				Err(_) => continue,
 			};
-		let player_camera_transform = player_camera.get_single().expect("Player camera not found");
 
 		glass_transform.translation.x = percentage.map_range(0.0..1.0, health_bar.length..0.0);
 
 		root_transform.translation = entity_transform.transform_point(Vec3::Y * health_bar.height);
-		root_transform.look_at(
-			player_camera_transform.translation(),
-			player_camera_transform.up(),
-		);
 	}
 }
 

@@ -68,6 +68,7 @@ fn main() {
 			(
 				quit.run_if(input_just_pressed(KeyCode::Escape)),
 				util::despawn_after_timer,
+				util::billboard,
 			),
 		)
 		.run();
