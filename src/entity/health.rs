@@ -149,9 +149,8 @@ pub fn update_health_bars_health(
 	healths: Query<&GelViscosity>,
 ) {
 	for mut health_bar in health_bars.iter_mut() {
-		let health = match healths.get(health_bar.entity) {
-			Ok(health) => health,
-			Err(_) => continue,
+		let Ok(health) = healths.get(health_bar.entity) else {
+			continue;
 		};
 		health_bar.health = health.value;
 		health_bar.max_health = health.max;
@@ -167,11 +166,11 @@ pub fn update_health_bars_size(
 		transform.translation.x = percentage.map_range(0.0..1.0, (health_bar.length * 0.5)..0.0);
 		transform.scale = Vec3::new(percentage, 1.0, 1.0);
 
-		let [mut glass_transform, mut root_transform, entity_transform] =
-			match transforms.get_many_mut([health_bar.glass, health_bar.root, health_bar.entity]) {
-				Ok(transforms) => transforms,
-				Err(_) => continue,
-			};
+		let Ok([mut glass_transform, mut root_transform, entity_transform]) =
+			transforms.get_many_mut([health_bar.glass, health_bar.root, health_bar.entity])
+		else {
+			continue;
+		};
 
 		glass_transform.translation.x = percentage.map_range(0.0..1.0, health_bar.length..0.0);
 
