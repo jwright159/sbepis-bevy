@@ -1,8 +1,10 @@
+use std::f32::consts::TAU;
 use std::time::Duration;
 
 use bevy::prelude::*;
 
 use crate::player_controller::PlayerCamera;
+use crate::util::MapRange;
 
 pub struct FrayPlugin;
 
@@ -58,6 +60,47 @@ pub struct FrayMusic {
 	pub time: Duration,
 }
 
+impl FrayMusic {
+	pub fn tick(&mut self, time: &Time) {
+		self.time += time.delta();
+	}
+
+	pub fn beat_duration(&self) -> f32 {
+		60.0 / self.bpm
+	}
+
+	fn adjusted_time(&self) -> f32 {
+		(self.time.as_secs_f32() - self.offset.as_secs_f32()).max(0.0)
+	}
+
+	pub fn beat(&self) -> u32 {
+		(self.adjusted_time() / self.beat_duration()).floor() as u32
+	}
+
+	pub fn beat_progress(&self) -> f32 {
+		let beat = self.beat() as f32;
+		let beat_time = beat as f32 * self.beat_duration();
+		let beat_progress = (self.adjusted_time() - beat_time) / self.beat_duration();
+		beat_progress
+	}
+
+	pub fn modify_fray_damage(&self, damage: f32) -> f32 {
+		let modifier = self.single_beat_modifier(1.0)
+			+ self.single_beat_modifier(2.0)
+			+ self.single_beat_modifier(4.0)
+			+ self.single_beat_modifier(8.0);
+		damage * modifier
+	}
+
+	fn single_beat_modifier(&self, factor: f32) -> f32 {
+		(self.beat_progress() * factor)
+			.map_range(0.0..1.0, 0.0..TAU)
+			.cos()
+			.map_range(-1.0..1.0, 0.0..1.0)
+			/ factor
+	}
+}
+
 #[derive(Component, Default)]
 pub struct BeatCounter {
 	pub beat: u32,
@@ -74,13 +117,9 @@ fn tick_fray_music(
 		.get_single_mut()
 		.expect("Couldn't find beat counter");
 	for mut fray_music in fray_musics.iter_mut() {
-		fray_music.time += time.delta();
-		let beat_duration = 60.0 / fray_music.bpm;
-		let beat_total_time =
-			(fray_music.time.as_secs_f32() - fray_music.offset.as_secs_f32()).max(0.0);
-		let beat = (beat_total_time / beat_duration).floor() as u32;
-		let beat_time = beat as f32 * beat_duration;
-		let beat_progress = (beat_total_time - beat_time) / beat_duration;
+		fray_music.tick(&time);
+		let beat = fray_music.beat();
+		let beat_progress = fray_music.beat_progress();
 
 		beat_counter_text.sections[0].value = format!("{} {:.2}", beat, beat_progress);
 

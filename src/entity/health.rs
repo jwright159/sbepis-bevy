@@ -48,8 +48,7 @@ pub fn spawn_health_bars(
 		let root = commands
 			.spawn((
 				Name::new("Gel Vial Root"),
-				TransformBundle::default(),
-				VisibilityBundle::default(),
+				SpatialBundle::default(),
 				Billboard,
 			))
 			.id();

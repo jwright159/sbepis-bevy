@@ -6,6 +6,7 @@ use bevy_rapier3d::pipeline::CollisionEvent;
 
 use crate::entity::health::CanDealDamage;
 use crate::entity::GelViscosity;
+use crate::fray::FrayMusic;
 use crate::util::MapRange;
 
 #[derive(Component)]
@@ -71,14 +72,16 @@ pub fn collide_hammer(
 	mut collision_events: EventReader<CollisionEvent>,
 	hammers: Query<&Hammer, With<CanDealDamage>>,
 	mut healths: Query<(Entity, &mut GelViscosity)>,
+	frays: Query<&FrayMusic>,
 ) {
+	let fray = frays.get_single().expect("No fray music found");
 	for event in collision_events.read() {
 		if let CollisionEvent::Started(a, b, _flags) = event {
 			if let (Ok(hammer), Ok((entity, health))) = (hammers.get(*a), healths.get_mut(*b)) {
-				damage_with_hammer(&mut commands, entity, health, hammer);
+				damage_with_hammer(&mut commands, entity, health, hammer, fray);
 			}
 			if let (Ok(hammer), Ok((entity, health))) = (hammers.get(*b), healths.get_mut(*a)) {
-				damage_with_hammer(&mut commands, entity, health, hammer);
+				damage_with_hammer(&mut commands, entity, health, hammer, fray);
 			}
 		}
 	}
@@ -89,11 +92,14 @@ fn damage_with_hammer(
 	entity: Entity,
 	mut health: Mut<GelViscosity>,
 	hammer: &Hammer,
+	fray: &FrayMusic,
 ) {
-	if health.value <= 0.0 {
+	let damage = fray.modify_fray_damage(hammer.damage);
+
+	if damage > 0.0 && health.value <= 0.0 {
 		commands.entity(entity).despawn_recursive();
 		return;
 	}
 
-	health.value -= hammer.damage;
+	health.value -= damage;
 }
