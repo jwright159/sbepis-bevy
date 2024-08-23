@@ -99,6 +99,10 @@ impl FrayMusic {
 			.map_range(-1.0..1.0, 0.0..1.0)
 			/ factor
 	}
+
+	pub fn time_to_bpm_beat(&self, time: Duration) -> f32 {
+		time.as_secs_f32() / self.beat_duration()
+	}
 }
 
 #[derive(Component, Default)]

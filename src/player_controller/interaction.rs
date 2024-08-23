@@ -37,7 +37,9 @@ pub fn animate_hammer(
 	hammer_heads: Query<(Entity, &Hammer)>,
 	mut hammer_pivots: Query<(Entity, &mut Transform, &mut InAnimation), With<HammerPivot>>,
 	time: Res<Time>,
+	fray: Query<&FrayMusic>,
 ) {
+	let fray = fray.get_single().expect("Could not find fray");
 	for (hammer_head_entity, hammer_head) in hammer_heads.iter() {
 		let Ok((hammer_pivot_entity, mut transform, mut animation)) =
 			hammer_pivots.get_mut(hammer_head.pivot)
@@ -45,19 +47,19 @@ pub fn animate_hammer(
 			continue;
 		};
 		animation.time += time.delta();
-		let time = animation.time.as_secs_f32();
+		let time = fray.time_to_bpm_beat(animation.time);
 		let angle = match time {
-			0.0..0.2 => {
+			0.0..0.5 => {
 				commands.entity(hammer_head_entity).insert(CanDealDamage);
-				time.map_range(0.0..0.2, 0.0..(PI * 0.5))
+				time.map_range(0.0..0.5, 0.0..(PI * 0.5))
 					.cos()
 					.map_range(0.0..1.0, (-PI * 0.5)..0.0)
 			}
-			0.2..0.5 => {
+			0.5..3.5 => {
 				commands
 					.entity(hammer_head_entity)
 					.remove::<CanDealDamage>();
-				time.map_range(0.2..0.5, 0.0..PI)
+				time.map_range(0.5..3.5, 0.0..PI)
 					.cos()
 					.map_range(-1.0..1.0, 0.0..(-PI * 0.5))
 			}
