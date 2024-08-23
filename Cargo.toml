@@ -2,7 +2,6 @@
 name = "sbepis"
 version = "0.1.0"
 edition = "2021"
-build = "build.rs"
 
 [features]
 debug = ["inspector", "overview_camera", "terminal", "rapier_debug"]
