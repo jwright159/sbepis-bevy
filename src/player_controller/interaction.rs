@@ -1,6 +1,7 @@
 use std::f32::consts::PI;
 use std::time::Duration;
 
+use bevy::color::palettes::css;
 use bevy::prelude::*;
 use bevy_rapier3d::pipeline::CollisionEvent;
 
@@ -29,6 +30,9 @@ pub struct DamageEvent {
 	pub damage: f32,
 }
 
+#[derive(Component)]
+pub struct DamageNumbers;
+
 pub fn attack(
 	mut commands: Commands,
 	hammers: Query<Entity, (With<HammerPivot>, Without<InAnimation>)>,
@@ -46,8 +50,12 @@ pub fn animate_hammer(
 	fray: Query<&FrayMusic>,
 	mut ev_hit: EventWriter<DamageEvent>,
 	asset_server: Res<AssetServer>,
+	mut damage_numbers: Query<&mut Text, With<DamageNumbers>>,
 ) {
 	let fray = fray.get_single().expect("Could not find fray");
+	let mut damage_numbers = damage_numbers
+		.get_single_mut()
+		.expect("Could not find damage numbers");
 	for (hammer_head_entity, hammer_head, dealer) in hammer_heads.iter() {
 		let Ok((hammer_pivot_entity, mut transform, mut animation)) =
 			hammer_pivots.get_mut(hammer_head.pivot)
@@ -63,26 +71,44 @@ pub fn animate_hammer(
 				.entity(hammer_head_entity)
 				.insert(CanDealDamage::default());
 
-			commands.spawn(AudioBundle {
-				source: asset_server.load("woosh.mp3"),
-				settings: PlaybackSettings::DESPAWN,
-			});
+			commands.spawn((
+				Name::new("Hammer Swing SFX"),
+				AudioBundle {
+					source: asset_server.load("woosh.mp3"),
+					settings: PlaybackSettings::DESPAWN,
+				},
+			));
 		}
 		if (prev_time..time).contains(&0.5) {
 			commands
 				.entity(hammer_head_entity)
 				.remove::<CanDealDamage>();
 
-			commands.spawn(AudioBundle {
-				source: asset_server.load("concrete_break3.wav"),
-				settings: PlaybackSettings::DESPAWN,
-			});
+			commands.spawn((
+				Name::new("Hammer Smash SFX"),
+				AudioBundle {
+					source: asset_server.load("concrete_break3.wav"),
+					settings: PlaybackSettings::DESPAWN,
+				},
+			));
 
 			if let Some(dealer) = dealer {
 				for entity in dealer.hit_entities.iter() {
+					let damage = fray.modify_fray_damage(hammer_head.damage);
+					damage_numbers.sections.push(TextSection::new(
+						format!("\n{damage:.2}"),
+						TextStyle {
+							color: Color::mix(
+								&Color::from(css::RED),
+								&Color::from(css::GREEN),
+								damage.clamp(0.0, 1.0),
+							),
+							..default()
+						},
+					));
 					ev_hit.send(DamageEvent {
 						victim: *entity,
-						damage: fray.modify_fray_damage(hammer_head.damage),
+						damage,
 					});
 				}
 			}

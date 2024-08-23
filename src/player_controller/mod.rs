@@ -85,7 +85,7 @@ fn setup(
 		))
 		.id();
 
-	commands
+	let camera = commands
 		.spawn((
 			Name::new("Player Camera"),
 			Camera3dBundle {
@@ -99,7 +99,8 @@ fn setup(
 			PlayerCamera,
 			Pitch(0.0),
 		))
-		.set_parent(body);
+		.set_parent(body)
+		.id();
 
 	let hammer_pivot = commands
 		.spawn((
@@ -138,6 +139,18 @@ fn setup(
 			},
 		))
 		.set_parent(hammer_pivot);
+
+	commands.spawn((
+		Name::new("Damage Numbers"),
+		TextBundle::from_section("Damage", TextStyle::default()).with_style(Style {
+			position_type: PositionType::Absolute,
+			bottom: Val::Px(5.0),
+			right: Val::Px(5.0),
+			..default()
+		}),
+		DamageNumbers,
+		TargetCamera(camera),
+	));
 }
 
 #[derive(Clone, Copy, Eq, PartialEq, Hash, Reflect, Debug)]
