@@ -28,6 +28,7 @@ impl Plugin for PlayerControllerPlugin {
 				sprint_modifier: 2.0,
 				jump_speed: 5.0,
 			})
+			.add_event::<DamageEvent>()
 			.add_plugins(InputManagerPlugin::<PlayerAction>::default())
 			.add_systems(
 				Startup,
@@ -52,6 +53,7 @@ impl Plugin for PlayerControllerPlugin {
 					attack.run_if(button_just_pressed(PlayerAction::Use)),
 					animate_hammer,
 					collide_hammer,
+					deal_all_damage,
 				),
 			);
 	}

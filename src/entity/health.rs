@@ -11,8 +11,10 @@ pub struct GelViscosity {
 	pub max: f32,
 }
 
-#[derive(Component)]
-pub struct CanDealDamage;
+#[derive(Component, Default)]
+pub struct CanDealDamage {
+	pub hit_entities: Vec<Entity>,
+}
 
 #[derive(Component)]
 pub struct SpawnHealthBar;
