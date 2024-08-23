@@ -45,6 +45,7 @@ pub fn animate_hammer(
 	time: Res<Time>,
 	fray: Query<&FrayMusic>,
 	mut ev_hit: EventWriter<DamageEvent>,
+	asset_server: Res<AssetServer>,
 ) {
 	let fray = fray.get_single().expect("Could not find fray");
 	for (hammer_head_entity, hammer_head, dealer) in hammer_heads.iter() {
@@ -61,11 +62,21 @@ pub fn animate_hammer(
 			commands
 				.entity(hammer_head_entity)
 				.insert(CanDealDamage::default());
+
+			commands.spawn(AudioBundle {
+				source: asset_server.load("woosh.mp3"),
+				settings: PlaybackSettings::DESPAWN,
+			});
 		}
 		if (prev_time..time).contains(&0.5) {
 			commands
 				.entity(hammer_head_entity)
 				.remove::<CanDealDamage>();
+
+			commands.spawn(AudioBundle {
+				source: asset_server.load("concrete_break3.wav"),
+				settings: PlaybackSettings::DESPAWN,
+			});
 
 			if let Some(dealer) = dealer {
 				for entity in dealer.hit_entities.iter() {
