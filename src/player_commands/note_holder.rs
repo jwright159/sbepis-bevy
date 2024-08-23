@@ -35,7 +35,7 @@ pub fn add_note_to_holder(
 	let (mut note_holder, note_holder_entity) = note_holder.single_mut();
 
 	for ev in ev_note_played.read() {
-		let note = ev.0;
+		let note = ev.note;
 
 		println!(
 			"{} {} {}",

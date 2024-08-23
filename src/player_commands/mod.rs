@@ -87,7 +87,7 @@ impl Plugin for PlayerCommandsPlugin {
 			.add_systems(
 				PreUpdate,
 				(
-					action_event(|action: PlayNoteAction| NotePlayedEvent(action.note())),
+					action_event(NotePlayedEvent::from_play_note_action),
 					button_event(ToggleStaffAction::ToggleStaff, ToggleStaffEvent::default),
 				),
 			)
@@ -102,7 +102,7 @@ impl Plugin for PlayerCommandsPlugin {
 							hide_staff,
 							disable_note_input,
 							enable_movement_input,
-							send_clear_notes,
+							clear_notes,
 						)
 							.run_if(not(is_staff_open)),
 					)

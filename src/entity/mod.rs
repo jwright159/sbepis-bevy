@@ -14,7 +14,7 @@ pub mod orientation;
 pub struct EntityPlugin;
 impl Plugin for EntityPlugin {
 	fn build(&self, app: &mut App) {
-		app.add_systems(PostStartup, spawn_health_bars).add_systems(
+		app.add_systems(
 			Update,
 			(
 				orient,
@@ -22,6 +22,7 @@ impl Plugin for EntityPlugin {
 				target_player,
 				strafe,
 				rotate_toward_movement,
+				spawn_health_bars,
 				despawn_invalid_health_bars,
 				update_health_bars_health,
 				update_health_bars_size,

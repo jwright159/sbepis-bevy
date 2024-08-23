@@ -28,7 +28,7 @@ pub fn add_note_to_player(
 	mut ev_note_played: EventReader<NotePlayedEvent>,
 ) {
 	for ev in ev_note_played.read() {
-		player.current_pattern.push(ev.0);
+		player.current_pattern.push(ev.note);
 	}
 }
 

@@ -34,32 +34,33 @@ pub fn attack(
 
 pub fn animate_hammer(
 	mut commands: Commands,
-	mut hammer_pivots: Query<(Entity, &mut Transform, &mut InAnimation), With<HammerPivot>>,
 	hammer_heads: Query<(Entity, &Hammer)>,
+	mut hammer_pivots: Query<(&mut Transform, &mut InAnimation), With<HammerPivot>>,
 	time: Res<Time>,
 ) {
-	for (hammer_pivot, mut transform, mut animation) in hammer_pivots.iter_mut() {
-		let (hammer_head, _) = hammer_heads
-			.iter()
-			.find(|(_, head)| head.pivot == hammer_pivot)
-			.expect("Hammer pivot found without hammer head");
+	for (hammer_head_entity, hammer_head) in hammer_heads.iter() {
+		let (mut transform, mut animation) = hammer_pivots
+			.get_mut(hammer_head.pivot)
+			.expect("Hammer head found without pivot");
 		animation.time += time.delta();
 		let time = animation.time.as_secs_f32();
 		let angle = match time {
 			0.0..0.2 => {
-				commands.entity(hammer_head).insert(CanDealDamage);
+				commands.entity(hammer_head_entity).insert(CanDealDamage);
 				time.map_range(0.0..0.2, 0.0..(PI * 0.5))
 					.cos()
 					.map_range(0.0..1.0, (-PI * 0.5)..0.0)
 			}
 			0.2..0.5 => {
-				commands.entity(hammer_head).remove::<CanDealDamage>();
+				commands
+					.entity(hammer_head_entity)
+					.remove::<CanDealDamage>();
 				time.map_range(0.2..0.5, 0.0..PI)
 					.cos()
 					.map_range(-1.0..1.0, 0.0..(-PI * 0.5))
 			}
 			_ => {
-				commands.entity(hammer_pivot).remove::<InAnimation>();
+				commands.entity(hammer_head_entity).remove::<InAnimation>();
 				0.0
 			}
 		};

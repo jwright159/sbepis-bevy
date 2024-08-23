@@ -1,5 +1,5 @@
 use crate::player_commands::note_holder::NoteNodeHolder;
-use crate::player_commands::notes::{ClearNotesEvent, PlayNoteAction};
+use crate::player_commands::notes::PlayNoteAction;
 use crate::player_controller::{PlayerAction, PlayerCamera};
 use bevy::prelude::*;
 use leafwing_input_manager::prelude::ActionState;
@@ -174,8 +174,4 @@ pub fn disable_movement_input(mut movement_input: Query<&mut ActionState<PlayerA
 
 pub fn enable_movement_input(mut movement_input: Query<&mut ActionState<PlayerAction>>) {
 	movement_input.single_mut().enable();
-}
-
-pub fn send_clear_notes(mut ev_clear_notes: EventWriter<ClearNotesEvent>) {
-	ev_clear_notes.send(ClearNotesEvent);
 }

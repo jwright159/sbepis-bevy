@@ -694,7 +694,15 @@ impl Note {
 }
 
 #[derive(Event)]
-pub struct NotePlayedEvent(pub Note);
+pub struct NotePlayedEvent {
+	pub note: Note,
+}
+
+impl NotePlayedEvent {
+	pub fn from_play_note_action(note: PlayNoteAction) -> Self {
+		Self { note: note.note() }
+	}
+}
 
 #[derive(Event)]
 pub struct ClearNotesEvent;
@@ -932,7 +940,7 @@ pub fn spawn_note_audio(
 	asset_server: Res<AssetServer>,
 ) {
 	for ev in ev_note_played.read() {
-		let note = ev.0;
+		let note = ev.note;
 
 		commands.spawn(AudioBundle {
 			source: asset_server.load("flute.wav"),
