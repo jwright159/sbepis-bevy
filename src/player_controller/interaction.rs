@@ -39,9 +39,9 @@ pub fn animate_hammer(
 	time: Res<Time>,
 ) {
 	for (hammer_head_entity, hammer_head) in hammer_heads.iter() {
-		let (mut transform, mut animation) = hammer_pivots
-			.get_mut(hammer_head.pivot)
-			.expect("Hammer head found without pivot");
+		let Ok((mut transform, mut animation)) = hammer_pivots.get_mut(hammer_head.pivot) else {
+			continue;
+		};
 		animation.time += time.delta();
 		let time = animation.time.as_secs_f32();
 		let angle = match time {
