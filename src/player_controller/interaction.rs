@@ -35,11 +35,13 @@ pub fn attack(
 pub fn animate_hammer(
 	mut commands: Commands,
 	hammer_heads: Query<(Entity, &Hammer)>,
-	mut hammer_pivots: Query<(&mut Transform, &mut InAnimation), With<HammerPivot>>,
+	mut hammer_pivots: Query<(Entity, &mut Transform, &mut InAnimation), With<HammerPivot>>,
 	time: Res<Time>,
 ) {
 	for (hammer_head_entity, hammer_head) in hammer_heads.iter() {
-		let Ok((mut transform, mut animation)) = hammer_pivots.get_mut(hammer_head.pivot) else {
+		let Ok((hammer_pivot_entity, mut transform, mut animation)) =
+			hammer_pivots.get_mut(hammer_head.pivot)
+		else {
 			continue;
 		};
 		animation.time += time.delta();
@@ -60,7 +62,7 @@ pub fn animate_hammer(
 					.map_range(-1.0..1.0, 0.0..(-PI * 0.5))
 			}
 			_ => {
-				commands.entity(hammer_head_entity).remove::<InAnimation>();
+				commands.entity(hammer_pivot_entity).remove::<InAnimation>();
 				0.0
 			}
 		};
