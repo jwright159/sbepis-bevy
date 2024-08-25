@@ -109,8 +109,8 @@ jobs:
         DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
       run: |
         DATE=$(date +%Y-%m-%d)
-        LINUX_LINK=$(rclone link gdrive:1Ggklf44X2xCzUimQXQ0K7bTO4IbOLUEC/sbepis-linux-$DATE.tar.gz)
-        WINDOWS_LINK=$(rclone link gdrive:1Ggklf44X2xCzUimQXQ0K7bTO4IbOLUEC/sbepis-windows-$DATE.zip)
+        LINUX_LINK=$(rclone link "gdrive:SBEPIS Builds/sbepis-linux-$DATE.tar.gz")
+        WINDOWS_LINK=$(rclone link "gdrive:SBEPIS Builds/sbepis-windows-$DATE.zip")
         EMBED_CONTENT=$(cat <<EOF
         {
           "embeds": [
