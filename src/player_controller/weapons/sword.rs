@@ -3,15 +3,13 @@ use std::time::Duration;
 
 use bevy::prelude::*;
 use bevy::render::mesh::CapsuleUvProfile;
-use bevy_rapier3d::prelude::*;
 use interpolation::EaseFunction;
 
-use crate::entity::health::CanDealDamage;
 use crate::fray::FrayMusic;
 use crate::gridbox_material;
 use crate::util::MapRange;
 
-use super::{DamageEvent, InAnimation};
+use super::{DamageEvent, DamageSweep, EndDamageSweep, InAnimation, SweepPivot};
 
 #[derive(Component)]
 pub struct SwordPivot;
@@ -72,6 +70,11 @@ pub fn spawn_sword(
 			),
 			VisibilityBundle::default(),
 			SwordPivot,
+			SweepPivot {
+				sweeper_length: 0.2,
+				sweep_depth: 0.5,
+				sweep_height: 0.2,
+			},
 		))
 		.set_parent(body)
 		.id();
@@ -94,9 +97,6 @@ pub fn spawn_sword(
 				material: gridbox_material("red", materials, asset_server),
 				..default()
 			},
-			Collider::capsule_y(0.25, 0.1),
-			Sensor,
-			ActiveEvents::COLLISION_EVENTS,
 			Sword::new(0.25, sword_pivot),
 		))
 		.set_parent(sword_pivot)
@@ -107,7 +107,7 @@ pub fn spawn_sword(
 
 pub fn animate_sword(
 	mut commands: Commands,
-	mut sword_blades: Query<(Entity, &mut Sword, Option<&CanDealDamage>)>,
+	mut sword_blades: Query<(Entity, &mut Sword, &GlobalTransform, Option<&DamageSweep>)>,
 	mut sword_pivots: Query<(Entity, &mut Transform, &mut InAnimation), With<SwordPivot>>,
 	time: Res<Time>,
 	fray: Query<&FrayMusic>,
@@ -115,7 +115,9 @@ pub fn animate_sword(
 	asset_server: Res<AssetServer>,
 ) {
 	let fray = fray.get_single().expect("Could not find fray");
-	for (sword_blade_entity, mut sword_blade, dealer) in sword_blades.iter_mut() {
+	for (sword_blade_entity, mut sword_blade, sword_blade_global_transform, dealer) in
+		sword_blades.iter_mut()
+	{
 		let Ok((sword_pivot_entity, mut transform, mut animation)) =
 			sword_pivots.get_mut(sword_blade.pivot)
 		else {
@@ -128,9 +130,10 @@ pub fn animate_sword(
 		if (prev_time..curr_time).contains(&0.0) {
 			sword_blade.start_slash_time = fray.time;
 
-			commands
-				.entity(sword_blade_entity)
-				.insert(CanDealDamage::default());
+			commands.entity(sword_blade_entity).insert(DamageSweep::new(
+				*sword_blade_global_transform,
+				sword_pivot_entity,
+			));
 
 			commands.spawn((
 				Name::new("Sword Swing SFX"),
@@ -141,9 +144,7 @@ pub fn animate_sword(
 			));
 		}
 		if (prev_time..curr_time).contains(&0.8) {
-			commands
-				.entity(sword_blade_entity)
-				.remove::<CanDealDamage>();
+			commands.entity(sword_blade_entity).insert(EndDamageSweep);
 
 			if let Some(dealer) = dealer {
 				for entity in dealer.hit_entities.iter() {

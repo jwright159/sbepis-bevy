@@ -2,10 +2,11 @@ use std::time::Duration;
 
 use bevy::color::palettes::css;
 use bevy::prelude::*;
-use bevy_rapier3d::pipeline::CollisionEvent;
+use bevy::utils::EntityHashSet;
+use bevy_rapier3d::prelude::*;
 
-use crate::entity::health::CanDealDamage;
 use crate::entity::GelViscosity;
+use crate::util::QuaternionEx;
 
 pub mod hammer;
 pub mod sword;
@@ -37,6 +38,36 @@ pub struct UninitializedWeaponSet;
 #[derive(Component)]
 pub struct ActiveWeapon;
 
+#[derive(Component)]
+pub struct DamageSweep {
+	pub hit_entities: EntityHashSet<Entity>,
+	pub last_transform: GlobalTransform,
+	pub pivot: Entity,
+}
+
+#[derive(Component)]
+pub struct EndDamageSweep;
+
+#[derive(Component)]
+pub struct SweepPivot {
+	pub sweeper_length: f32,
+	pub sweep_depth: f32,
+	pub sweep_height: f32,
+}
+
+impl DamageSweep {
+	pub fn new(transform: GlobalTransform, pivot: Entity) -> Self {
+		Self {
+			hit_entities: EntityHashSet::default(),
+			last_transform: transform,
+			pivot,
+		}
+	}
+}
+
+#[derive(Component)]
+pub struct DebugColliderVisualizer;
+
 pub fn attack(
 	mut commands: Commands,
 	swords: Query<Entity, (Without<InAnimation>, With<ActiveWeapon>)>,
@@ -46,19 +77,60 @@ pub fn attack(
 	}
 }
 
-pub fn collide_dealers(
-	mut ev_collision: EventReader<CollisionEvent>,
-	mut dealers: Query<&mut CanDealDamage>,
-	healths: Query<Entity, With<GelViscosity>>,
+pub fn sweep_dealers(
+	mut commands: Commands,
+	mut dealers: Query<(
+		Entity,
+		&mut DamageSweep,
+		Option<&EndDamageSweep>,
+		&GlobalTransform,
+	)>,
+	pivots: Query<(&SweepPivot, &GlobalTransform), Without<DamageSweep>>,
+	rapier_context: Res<RapierContext>,
+	debug_collider_visualizers: Query<Entity, With<DebugColliderVisualizer>>,
 ) {
-	for event in ev_collision.read() {
-		if let CollisionEvent::Started(a, b, _flags) = event {
-			if let (Ok(mut dealer), Ok(entity)) = (dealers.get_mut(*a), healths.get(*b)) {
-				dealer.hit_entities.push(entity);
-			}
-			if let (Ok(mut dealer), Ok(entity)) = (dealers.get_mut(*b), healths.get(*a)) {
-				dealer.hit_entities.push(entity);
-			}
+	let debug_collider_visualizer = debug_collider_visualizers.single();
+	for (dealer_entity, mut dealer, end, transform) in dealers.iter_mut() {
+		let (pivot, pivot_transform) = pivots.get(dealer.pivot).expect("Sweep pivot not found");
+
+		let start_tip = dealer
+			.last_transform
+			.transform_point(pivot.sweeper_length * 0.5 * Vec3::Z);
+		let end_tip = transform.transform_point(pivot.sweeper_length * 0.5 * Vec3::NEG_Z);
+		let delta = end_tip - start_tip;
+		let position = (end_tip + start_tip) * 0.5;
+
+		let pivot_position = pivot_transform.translation();
+		let up = (end_tip - pivot_position).cross(start_tip - pivot_position);
+		let rotation = Quat::from_look_to(delta, up);
+
+		let collider = Collider::cuboid(
+			pivot.sweep_depth * 0.5,
+			pivot.sweep_height * 0.5,
+			delta.length() * 0.5,
+		);
+		rapier_context.intersections_with_shape(
+			position,
+			rotation,
+			&collider,
+			QueryFilter::new(),
+			|hit_entity| {
+				dealer.hit_entities.insert(hit_entity);
+				true
+			},
+		);
+		commands
+			.entity(debug_collider_visualizer)
+			.insert(collider)
+			.insert(Transform::from_translation(position).with_rotation(rotation));
+
+		dealer.last_transform = *transform;
+
+		if end.is_some() {
+			commands
+				.entity(dealer_entity)
+				.remove::<DamageSweep>()
+				.remove::<EndDamageSweep>();
 		}
 	}
 }
@@ -69,8 +141,10 @@ pub fn deal_all_damage(
 	mut healths: Query<&mut GelViscosity>,
 ) {
 	for event in ev_hit.read() {
+		let Ok(mut health) = healths.get_mut(event.victim) else {
+			continue;
+		};
 		let damage = event.damage;
-		let mut health = healths.get_mut(event.victim).unwrap();
 
 		if damage > 0.0 && health.value <= 0.0 {
 			commands.entity(event.victim).despawn_recursive();

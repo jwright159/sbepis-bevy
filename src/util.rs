@@ -100,3 +100,25 @@ pub fn billboard(
 		transform.look_at(player_camera.translation(), player_body.up());
 	}
 }
+
+pub trait QuaternionEx {
+	fn from_look_at(position: Vec3, target: Vec3, up: impl TryInto<Dir3>) -> Quat;
+	fn from_look_to(direction: impl TryInto<Dir3>, up: impl TryInto<Dir3>) -> Quat;
+}
+
+impl QuaternionEx for Quat {
+	fn from_look_at(position: Vec3, target: Vec3, up: impl TryInto<Dir3>) -> Quat {
+		Self::from_look_to(target - position, up)
+	}
+
+	fn from_look_to(direction: impl TryInto<Dir3>, up: impl TryInto<Dir3>) -> Quat {
+		let back = -direction.try_into().unwrap_or(Dir3::NEG_Z);
+		let up = up.try_into().unwrap_or(Dir3::Y);
+		let right = up
+			.cross(back.into())
+			.try_normalize()
+			.unwrap_or_else(|| up.any_orthonormal_vector());
+		let up = back.cross(right);
+		Quat::from_mat3(&Mat3::from_cols(right, up, back.into()))
+	}
+}

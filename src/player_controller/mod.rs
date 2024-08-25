@@ -60,7 +60,7 @@ impl Plugin for PlayerControllerPlugin {
 					initialize_weapon_sets,
 					animate_hammer,
 					animate_sword,
-					collide_dealers,
+					sweep_dealers,
 					deal_all_damage,
 					update_damage_numbers,
 				),
@@ -145,6 +145,13 @@ fn setup(
 		}),
 		DamageNumbers,
 		TargetCamera(camera),
+	));
+
+	commands.spawn((
+		Name::new("Debug Collider Visualizer"),
+		DebugColliderVisualizer,
+		SpatialBundle::default(),
+		CollisionGroups::new(Group::NONE, Group::NONE),
 	));
 }
 

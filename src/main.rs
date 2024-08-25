@@ -14,7 +14,7 @@ use self::main_bundles::*;
 mod entity;
 mod fray;
 mod gravity;
-mod input;
+pub mod input;
 mod main_bundles;
 mod npcs;
 #[cfg(feature = "overview_camera")]
@@ -22,7 +22,7 @@ mod overview_camera;
 mod player_commands;
 mod player_controller;
 mod skybox;
-mod util;
+pub mod util;
 
 fn main() {
 	let mut rapier_config = RapierConfiguration::new(1.);

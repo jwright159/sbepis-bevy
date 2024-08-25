@@ -2,15 +2,13 @@ use std::f32::consts::PI;
 
 use bevy::prelude::*;
 use bevy::render::mesh::CapsuleUvProfile;
-use bevy_rapier3d::prelude::*;
 use interpolation::EaseFunction;
 
-use crate::entity::health::CanDealDamage;
 use crate::fray::FrayMusic;
 use crate::gridbox_material;
 use crate::util::MapRange;
 
-use super::{DamageEvent, InAnimation};
+use super::{DamageEvent, DamageSweep, EndDamageSweep, InAnimation, SweepPivot};
 
 #[derive(Component)]
 pub struct HammerPivot;
@@ -34,6 +32,11 @@ pub fn spawn_hammer(
 			TransformBundle::from_transform(Transform::from_translation(Vec3::ZERO)),
 			VisibilityBundle::default(),
 			HammerPivot,
+			SweepPivot {
+				sweeper_length: 0.2,
+				sweep_depth: 0.5,
+				sweep_height: 0.2,
+			},
 		))
 		.set_parent(body)
 		.id();
@@ -56,9 +59,6 @@ pub fn spawn_hammer(
 				material: gridbox_material("red", materials, asset_server),
 				..default()
 			},
-			Collider::capsule_y(0.25, 0.1),
-			Sensor,
-			ActiveEvents::COLLISION_EVENTS,
 			Hammer {
 				damage: 1.0,
 				pivot: hammer_pivot,
@@ -72,7 +72,7 @@ pub fn spawn_hammer(
 
 pub fn animate_hammer(
 	mut commands: Commands,
-	hammer_heads: Query<(Entity, &Hammer, Option<&CanDealDamage>)>,
+	mut hammer_heads: Query<(Entity, &Hammer, &GlobalTransform, Option<&mut DamageSweep>)>,
 	mut hammer_pivots: Query<(Entity, &mut Transform, &mut InAnimation), With<HammerPivot>>,
 	time: Res<Time>,
 	fray: Query<&FrayMusic>,
@@ -80,7 +80,9 @@ pub fn animate_hammer(
 	asset_server: Res<AssetServer>,
 ) {
 	let fray = fray.get_single().expect("Could not find fray");
-	for (hammer_head_entity, hammer_head, dealer) in hammer_heads.iter() {
+	for (hammer_head_entity, hammer_head, hammer_head_global_transform, dealer) in
+		hammer_heads.iter_mut()
+	{
 		let Ok((hammer_pivot_entity, mut transform, mut animation)) =
 			hammer_pivots.get_mut(hammer_head.pivot)
 		else {
@@ -91,9 +93,10 @@ pub fn animate_hammer(
 		let time = fray.time_to_bpm_beat(animation.time);
 
 		if (prev_time..time).contains(&0.0) {
-			commands
-				.entity(hammer_head_entity)
-				.insert(CanDealDamage::default());
+			commands.entity(hammer_head_entity).insert(DamageSweep::new(
+				*hammer_head_global_transform,
+				hammer_pivot_entity,
+			));
 
 			commands.spawn((
 				Name::new("Hammer Swing SFX"),
@@ -104,9 +107,7 @@ pub fn animate_hammer(
 			));
 		}
 		if (prev_time..time).contains(&0.5) {
-			commands
-				.entity(hammer_head_entity)
-				.remove::<CanDealDamage>();
+			commands.entity(hammer_head_entity).insert(EndDamageSweep);
 
 			commands.spawn((
 				Name::new("Hammer Smash SFX"),
