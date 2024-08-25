@@ -1,8 +1,8 @@
 use std::time::Duration;
 
 use bevy::color::palettes::css;
+use bevy::ecs::entity::EntityHashSet;
 use bevy::prelude::*;
-use bevy::utils::EntityHashSet;
 use bevy_rapier3d::prelude::*;
 
 use crate::entity::GelViscosity;
@@ -40,9 +40,10 @@ pub struct ActiveWeapon;
 
 #[derive(Component)]
 pub struct DamageSweep {
-	pub hit_entities: EntityHashSet<Entity>,
+	pub hit_entities: EntityHashSet,
 	pub last_transform: GlobalTransform,
 	pub pivot: Entity,
+	pub allies: EntityHashSet,
 }
 
 #[derive(Component)]
@@ -56,11 +57,12 @@ pub struct SweepPivot {
 }
 
 impl DamageSweep {
-	pub fn new(transform: GlobalTransform, pivot: Entity) -> Self {
+	pub fn new(transform: GlobalTransform, pivot: Entity, allies: EntityHashSet) -> Self {
 		Self {
 			hit_entities: EntityHashSet::default(),
 			last_transform: transform,
 			pivot,
+			allies,
 		}
 	}
 }
@@ -115,7 +117,9 @@ pub fn sweep_dealers(
 			&collider,
 			QueryFilter::new(),
 			|hit_entity| {
-				dealer.hit_entities.insert(hit_entity);
+				if !dealer.allies.contains(&hit_entity) {
+					dealer.hit_entities.insert(hit_entity);
+				}
 				true
 			},
 		);
@@ -158,13 +162,18 @@ pub fn deal_all_damage(
 pub fn update_damage_numbers(
 	mut ev_hit: EventReader<DamageEvent>,
 	mut damage_numbers: Query<&mut Text, With<DamageNumbers>>,
+	hit_object: Query<&Name, With<GelViscosity>>,
 ) {
 	for event in ev_hit.read() {
+		let Ok(hit_object_name) = hit_object.get(event.victim) else {
+			continue;
+		};
+
 		let damage = event.damage;
 		let fray_modifier = event.fray_modifier;
 		for mut damage_numbers in damage_numbers.iter_mut() {
 			damage_numbers.sections.push(TextSection::new(
-				format!("\n{damage:.2}"),
+				format!("\n{hit_object_name}: {damage:.2}"),
 				TextStyle {
 					color: Color::mix(
 						&Color::from(css::RED),

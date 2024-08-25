@@ -1,6 +1,7 @@
 use std::f32::consts::PI;
 use std::time::Duration;
 
+use bevy::ecs::entity::EntityHashSet;
 use bevy::prelude::*;
 use bevy::render::mesh::CapsuleUvProfile;
 use interpolation::EaseFunction;
@@ -18,15 +19,17 @@ pub struct SwordPivot;
 pub struct Sword {
 	pub damage: f32,
 	pub pivot: Entity,
+	pub allies: EntityHashSet,
 	pub start_slash_time: Duration,
 	side: SwordSide,
 }
 
 impl Sword {
-	pub fn new(damage: f32, pivot: Entity) -> Self {
+	pub fn new(damage: f32, pivot: Entity, allies: EntityHashSet) -> Self {
 		Self {
 			damage,
 			pivot,
+			allies,
 			start_slash_time: Duration::ZERO,
 			side: SwordSide::Left,
 		}
@@ -97,7 +100,7 @@ pub fn spawn_sword(
 				material: gridbox_material("red", materials, asset_server),
 				..default()
 			},
-			Sword::new(0.25, sword_pivot),
+			Sword::new(0.25, sword_pivot, EntityHashSet::from_iter(vec![body])),
 		))
 		.set_parent(sword_pivot)
 		.id();
@@ -133,6 +136,7 @@ pub fn animate_sword(
 			commands.entity(sword_blade_entity).insert(DamageSweep::new(
 				*sword_blade_global_transform,
 				sword_pivot_entity,
+				sword_blade.allies.clone(),
 			));
 
 			commands.spawn((

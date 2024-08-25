@@ -1,5 +1,6 @@
 use std::f32::consts::PI;
 
+use bevy::ecs::entity::EntityHashSet;
 use bevy::prelude::*;
 use bevy::render::mesh::CapsuleUvProfile;
 use interpolation::EaseFunction;
@@ -17,6 +18,7 @@ pub struct HammerPivot;
 pub struct Hammer {
 	pub damage: f32,
 	pub pivot: Entity,
+	pub allies: EntityHashSet,
 }
 
 pub fn spawn_hammer(
@@ -62,6 +64,7 @@ pub fn spawn_hammer(
 			Hammer {
 				damage: 1.0,
 				pivot: hammer_pivot,
+				allies: EntityHashSet::from_iter(vec![body]),
 			},
 		))
 		.set_parent(hammer_pivot)
@@ -96,6 +99,7 @@ pub fn animate_hammer(
 			commands.entity(hammer_head_entity).insert(DamageSweep::new(
 				*hammer_head_global_transform,
 				hammer_pivot_entity,
+				hammer_head.allies.clone(),
 			));
 
 			commands.spawn((
