@@ -183,10 +183,7 @@ fn setup(
 			Collider::capsule_y(0.25, 0.1),
 			Sensor,
 			ActiveEvents::COLLISION_EVENTS,
-			Sword {
-				damage: 0.25,
-				pivot: sword_pivot,
-			},
+			Sword::new(0.25, sword_pivot),
 		))
 		.set_parent(sword_pivot);
 

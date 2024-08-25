@@ -53,7 +53,7 @@ pub fn setup_beat_counter_camera(
 	}
 }
 
-#[derive(Component, Reflect)]
+#[derive(Component, Reflect, Clone)]
 pub struct FrayMusic {
 	pub bpm: f32,
 	pub offset: Duration,
