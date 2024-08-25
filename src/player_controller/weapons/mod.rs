@@ -9,6 +9,7 @@ use crate::entity::GelViscosity;
 use crate::util::QuaternionEx;
 
 pub mod hammer;
+pub mod rifle;
 pub mod sword;
 
 #[derive(Component, Default)]

@@ -14,6 +14,7 @@ pub use self::camera_controls::{MouseSensitivity, PlayerBody, PlayerCamera};
 use self::movement::*;
 use self::movement::{axes_to_ground_velocity, jump};
 use self::weapons::hammer::*;
+use self::weapons::rifle::*;
 use self::weapons::sword::*;
 use self::weapons::*;
 
@@ -60,6 +61,7 @@ impl Plugin for PlayerControllerPlugin {
 					initialize_weapon_sets,
 					animate_hammer,
 					animate_sword,
+					animate_rifle,
 					sweep_dealers,
 					deal_all_damage,
 					update_damage_numbers,
@@ -127,9 +129,17 @@ fn setup(
 		body,
 	);
 
+	let (rifle_pivot, _rifle_barrel) = spawn_rifle(
+		&mut commands,
+		&asset_server,
+		&mut materials,
+		&mut meshes,
+		body,
+	);
+
 	commands.entity(body).insert((
 		WeaponSet {
-			weapons: vec![sword_pivot, hammer_pivot],
+			weapons: vec![sword_pivot, hammer_pivot, rifle_pivot],
 			active_weapon: 0,
 		},
 		UninitializedWeaponSet,
