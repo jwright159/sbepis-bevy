@@ -19,6 +19,8 @@ pub struct Hammer {
 	pub damage: f32,
 	pub pivot: Entity,
 	pub allies: EntityHashSet,
+	pub lead_in_time: f32,
+	pub follow_through_time: f32,
 }
 
 pub fn spawn_hammer(
@@ -65,6 +67,8 @@ pub fn spawn_hammer(
 				damage: 1.0,
 				pivot: hammer_pivot,
 				allies: EntityHashSet::from_iter(vec![body]),
+				lead_in_time: 0.5,
+				follow_through_time: 3.0,
 			},
 		))
 		.set_parent(hammer_pivot)
@@ -93,9 +97,12 @@ pub fn animate_hammer(
 		};
 		let prev_time = fray.time_to_bpm_beat(animation.time);
 		animation.time += time.delta();
-		let time = fray.time_to_bpm_beat(animation.time);
+		let curr_time = fray.time_to_bpm_beat(animation.time);
 
-		if (prev_time..time).contains(&0.0) {
+		let lead_in_time = hammer_head.lead_in_time;
+		let follow_through_time = lead_in_time + hammer_head.follow_through_time;
+
+		if (prev_time..curr_time).contains(&0.0) {
 			commands.entity(hammer_head_entity).insert(DamageSweep::new(
 				*hammer_head_global_transform,
 				hammer_pivot_entity,
@@ -110,7 +117,7 @@ pub fn animate_hammer(
 				},
 			));
 		}
-		if (prev_time..time).contains(&0.5) {
+		if (prev_time..curr_time).contains(&lead_in_time) {
 			commands.entity(hammer_head_entity).insert(EndDamageSweep);
 
 			commands.spawn((
@@ -133,17 +140,26 @@ pub fn animate_hammer(
 				}
 			}
 		}
-		if (prev_time..time).contains(&3.5) {
+		if (prev_time..curr_time).contains(&follow_through_time) {
 			commands.entity(hammer_pivot_entity).remove::<InAnimation>();
 		}
 
-		let angle = match time {
-			0.0..0.5 => {
-				time.map_range_ease(0.0..0.5, 0.0..(-PI * 0.5), EaseFunction::ExponentialIn)
-			}
-			0.5..3.5 => time.map_range_ease(0.5..3.5, (-PI * 0.5)..0.0, EaseFunction::CubicInOut),
-			_ => 0.0,
+		let angle = if (0.0..lead_in_time).contains(&curr_time) {
+			curr_time.map_range_ease(
+				0.0..lead_in_time,
+				0.0..(-PI * 0.5),
+				EaseFunction::ExponentialIn,
+			)
+		} else if (lead_in_time..follow_through_time).contains(&curr_time) {
+			curr_time.map_range_ease(
+				lead_in_time..follow_through_time,
+				(-PI * 0.5)..0.0,
+				EaseFunction::CubicInOut,
+			)
+		} else {
+			0.0
 		};
+
 		transform.rotation = Quat::from_rotation_x(angle);
 	}
 }

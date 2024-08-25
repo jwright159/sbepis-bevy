@@ -22,16 +22,23 @@ pub struct Sword {
 	pub allies: EntityHashSet,
 	pub start_slash_time: Duration,
 	side: SwordSide,
+	pub follow_through_time: f32,
 }
 
 impl Sword {
-	pub fn new(damage: f32, pivot: Entity, allies: EntityHashSet) -> Self {
+	pub fn new(
+		damage: f32,
+		pivot: Entity,
+		allies: EntityHashSet,
+		follow_through_time: f32,
+	) -> Self {
 		Self {
 			damage,
 			pivot,
 			allies,
 			start_slash_time: Duration::ZERO,
 			side: SwordSide::Left,
+			follow_through_time,
 		}
 	}
 }
@@ -100,7 +107,7 @@ pub fn spawn_sword(
 				material: gridbox_material("red", materials, asset_server),
 				..default()
 			},
-			Sword::new(0.25, sword_pivot, EntityHashSet::from_iter(vec![body])),
+			Sword::new(0.25, sword_pivot, EntityHashSet::from_iter(vec![body]), 0.8),
 		))
 		.set_parent(sword_pivot)
 		.id();
@@ -130,6 +137,8 @@ pub fn animate_sword(
 		animation.time += time.delta();
 		let curr_time = fray.time_to_bpm_beat(animation.time);
 
+		let follow_through_time = sword_blade.follow_through_time;
+
 		if (prev_time..curr_time).contains(&0.0) {
 			sword_blade.start_slash_time = fray.time;
 
@@ -147,7 +156,7 @@ pub fn animate_sword(
 				},
 			));
 		}
-		if (prev_time..curr_time).contains(&0.8) {
+		if (prev_time..curr_time).contains(&follow_through_time) {
 			commands.entity(sword_blade_entity).insert(EndDamageSweep);
 
 			if let Some(dealer) = dealer {
@@ -169,13 +178,14 @@ pub fn animate_sword(
 			commands.entity(sword_pivot_entity).remove::<InAnimation>();
 		}
 
-		let angle = match curr_time {
-			0.0..0.8 => curr_time.map_range_ease(
-				0.0..0.8,
+		let angle = if (0.0..follow_through_time).contains(&curr_time) {
+			curr_time.map_range_ease(
+				0.0..follow_through_time,
 				sword_blade.side.angle()..sword_blade.side.other_side().angle(),
 				EaseFunction::QuarticOut,
-			),
-			_ => sword_blade.side.angle(),
+			)
+		} else {
+			sword_blade.side.angle()
 		};
 		transform.rotation = Quat::from_rotation_y(angle);
 	}
