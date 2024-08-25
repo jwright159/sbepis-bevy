@@ -189,7 +189,7 @@ fn setup(
 
 	commands.entity(body).insert((
 		WeaponSet {
-			weapons: vec![hammer_pivot, sword_pivot],
+			weapons: vec![sword_pivot, hammer_pivot],
 			active_weapon: 0,
 		},
 		UninitializedWeaponSet,
