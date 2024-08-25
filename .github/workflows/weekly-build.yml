@@ -6,8 +6,16 @@ on:
   workflow_dispatch:  # Allows manual triggering
 
 jobs:
+  set-date:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Set date
+      run: echo "DATE=$(date +%Y-%m-%d-%H%M)" >> $GITHUB_ENV
+
   build-linux:
     runs-on: ubuntu-latest
+    needs: [set-date]
 
     steps:
     - name: Checkout code
@@ -23,13 +31,14 @@ jobs:
 
     - name: Build the game
       run: cargo build --release
-
-    - name: Compress build files
+    
+    - name: Compress build 
+      env:
+        DATE: ${{ env.DATE }}
       run: |
         mkdir SBEPIS
         cp ./target/release/sbepis SBEPIS/
         cp -r ./assets SBEPIS/
-        DATE=$(date +%Y-%m-%d)
         tar -czf sbepis-linux-$DATE.tar.gz SBEPIS
 
     - name: Install rclone
@@ -44,12 +53,13 @@ jobs:
         EOF
 
     - name: Upload build to Google Drive
-      run: |
-        DATE=$(date +%Y-%m-%d)
-        rclone copy sbepis-linux-$DATE.tar.gz "gdrive:SBEPIS Builds"
+      env:
+        DATE: ${{ env.DATE }}
+      run: rclone copy sbepis-linux-$DATE.tar.gz "gdrive:SBEPIS Builds"
 
   build-windows:
     runs-on: windows-latest
+    needs: [set-date]
 
     steps:
     - name: Checkout code
@@ -64,11 +74,12 @@ jobs:
       run: cargo build --release
 
     - name: Compress build files
+      env:
+        DATE: ${{ env.DATE }}
       run: |
         mkdir SBEPIS
         cp .\target\release\sbepis.exe SBEPIS\
         cp -r .\assets SBEPIS\
-        $DATE = (Get-Date -Format "yyyy-MM-dd")
         Compress-Archive -Path .\SBEPIS -DestinationPath sbepis-windows-$DATE.zip
 
     - name: Install rclone
@@ -84,9 +95,9 @@ jobs:
         "@ | Set-Content -Path $rcloneConfigPath
 
     - name: Upload build to Google Drive
-      run: |
-        $DATE = (Get-Date -Format "yyyy-MM-dd")
-        rclone copy sbepis-windows-$DATE.zip "gdrive:SBEPIS Builds"
+      env:
+        DATE: ${{ env.DATE }}
+      run: rclone copy sbepis-windows-$DATE.zip "gdrive:SBEPIS Builds"
 
   notify-discord:
     runs-on: ubuntu-latest
@@ -107,8 +118,8 @@ jobs:
     - name: Send Discord notification
       env:
         DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        DATE: ${{ env.DATE }}
       run: |
-        DATE=$(date +%Y-%m-%d)
         LINUX_LINK=$(rclone link "gdrive:SBEPIS Builds/sbepis-linux-$DATE.tar.gz")
         WINDOWS_LINK=$(rclone link "gdrive:SBEPIS Builds/sbepis-windows-$DATE.zip")
         EMBED_CONTENT=$(cat <<EOF
@@ -116,7 +127,7 @@ jobs:
           "embeds": [
             {
               "title": "New Builds Available!",
-              "description": "Date: $DATE",
+              "description": "Build Id: $DATE",
               "color": 240116,
               "fields": [
                 {
