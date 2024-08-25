@@ -11,13 +11,14 @@ use crate::main_bundles::EntityBundle;
 
 use self::camera_controls::*;
 pub use self::camera_controls::{MouseSensitivity, PlayerBody, PlayerCamera};
-use self::interaction::*;
 use self::movement::*;
 use self::movement::{axes_to_ground_velocity, jump};
+use self::weapons::hammer::*;
+use self::weapons::*;
 
 mod camera_controls;
-mod interaction;
 mod movement;
+mod weapons;
 
 pub struct PlayerControllerPlugin;
 impl Plugin for PlayerControllerPlugin {
@@ -40,7 +41,9 @@ impl Plugin for PlayerControllerPlugin {
 							.with(PlayerAction::Jump, KeyCode::Space)
 							.with_dual_axis(PlayerAction::Look, MouseMove::default())
 							.with(PlayerAction::Sprint, KeyCode::ShiftLeft)
-							.with(PlayerAction::Use, MouseButton::Left),
+							.with(PlayerAction::Use, MouseButton::Left)
+							.with(PlayerAction::NextWeapon, MouseScrollDirection::UP)
+							.with(PlayerAction::PrevWeapon, MouseScrollDirection::DOWN),
 					),
 				),
 			)
@@ -50,9 +53,9 @@ impl Plugin for PlayerControllerPlugin {
 					dual_axes_input(PlayerAction::Look).pipe(rotate_camera_and_body),
 					clamped_dual_axes_input(PlayerAction::Move).pipe(axes_to_ground_velocity),
 					jump::<PlayerBody>.run_if(button_just_pressed(PlayerAction::Jump)),
-					attack.run_if(button_just_pressed(PlayerAction::Use)),
+					attack_hammer.run_if(button_just_pressed(PlayerAction::Use)),
 					animate_hammer,
-					collide_hammer,
+					collide_dealers,
 					deal_all_damage,
 				),
 			);
@@ -108,6 +111,7 @@ fn setup(
 			TransformBundle::from_transform(Transform::from_translation(Vec3::ZERO)),
 			VisibilityBundle::default(),
 			HammerPivot,
+			ActiveWeapon,
 		))
 		.set_parent(body)
 		.id();
@@ -160,6 +164,8 @@ pub enum PlayerAction {
 	Look,
 	Sprint,
 	Use,
+	NextWeapon,
+	PrevWeapon,
 }
 
 impl Actionlike for PlayerAction {
@@ -170,6 +176,8 @@ impl Actionlike for PlayerAction {
 			PlayerAction::Look => InputControlKind::DualAxis,
 			PlayerAction::Sprint => InputControlKind::Button,
 			PlayerAction::Use => InputControlKind::Button,
+			PlayerAction::NextWeapon => InputControlKind::Button,
+			PlayerAction::PrevWeapon => InputControlKind::Button,
 		}
 	}
 }
