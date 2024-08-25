@@ -9,27 +9,27 @@ use crate::util::MapRange;
 use super::{DamageEvent, InAnimation};
 
 #[derive(Component)]
-pub struct HammerPivot;
+pub struct SwordPivot;
 
 #[derive(Component)]
-pub struct Hammer {
+pub struct Sword {
 	pub damage: f32,
 	pub pivot: Entity,
 }
 
-pub fn animate_hammer(
+pub fn animate_sword(
 	mut commands: Commands,
-	hammer_heads: Query<(Entity, &Hammer, Option<&CanDealDamage>)>,
-	mut hammer_pivots: Query<(Entity, &mut Transform, &mut InAnimation), With<HammerPivot>>,
+	sword_blades: Query<(Entity, &Sword, Option<&CanDealDamage>)>,
+	mut sword_pivots: Query<(Entity, &mut Transform, &mut InAnimation), With<SwordPivot>>,
 	time: Res<Time>,
 	fray: Query<&FrayMusic>,
 	mut ev_hit: EventWriter<DamageEvent>,
 	asset_server: Res<AssetServer>,
 ) {
 	let fray = fray.get_single().expect("Could not find fray");
-	for (hammer_head_entity, hammer_head, dealer) in hammer_heads.iter() {
-		let Ok((hammer_pivot_entity, mut transform, mut animation)) =
-			hammer_pivots.get_mut(hammer_head.pivot)
+	for (sword_blade_entity, sword_blade, dealer) in sword_blades.iter() {
+		let Ok((sword_pivot_entity, mut transform, mut animation)) =
+			sword_pivots.get_mut(sword_blade.pivot)
 		else {
 			continue;
 		};
@@ -39,24 +39,24 @@ pub fn animate_hammer(
 
 		if (prev_time..time).contains(&0.0) {
 			commands
-				.entity(hammer_head_entity)
+				.entity(sword_blade_entity)
 				.insert(CanDealDamage::default());
 
 			commands.spawn((
-				Name::new("Hammer Swing SFX"),
+				Name::new("Sword Swing SFX"),
 				AudioBundle {
 					source: asset_server.load("woosh.mp3"),
 					settings: PlaybackSettings::DESPAWN,
 				},
 			));
 		}
-		if (prev_time..time).contains(&0.5) {
+		if (prev_time..time).contains(&0.25) {
 			commands
-				.entity(hammer_head_entity)
+				.entity(sword_blade_entity)
 				.remove::<CanDealDamage>();
 
 			commands.spawn((
-				Name::new("Hammer Smash SFX"),
+				Name::new("Sword Slash SFX"),
 				AudioBundle {
 					source: asset_server.load("concrete_break3.wav"),
 					settings: PlaybackSettings::DESPAWN,
@@ -65,7 +65,7 @@ pub fn animate_hammer(
 
 			if let Some(dealer) = dealer {
 				for entity in dealer.hit_entities.iter() {
-					let damage = fray.modify_fray_damage(hammer_head.damage);
+					let damage = fray.modify_fray_damage(sword_blade.damage);
 					ev_hit.send(DamageEvent {
 						victim: *entity,
 						damage,
@@ -73,21 +73,21 @@ pub fn animate_hammer(
 				}
 			}
 		}
-		if (prev_time..time).contains(&3.5) {
-			commands.entity(hammer_pivot_entity).remove::<InAnimation>();
+		if (prev_time..time).contains(&0.75) {
+			commands.entity(sword_pivot_entity).remove::<InAnimation>();
 		}
 
 		let angle = match time {
-			0.0..0.5 => time
-				.map_range(0.0..0.5, 0.0..(PI * 0.5))
+			0.0..0.25 => time
+				.map_range(0.0..0.25, 0.0..(PI * 0.5))
 				.cos()
-				.map_range(0.0..1.0, (-PI * 0.5)..0.0),
-			0.5..3.5 => time
-				.map_range(0.5..3.5, 0.0..PI)
+				.map_range(0.0..1.0, (PI * 0.5)..(-PI * 0.5)),
+			0.25..0.75 => time
+				.map_range(0.25..0.75, 0.0..PI)
 				.cos()
-				.map_range(-1.0..1.0, 0.0..(-PI * 0.5)),
-			_ => 0.0,
+				.map_range(-1.0..1.0, (-PI * 0.5)..(PI * 0.5)),
+			_ => -PI * 0.5,
 		};
-		transform.rotation = Quat::from_rotation_x(angle);
+		transform.rotation = Quat::from_rotation_y(angle);
 	}
 }
