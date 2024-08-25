@@ -19,10 +19,20 @@ pub struct InAnimation {
 pub struct DamageEvent {
 	pub victim: Entity,
 	pub damage: f32,
+	pub fray_modifier: f32,
 }
 
 #[derive(Component)]
 pub struct DamageNumbers;
+
+#[derive(Component)]
+pub struct WeaponSet {
+	pub weapons: Vec<Entity>,
+	pub active_weapon: usize,
+}
+
+#[derive(Component)]
+pub struct UninitializedWeaponSet;
 
 #[derive(Component)]
 pub struct ActiveWeapon;
@@ -77,6 +87,7 @@ pub fn update_damage_numbers(
 ) {
 	for event in ev_hit.read() {
 		let damage = event.damage;
+		let fray_modifier = event.fray_modifier;
 		for mut damage_numbers in damage_numbers.iter_mut() {
 			damage_numbers.sections.push(TextSection::new(
 				format!("\n{damage:.2}"),
@@ -84,11 +95,62 @@ pub fn update_damage_numbers(
 					color: Color::mix(
 						&Color::from(css::RED),
 						&Color::from(css::GREEN),
-						damage.clamp(0.0, 1.0),
+						fray_modifier.clamp(0.0, 1.0),
 					),
 					..default()
 				},
 			));
 		}
 	}
+}
+
+pub fn initialize_weapon_sets(
+	mut commands: Commands,
+	weapon_sets: Query<(Entity, &WeaponSet), With<UninitializedWeaponSet>>,
+) {
+	for (entity, weapon_set) in weapon_sets.iter() {
+		for (index, weapon) in weapon_set.weapons.iter().enumerate() {
+			if index == weapon_set.active_weapon {
+				show_weapon(&mut commands, *weapon);
+			} else {
+				hide_weapon(&mut commands, *weapon);
+			}
+		}
+		commands.entity(entity).remove::<UninitializedWeaponSet>();
+	}
+}
+
+pub fn switch_weapon_next(mut commands: Commands, mut weapon_sets: Query<&mut WeaponSet>) {
+	for mut weapon_set in weapon_sets.iter_mut() {
+		let old_weapon = weapon_set.weapons[weapon_set.active_weapon];
+		hide_weapon(&mut commands, old_weapon);
+		weapon_set.active_weapon = (weapon_set.active_weapon + 1) % weapon_set.weapons.len();
+		let new_weapon = weapon_set.weapons[weapon_set.active_weapon];
+		show_weapon(&mut commands, new_weapon);
+	}
+}
+
+pub fn switch_weapon_prev(mut commands: Commands, mut weapon_sets: Query<&mut WeaponSet>) {
+	for mut weapon_set in weapon_sets.iter_mut() {
+		let old_weapon = weapon_set.weapons[weapon_set.active_weapon];
+		hide_weapon(&mut commands, old_weapon);
+		weapon_set.active_weapon =
+			(weapon_set.active_weapon + weapon_set.weapons.len() - 1) % weapon_set.weapons.len();
+		let new_weapon = weapon_set.weapons[weapon_set.active_weapon];
+		show_weapon(&mut commands, new_weapon);
+	}
+}
+
+fn hide_weapon(commands: &mut Commands, weapon: Entity) {
+	commands
+		.entity(weapon)
+		.remove::<ActiveWeapon>()
+		.insert(Visibility::Hidden);
+}
+
+fn show_weapon(commands: &mut Commands, weapon: Entity) {
+	commands
+		.entity(weapon)
+		.insert(ActiveWeapon)
+		.insert(Visibility::Inherited);
 }

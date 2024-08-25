@@ -55,6 +55,9 @@ impl Plugin for PlayerControllerPlugin {
 					clamped_dual_axes_input(PlayerAction::Move).pipe(axes_to_ground_velocity),
 					jump::<PlayerBody>.run_if(button_just_pressed(PlayerAction::Jump)),
 					attack.run_if(button_just_pressed(PlayerAction::Use)),
+					switch_weapon_next.run_if(button_just_pressed(PlayerAction::NextWeapon)),
+					switch_weapon_prev.run_if(button_just_pressed(PlayerAction::PrevWeapon)),
+					initialize_weapon_sets,
 					animate_hammer,
 					animate_sword,
 					collide_dealers,
@@ -114,7 +117,6 @@ fn setup(
 			TransformBundle::from_transform(Transform::from_translation(Vec3::ZERO)),
 			VisibilityBundle::default(),
 			HammerPivot,
-			ActiveWeapon,
 		))
 		.set_parent(body)
 		.id();
@@ -156,7 +158,6 @@ fn setup(
 			),
 			VisibilityBundle::default(),
 			SwordPivot,
-			ActiveWeapon,
 		))
 		.set_parent(body)
 		.id();
@@ -188,6 +189,14 @@ fn setup(
 			},
 		))
 		.set_parent(sword_pivot);
+
+	commands.entity(body).insert((
+		WeaponSet {
+			weapons: vec![hammer_pivot, sword_pivot],
+			active_weapon: 0,
+		},
+		UninitializedWeaponSet,
+	));
 
 	commands.spawn((
 		Name::new("Damage Numbers"),

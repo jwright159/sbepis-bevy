@@ -66,9 +66,11 @@ pub fn animate_hammer(
 			if let Some(dealer) = dealer {
 				for entity in dealer.hit_entities.iter() {
 					let damage = fray.modify_fray_damage(hammer_head.damage);
+					let fray_modifier = fray.modify_fray_damage(1.0);
 					ev_hit.send(DamageEvent {
 						victim: *entity,
 						damage,
+						fray_modifier,
 					});
 				}
 			}
