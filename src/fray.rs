@@ -74,7 +74,11 @@ impl FrayMusic {
 	}
 
 	pub fn beat(&self) -> u32 {
-		(self.adjusted_time() / self.beat_duration()).floor() as u32
+		self.subbeats(1)
+	}
+
+	pub fn subbeats(&self, divisions: u32) -> u32 {
+		(self.adjusted_time() / self.beat_duration() * divisions as f32).floor() as u32
 	}
 
 	pub fn beat_progress(&self) -> f32 {

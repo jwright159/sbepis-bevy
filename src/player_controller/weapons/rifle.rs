@@ -1,5 +1,4 @@
 use std::f32::consts::{PI, TAU};
-use std::time::Duration;
 
 use bevy::ecs::entity::EntityHashSet;
 use bevy::prelude::*;
@@ -14,7 +13,7 @@ use crate::gridbox_material;
 use crate::player_controller::PlayerCamera;
 use crate::util::MapRange;
 
-use super::{DamageEvent, DamageSweep, EndDamageSweep, InAnimation, SweepPivot};
+use super::{DamageEvent, InAnimation};
 
 #[derive(Component)]
 pub struct RiflePivot;
@@ -24,10 +23,22 @@ pub struct Rifle {
 	pub damage: f32,
 	pub pivot: Entity,
 	pub allies: EntityHashSet,
-	pub charge: f32,
-	pub charge_rate: f32,
-	pub max_charge: f32,
+	pub charge: u32,
+	pub last_beat: u32,
+	pub charge_rate: u32,
+	pub max_charge: u32,
 	pub full_charge_multiplier: f32,
+	pub reload_time: f32,
+}
+
+impl Rifle {
+	fn update_last_beat(&mut self, fray: &FrayMusic) {
+		self.last_beat = fray.subbeats(self.charge_rate);
+	}
+
+	fn get_beat(&mut self, fray: &FrayMusic) -> u32 {
+		fray.subbeats(self.charge_rate)
+	}
 }
 
 pub fn spawn_rifle(
@@ -69,10 +80,12 @@ pub fn spawn_rifle(
 				damage: 0.5,
 				pivot: rifle_pivot,
 				allies: EntityHashSet::from_iter(vec![body]),
-				charge: 0.0,
-				charge_rate: 1.0,
-				max_charge: 1.0,
-				full_charge_multiplier: 2.0,
+				charge: 0,
+				last_beat: 0,
+				charge_rate: 2,
+				max_charge: 4,
+				full_charge_multiplier: 3.0,
+				reload_time: 1.75,
 			},
 		))
 		.set_parent(rifle_pivot)
@@ -83,7 +96,7 @@ pub fn spawn_rifle(
 
 pub fn animate_rifle(
 	mut commands: Commands,
-	mut rifle_barrels: Query<(Entity, &mut Rifle, &GlobalTransform)>,
+	mut rifle_barrels: Query<&mut Rifle>,
 	mut rifle_pivots: Query<(Entity, &mut Transform, &mut InAnimation), With<RiflePivot>>,
 	time: Res<Time>,
 	fray: Query<&FrayMusic>,
@@ -93,10 +106,8 @@ pub fn animate_rifle(
 	player_camera: Query<&GlobalTransform, With<PlayerCamera>>,
 ) {
 	let fray = fray.get_single().expect("Could not find fray");
-	for (rifle_barrel_entity, mut rifle_barrel, rifle_barrel_global_transform) in
-		rifle_barrels.iter_mut()
-	{
-		let Ok((sword_pivot_entity, mut transform, mut animation)) =
+	for mut rifle_barrel in rifle_barrels.iter_mut() {
+		let Ok((rifle_barrel_entity, mut transform, mut animation)) =
 			rifle_pivots.get_mut(rifle_barrel.pivot)
 		else {
 			continue;
@@ -104,6 +115,8 @@ pub fn animate_rifle(
 		let prev_time = fray.time_to_bpm_beat(animation.time);
 		animation.time += time.delta();
 		let curr_time = fray.time_to_bpm_beat(animation.time);
+
+		let reload_time = rifle_barrel.reload_time;
 
 		if (prev_time..curr_time).contains(&0.0) {
 			commands.spawn((
@@ -122,7 +135,13 @@ pub fn animate_rifle(
 				false,
 				QueryFilter::new().predicate(&|entity| !rifle_barrel.allies.contains(&entity)),
 			) {
-				let damage = fray.modify_fray_damage(rifle_barrel.damage);
+				let charge_multiplier = if rifle_barrel.charge >= rifle_barrel.max_charge {
+					rifle_barrel.full_charge_multiplier
+				} else {
+					1.0
+				};
+				rifle_barrel.charge = 0;
+				let damage = fray.modify_fray_damage(rifle_barrel.damage) * charge_multiplier;
 				let fray_modifier = fray.modify_fray_damage(1.0);
 				ev_hit.send(DamageEvent {
 					victim: hit_entity,
@@ -131,14 +150,47 @@ pub fn animate_rifle(
 				});
 			}
 		}
-		if (prev_time..curr_time).contains(&1.5) {
-			commands.entity(sword_pivot_entity).remove::<InAnimation>();
+		if (prev_time..curr_time).contains(&reload_time) {
+			commands.entity(rifle_barrel_entity).remove::<InAnimation>();
+			rifle_barrel.update_last_beat(fray);
 		}
 
-		let angle = match curr_time {
-			0.0..1.5 => curr_time.map_range_ease(0.0..1.5, 0.0..TAU, EaseFunction::QuarticOut),
-			_ => 0.0,
+		let angle = if (0.0..reload_time).contains(&curr_time) {
+			curr_time.map_range_ease(0.0..reload_time, 0.0..TAU, EaseFunction::QuarticOut)
+		} else {
+			0.0
 		};
 		transform.rotation = Quat::from_rotation_x(angle);
+	}
+}
+
+pub fn charge_rifle(
+	mut commands: Commands,
+	mut rifle_barrels: Query<&mut Rifle>,
+	rifle_pivots: Query<Entity, (With<RiflePivot>, Without<InAnimation>)>,
+	fray: Query<&FrayMusic>,
+	asset_server: Res<AssetServer>,
+) {
+	let fray = fray.get_single().expect("Could not find fray");
+	for mut rifle_barrel in rifle_barrels.iter_mut() {
+		if rifle_pivots.get(rifle_barrel.pivot).is_err() {
+			continue;
+		};
+
+		let beat = rifle_barrel.get_beat(fray);
+		if rifle_barrel.charge < rifle_barrel.max_charge {
+			if rifle_barrel.last_beat != beat {
+				rifle_barrel.charge += 1;
+
+				commands.spawn((
+					Name::new("Rifle Charge SFX"),
+					AudioBundle {
+						source: asset_server.load("flute.wav"),
+						settings: PlaybackSettings::DESPAWN.with_speed(2.0),
+					},
+				));
+			}
+		}
+		rifle_barrel.update_last_beat(fray);
 	}
 }

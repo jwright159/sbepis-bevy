@@ -62,6 +62,7 @@ impl Plugin for PlayerControllerPlugin {
 					animate_hammer,
 					animate_sword,
 					animate_rifle,
+					charge_rifle,
 					sweep_dealers,
 					deal_all_damage,
 					update_damage_numbers,
