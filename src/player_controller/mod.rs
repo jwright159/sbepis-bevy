@@ -111,81 +111,21 @@ fn setup(
 		.set_parent(body)
 		.id();
 
-	let hammer_pivot = commands
-		.spawn((
-			Name::new("Hammer Pivot"),
-			TransformBundle::from_transform(Transform::from_translation(Vec3::ZERO)),
-			VisibilityBundle::default(),
-			HammerPivot,
-		))
-		.set_parent(body)
-		.id();
+	let (hammer_pivot, _hammer_head) = spawn_hammer(
+		&mut commands,
+		&asset_server,
+		&mut materials,
+		&mut meshes,
+		body,
+	);
 
-	commands
-		.spawn((
-			Name::new("Hammer Head"),
-			PbrBundle {
-				transform: Transform::default()
-					.with_translation(Vec3::Y * 1.)
-					.with_rotation(Quat::from_rotation_x(PI / 2.)),
-				mesh: meshes.add(
-					Capsule3d::new(0.1, 0.5)
-						.mesh()
-						.rings(1)
-						.latitudes(8)
-						.longitudes(16)
-						.uv_profile(CapsuleUvProfile::Fixed),
-				),
-				material: gridbox_material("red", &mut materials, &asset_server),
-				..default()
-			},
-			Collider::capsule_y(0.25, 0.1),
-			Sensor,
-			ActiveEvents::COLLISION_EVENTS,
-			Hammer {
-				damage: 1.0,
-				pivot: hammer_pivot,
-			},
-		))
-		.set_parent(hammer_pivot);
-
-	let sword_pivot = commands
-		.spawn((
-			Name::new("Sword Pivot"),
-			TransformBundle::from_transform(
-				Transform::from_translation(Vec3::ZERO)
-					.with_rotation(Quat::from_rotation_y(-PI * 0.5)),
-			),
-			VisibilityBundle::default(),
-			SwordPivot,
-		))
-		.set_parent(body)
-		.id();
-
-	commands
-		.spawn((
-			Name::new("Sword Blade"),
-			PbrBundle {
-				transform: Transform::default()
-					.with_translation(Vec3::NEG_Z * 1.)
-					.with_rotation(Quat::from_rotation_x(PI / 2.)),
-				mesh: meshes.add(
-					Capsule3d::new(0.1, 0.5)
-						.mesh()
-						.rings(1)
-						.latitudes(8)
-						.longitudes(16)
-						.uv_profile(CapsuleUvProfile::Fixed),
-				),
-				material: gridbox_material("red", &mut materials, &asset_server),
-				..default()
-			},
-			Collider::capsule_y(0.25, 0.1),
-			Sensor,
-			ActiveEvents::COLLISION_EVENTS,
-			Sword::new(0.25, sword_pivot),
-		))
-		.set_parent(sword_pivot);
+	let (sword_pivot, _sword_blade) = spawn_sword(
+		&mut commands,
+		&asset_server,
+		&mut materials,
+		&mut meshes,
+		body,
+	);
 
 	commands.entity(body).insert((
 		WeaponSet {

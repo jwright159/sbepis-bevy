@@ -2,9 +2,12 @@ use std::f32::consts::PI;
 use std::time::Duration;
 
 use bevy::prelude::*;
+use bevy::render::mesh::CapsuleUvProfile;
+use bevy_rapier3d::prelude::*;
 
 use crate::entity::health::CanDealDamage;
 use crate::fray::FrayMusic;
+use crate::gridbox_material;
 use crate::util::MapRange;
 
 use super::{DamageEvent, InAnimation};
@@ -50,6 +53,55 @@ impl SwordSide {
 			SwordSide::Right => PI * 0.5,
 		}
 	}
+}
+
+pub fn spawn_sword(
+	commands: &mut Commands,
+	asset_server: &AssetServer,
+	materials: &mut Assets<StandardMaterial>,
+	meshes: &mut Assets<Mesh>,
+	body: Entity,
+) -> (Entity, Entity) {
+	let sword_pivot = commands
+		.spawn((
+			Name::new("Sword Pivot"),
+			TransformBundle::from_transform(
+				Transform::from_translation(Vec3::ZERO)
+					.with_rotation(Quat::from_rotation_y(-PI * 0.5)),
+			),
+			VisibilityBundle::default(),
+			SwordPivot,
+		))
+		.set_parent(body)
+		.id();
+
+	let sword_blade = commands
+		.spawn((
+			Name::new("Sword Blade"),
+			PbrBundle {
+				transform: Transform::default()
+					.with_translation(Vec3::NEG_Z * 1.)
+					.with_rotation(Quat::from_rotation_x(PI / 2.)),
+				mesh: meshes.add(
+					Capsule3d::new(0.1, 0.5)
+						.mesh()
+						.rings(1)
+						.latitudes(8)
+						.longitudes(16)
+						.uv_profile(CapsuleUvProfile::Fixed),
+				),
+				material: gridbox_material("red", materials, asset_server),
+				..default()
+			},
+			Collider::capsule_y(0.25, 0.1),
+			Sensor,
+			ActiveEvents::COLLISION_EVENTS,
+			Sword::new(0.25, sword_pivot),
+		))
+		.set_parent(sword_pivot)
+		.id();
+
+	(sword_pivot, sword_blade)
 }
 
 pub fn animate_sword(
