@@ -166,10 +166,10 @@ pub fn animate_sword(
 		let angle = match curr_time {
 			0.0..0.6 => curr_time
 				.map_range(0.0..0.6, 0.0..(PI * 0.5))
-				.cos()
+				.sin()
 				.map_range(
 					0.0..1.0,
-					sword_blade.side.other_side().angle()..sword_blade.side.angle(),
+					sword_blade.side.angle()..sword_blade.side.other_side().angle(),
 				),
 			_ => sword_blade.side.angle(),
 		};
