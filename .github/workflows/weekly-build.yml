@@ -8,14 +8,19 @@ on:
 jobs:
   set-date:
     runs-on: ubuntu-latest
-    
+    outputs:
+      date: ${{ steps.set-date.outputs.date }}
+
     steps:
     - name: Set date
-      run: echo "DATE=$(date +%Y-%m-%d-%H%M)" >> $GITHUB_ENV
+      id: set-date
+      run: echo "date=$(date +%Y-%m-%d-%H%M)" >> "$GITHUB_OUTPUT"
 
   build-linux:
     runs-on: ubuntu-latest
     needs: [set-date]
+    env:
+      DATE: ${{ needs.set-date.outputs.date }}
 
     steps:
     - name: Checkout code
@@ -32,9 +37,7 @@ jobs:
     - name: Build the game
       run: cargo build --release
     
-    - name: Compress build 
-      env:
-        DATE: ${{ env.DATE }}
+    - name: Compress build files
       run: |
         mkdir SBEPIS
         cp ./target/release/sbepis SBEPIS/
@@ -53,13 +56,13 @@ jobs:
         EOF
 
     - name: Upload build to Google Drive
-      env:
-        DATE: ${{ env.DATE }}
       run: rclone copy sbepis-linux-$DATE.tar.gz "gdrive:SBEPIS Builds"
 
   build-windows:
     runs-on: windows-latest
     needs: [set-date]
+    env:
+      DATE: ${{ needs.set-date.outputs.date }}
 
     steps:
     - name: Checkout code
@@ -74,8 +77,6 @@ jobs:
       run: cargo build --release
 
     - name: Compress build files
-      env:
-        DATE: ${{ env.DATE }}
       run: |
         mkdir SBEPIS
         cp .\target\release\sbepis.exe SBEPIS\
@@ -95,13 +96,13 @@ jobs:
         "@ | Set-Content -Path $rcloneConfigPath
 
     - name: Upload build to Google Drive
-      env:
-        DATE: ${{ env.DATE }}
       run: rclone copy sbepis-windows-$DATE.zip "gdrive:SBEPIS Builds"
 
   notify-discord:
     runs-on: ubuntu-latest
-    needs: [build-linux, build-windows]
+    needs: [set-date, build-linux, build-windows]
+    env:
+      DATE: ${{ needs.set-date.outputs.date }}
 
     steps:
     - name: Install rclone
@@ -118,7 +119,6 @@ jobs:
     - name: Send Discord notification
       env:
         DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
-        DATE: ${{ env.DATE }}
       run: |
         LINUX_LINK=$(rclone link "gdrive:SBEPIS Builds/sbepis-linux-$DATE.tar.gz")
         WINDOWS_LINK=$(rclone link "gdrive:SBEPIS Builds/sbepis-windows-$DATE.zip")
