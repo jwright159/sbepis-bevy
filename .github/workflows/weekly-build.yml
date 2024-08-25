@@ -10,6 +10,8 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       date: ${{ steps.set-date.outputs.date }}
+      linux-filename: sbepis-${{ steps.set-date.outputs.date }}-linux.tar.gz
+      windows-filename: sbepis-${{ steps.set-date.outputs.date }}-windows.zip
 
     steps:
     - name: Set date
@@ -20,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [set-date]
     env:
-      DATE: ${{ needs.set-date.outputs.date }}
+      FILENAME: ${{ needs.set-date.outputs.linux-filename }}
 
     steps:
     - name: Checkout code
@@ -40,9 +42,9 @@ jobs:
     - name: Compress build files
       run: |
         mkdir SBEPIS
-        cp ./target/release/sbepis SBEPIS/
+        cp ./target/release/sbepis SBEPIS/SBEPIS
         cp -r ./assets SBEPIS/
-        tar -czf sbepis-linux-$DATE.tar.gz SBEPIS
+        tar -czf $FILENAME SBEPIS
 
     - name: Install rclone
       run: |
@@ -56,13 +58,13 @@ jobs:
         EOF
 
     - name: Upload build to Google Drive
-      run: rclone copy sbepis-linux-$DATE.tar.gz "gdrive:SBEPIS Builds"
+      run: rclone copy $FILENAME "gdrive:SBEPIS Builds"
 
   build-windows:
     runs-on: windows-latest
     needs: [set-date]
     env:
-      DATE: ${{ needs.set-date.outputs.date }}
+      FILENAME: ${{ needs.set-date.outputs.windows-filename }}
 
     steps:
     - name: Checkout code
@@ -79,9 +81,9 @@ jobs:
     - name: Compress build files
       run: |
         mkdir SBEPIS
-        cp .\target\release\sbepis.exe SBEPIS\
+        cp .\target\release\sbepis.exe SBEPIS\SBEPIS.exe
         cp -r .\assets SBEPIS\
-        Compress-Archive -Path .\SBEPIS -DestinationPath sbepis-windows-$DATE.zip
+        Compress-Archive -Path .\SBEPIS -DestinationPath $env:FILENAME
 
     - name: Install rclone
       run: |
@@ -96,13 +98,15 @@ jobs:
         "@ | Set-Content -Path $rcloneConfigPath
 
     - name: Upload build to Google Drive
-      run: rclone copy sbepis-windows-$DATE.zip "gdrive:SBEPIS Builds"
+      run: rclone copy $env:FILENAME "gdrive:SBEPIS Builds"
 
   notify-discord:
     runs-on: ubuntu-latest
     needs: [set-date, build-linux, build-windows]
     env:
       DATE: ${{ needs.set-date.outputs.date }}
+      LINUX_FILENAME: ${{ needs.set-date.outputs.linux-filename }}
+      WINDOWS_FILENAME: ${{ needs.set-date.outputs.windows-filename }}
 
     steps:
     - name: Install rclone
@@ -120,14 +124,14 @@ jobs:
       env:
         DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
       run: |
-        LINUX_LINK=$(rclone link "gdrive:SBEPIS Builds/sbepis-linux-$DATE.tar.gz")
-        WINDOWS_LINK=$(rclone link "gdrive:SBEPIS Builds/sbepis-windows-$DATE.zip")
+        LINUX_LINK=$(rclone link "gdrive:SBEPIS Builds/$LINUX_FILENAME")
+        WINDOWS_LINK=$(rclone link "gdrive:SBEPIS Builds/$WINDOWS_FILENAME")
         EMBED_CONTENT=$(cat <<EOF
         {
           "embeds": [
             {
               "title": "New Builds Available!",
-              "description": "Build Id: $DATE",
+              "description": "Build Number: $DATE",
               "color": 240116,
               "fields": [
                 {
