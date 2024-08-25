@@ -1,25 +1,37 @@
 use bevy::prelude::*;
-use num_traits::Float;
+use bevy_rapier3d::math::Real;
+use interpolation::{Ease, EaseFunction};
+use std::array::IntoIter;
 use std::ops::Range;
-use std::{
-	array::IntoIter,
-	ops::{Add, Div, Mul, Sub},
-};
 
 use crate::player_controller::{PlayerBody, PlayerCamera};
 
 pub trait MapRange<T> {
 	fn map_range(self, range_in: Range<T>, range_out: Range<T>) -> T;
+	fn map_to_01(self, range_in: Range<T>) -> T;
+	fn map_from_01(self, range_out: Range<T>) -> T;
+	fn map_range_ease(self, range_in: Range<T>, range_out: Range<T>, ease: EaseFunction) -> T;
 }
-impl<T, F> MapRange<T> for F
-where
-	T: Add<Output = T> + Sub<Output = T> + Div<Output = T> + Mul<Output = T> + Copy,
-	F: Float + Sub<T, Output = T>,
-{
-	fn map_range(self, range_in: Range<T>, range_out: Range<T>) -> T {
+impl MapRange<Real> for Real {
+	fn map_range(self, range_in: Range<Real>, range_out: Range<Real>) -> Real {
+		self.map_to_01(range_in).map_from_01(range_out)
+	}
+
+	fn map_to_01(self, range_in: Range<Real>) -> Real {
 		(self - range_in.start) / (range_in.end - range_in.start)
-			* (range_out.end - range_out.start)
-			+ range_out.start
+	}
+
+	fn map_from_01(self, range_out: Range<Real>) -> Real {
+		self * (range_out.end - range_out.start) + range_out.start
+	}
+
+	fn map_range_ease(
+		self,
+		range_in: Range<Real>,
+		range_out: Range<Real>,
+		ease: EaseFunction,
+	) -> Real {
+		self.map_to_01(range_in).calc(ease).map_from_01(range_out)
 	}
 }
 

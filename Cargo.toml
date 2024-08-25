@@ -27,6 +27,7 @@ leafwing-input-manager = "0.15.0"
 num-traits = "0.2.19"
 winit = "0.30.4"
 rand = "0.8.5"
+interpolation = "0.3.0"
 
 [build-dependencies]
 winres = "0.1"

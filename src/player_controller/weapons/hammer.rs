@@ -3,6 +3,7 @@ use std::f32::consts::PI;
 use bevy::prelude::*;
 use bevy::render::mesh::CapsuleUvProfile;
 use bevy_rapier3d::prelude::*;
+use interpolation::EaseFunction;
 
 use crate::entity::health::CanDealDamage;
 use crate::fray::FrayMusic;
@@ -132,14 +133,10 @@ pub fn animate_hammer(
 		}
 
 		let angle = match time {
-			0.0..0.5 => time
-				.map_range(0.0..0.5, 0.0..(PI * 0.5))
-				.cos()
-				.map_range(0.0..1.0, (-PI * 0.5)..0.0),
-			0.5..3.5 => time
-				.map_range(0.5..3.5, 0.0..PI)
-				.cos()
-				.map_range(-1.0..1.0, 0.0..(-PI * 0.5)),
+			0.0..0.5 => {
+				time.map_range_ease(0.0..0.5, 0.0..(-PI * 0.5), EaseFunction::ExponentialIn)
+			}
+			0.5..3.5 => time.map_range_ease(0.5..3.5, (-PI * 0.5)..0.0, EaseFunction::CubicInOut),
 			_ => 0.0,
 		};
 		transform.rotation = Quat::from_rotation_x(angle);

@@ -4,6 +4,7 @@ use std::time::Duration;
 use bevy::prelude::*;
 use bevy::render::mesh::CapsuleUvProfile;
 use bevy_rapier3d::prelude::*;
+use interpolation::EaseFunction;
 
 use crate::entity::health::CanDealDamage;
 use crate::fray::FrayMusic;
@@ -139,7 +140,7 @@ pub fn animate_sword(
 				},
 			));
 		}
-		if (prev_time..curr_time).contains(&0.6) {
+		if (prev_time..curr_time).contains(&0.8) {
 			commands
 				.entity(sword_blade_entity)
 				.remove::<CanDealDamage>();
@@ -164,13 +165,11 @@ pub fn animate_sword(
 		}
 
 		let angle = match curr_time {
-			0.0..0.6 => curr_time
-				.map_range(0.0..0.6, 0.0..(PI * 0.5))
-				.sin()
-				.map_range(
-					0.0..1.0,
-					sword_blade.side.angle()..sword_blade.side.other_side().angle(),
-				),
+			0.0..0.8 => curr_time.map_range_ease(
+				0.0..0.8,
+				sword_blade.side.angle()..sword_blade.side.other_side().angle(),
+				EaseFunction::QuarticOut,
+			),
 			_ => sword_blade.side.angle(),
 		};
 		transform.rotation = Quat::from_rotation_y(angle);
