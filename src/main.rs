@@ -22,6 +22,7 @@ mod overview_camera;
 mod player_commands;
 mod player_controller;
 mod skybox;
+mod jack_noir;
 pub mod util;
 
 fn main() {
