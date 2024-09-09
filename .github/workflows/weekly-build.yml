@@ -41,10 +41,10 @@ jobs:
     
     - name: Compress build files
       run: |
-        mkdir SBEPIS
-        cp ./target/release/sbepis SBEPIS/SBEPIS
-        cp -r ./assets SBEPIS/
-        tar -czf $FILENAME SBEPIS
+        mkdir -p build/SBEPIS
+        cp ./target/release/sbepis build/SBEPIS/SBEPIS
+        cp -r ./sbepis/assets build/SBEPIS/
+        tar -czf $FILENAME -C build SBEPIS
 
     - name: Install rclone
       run: |
@@ -80,10 +80,10 @@ jobs:
 
     - name: Compress build files
       run: |
-        mkdir SBEPIS
-        cp .\target\release\sbepis.exe SBEPIS\SBEPIS.exe
-        cp -r .\assets SBEPIS\
-        Compress-Archive -Path .\SBEPIS -DestinationPath $env:FILENAME
+        mkdir build\SBEPIS
+        cp .\target\release\sbepis.exe build\SBEPIS\SBEPIS.exe
+        cp -r .\sbepis\assets build\SBEPIS\
+        Compress-Archive -Path .\build\SBEPIS -DestinationPath $env:FILENAME
 
     - name: Install rclone
       run: |
