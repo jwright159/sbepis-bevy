@@ -1,4 +1,6 @@
-use bevy::math::{IVec2, IVec3, Vec3};
+use std::f32::consts::PI;
+
+use bevy::math::{IVec2, IVec3, Quat, Vec3};
 
 use crate::march_tables::*;
 
@@ -33,17 +35,19 @@ fn index_from_coord(coord: IVec3) -> usize {
 }
 
 fn sample_density(position: IVec3) -> f32 {
-	let center = Vec3::new(
-		NUM_VOXELS as f32 / 2.0,
-		NUM_VOXELS as f32 / 2.0,
-		NUM_VOXELS as f32 / 2.0,
-	);
-	let radius = NUM_VOXELS as f32 / 2.0;
+	let center = CHUNK_COORD.as_vec3() + Vec3::splat(NUM_SAMPLES as f32 / 2.0);
 
-	let distance = position.as_vec3().distance(center);
-	let density = 1.0 - (distance / radius);
+	let position = position.as_vec3() - center;
+	let position = Quat::from_axis_angle(Vec3::new(1., 1., 1.), PI / 3.0) * position;
 
-	density.clamp(0.0, 1.0)
+	let dimensions = Vec3::new(9.5, 20.5, 24.0);
+	let half_dimensions = dimensions / 2.0;
+
+	let distance = position.abs();
+	let normalized_distance = distance / half_dimensions;
+	let max_distance = normalized_distance.max_element();
+
+	1.0 - max_distance
 }
 
 fn calculate_normal(coord: IVec3) -> Vec3 {

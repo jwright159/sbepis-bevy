@@ -1,6 +1,8 @@
 // Most of this code is from https://github.com/SebLague/Terraforming
 
-use bevy::color::palettes;
+use bevy::color::palettes::css;
+use bevy::color::palettes::tailwind;
+use bevy::pbr::wireframe::{WireframeConfig, WireframePlugin};
 use bevy::prelude::*;
 use bevy::utils::HashMap;
 use marching_cubes::*;
@@ -12,9 +14,14 @@ fn main() {
 	App::new()
 		.add_plugins((
 			DefaultPlugins,
+			WireframePlugin,
 			bevy_inspector_egui::quick::WorldInspectorPlugin::new(),
 			bevy_panorbit_camera::PanOrbitCameraPlugin,
 		))
+		.insert_resource(WireframeConfig {
+			global: true,
+			default_color: css::WHITE.into(),
+		})
 		.add_systems(Startup, setup)
 		.run();
 }
@@ -101,7 +108,7 @@ fn setup(
 		Name::new("MarchingCubesMesh"),
 		PbrBundle {
 			mesh: meshes.add(mesh),
-			material: materials.add(Color::from(palettes::tailwind::EMERALD_500)),
+			material: materials.add(Color::from(tailwind::EMERALD_500)),
 			transform: Transform::from_translation(Vec3::splat(-size / 2.0))
 				.with_scale(Vec3::splat(size / NUM_VOXELS as f32)),
 			..default()
