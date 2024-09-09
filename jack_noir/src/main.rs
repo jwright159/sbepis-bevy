@@ -1,54 +1,52 @@
-#![allow(dead_code)]
-
 use std::sync::Arc;
 
-use bevy::utils::{HashMap, HashSet};
+use hashbrown::{HashMap, HashSet};
 use lazy_static::lazy_static;
 
 #[derive(Debug, Clone)]
-struct Jack {
+pub struct Jack {
 	potential_targets: Vec<Arc<Target>>,
 	personal_values: Vec<PersonalValue>,
 	allegiences: HashMap<Arc<Faction>, i32>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct ActionType {
+pub struct ActionType {
 	name: String,
 	beneficial_to_target: Option<bool>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct Action {
+pub struct Action {
 	action_type: Arc<ActionType>,
 	target: Option<Arc<Target>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct Target {
+pub struct Target {
 	name: String,
 	allegiences: HashMap<Arc<Faction>, i32>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-struct Faction {
+pub struct Faction {
 	name: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct PersonalValue {
+pub struct PersonalValue {
 	name: String,
 	weights: Vec<ActionWeight>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct ActionWeight {
+pub struct ActionWeight {
 	action_type: Arc<ActionType>,
 	weight: i32,
 }
 
 impl Jack {
-	fn next_action(&self) -> Action {
+	pub fn next_action(&self) -> Action {
 		let mut actions: Vec<Action> = vec![];
 		actions.extend(
 			self.personal_values
@@ -129,7 +127,7 @@ impl Jack {
 }
 
 lazy_static! {
-	static ref NOTHING: Arc<ActionType> = Arc::new(ActionType {
+	pub static ref NOTHING: Arc<ActionType> = Arc::new(ActionType {
 		name: "Nothing".to_string(),
 		beneficial_to_target: None,
 	});
@@ -139,6 +137,7 @@ lazy_static! {
 mod tests {
 	use super::*;
 
+	#[allow(dead_code)]
 	struct TestInfo {
 		stab: Arc<ActionType>,
 		do_midnight_crew_things: Arc<ActionType>,
@@ -285,4 +284,8 @@ mod tests {
 			}
 		);
 	}
+}
+
+fn main() {
+	println!("No main method, only tests here");
 }
