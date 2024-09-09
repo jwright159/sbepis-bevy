@@ -47,10 +47,6 @@ struct ActionWeight {
 	weight: i32,
 }
 
-trait Weighted {
-	fn get_weight_for_action(&self, action: &Action) -> i32;
-}
-
 impl Jack {
 	fn next_action(&self) -> Action {
 		let mut actions: Vec<Action> = vec![];
