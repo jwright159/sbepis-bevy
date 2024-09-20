@@ -1,0 +1,11 @@
+[package]
+name = "mod_bin"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bevy_dylib = "0.14.2"
+bevy = { version = "0.14.2", features = ["dynamic_linking"] }
+bevy-inspector-egui = "0.26.0"
+bevy_mod_debugdump = "0.11.1"
+libloading = "0.8.5"
