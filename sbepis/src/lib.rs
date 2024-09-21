@@ -2,6 +2,8 @@
 
 use std::io::Cursor;
 
+use bevy::input::common_conditions::input_just_pressed;
+use bevy::log::LogPlugin;
 use bevy::prelude::*;
 use bevy::window::{CursorGrabMode, PrimaryWindow};
 use bevy::winit::WinitWindows;
@@ -16,12 +18,71 @@ pub mod gravity;
 pub mod input;
 pub mod main_bundles;
 pub mod netcode;
-pub mod npcs;
 pub mod overview_camera;
 pub mod player_commands;
 pub mod player_controller;
 pub mod skybox;
 pub mod util;
+
+pub struct CommonPlugin {
+	window_name: String,
+}
+impl Plugin for CommonPlugin {
+	fn build(&self, app: &mut App) {
+		app
+			.insert_resource(rapier_config())
+			.add_plugins((
+				DefaultPlugins
+					.set(WindowPlugin {
+						primary_window: Some(Window {
+							title: self.window_name.clone(),
+							..default()
+						}),
+						..default()
+					})
+					.set(ImagePlugin {
+						default_sampler: bevy::render::texture::ImageSamplerDescriptor {
+							address_mode_u: bevy::render::texture::ImageAddressMode::Repeat,
+							address_mode_v: bevy::render::texture::ImageAddressMode::Repeat,
+							address_mode_w: bevy::render::texture::ImageAddressMode::Repeat,
+							..default()
+						}
+						.into(),
+					})
+					.set(LogPlugin {
+						filter: "info,sbepis=debug,avian3d=debug,wgpu=error,naga=warn,calloop=error,symphonia_core=warn,symphonia_bundle_mp3=warn".into(),
+						..default()
+					}),
+				RapierPhysicsPlugin::<NoUserData>::default(),
+				#[cfg(feature = "rapier_debug")]
+				RapierDebugRenderPlugin::default(),
+				#[cfg(feature = "inspector")]
+				bevy_inspector_egui::quick::WorldInspectorPlugin::new(),
+				player_commands::PlayerCommandsPlugin,
+				skybox::SkyboxPlugin,
+				entity::EntityPlugin,
+				player_controller::PlayerControllerPlugin,
+				gravity::GravityPlugin,
+				fray::FrayPlugin,
+			))
+			.add_systems(Startup, (set_window_icon, setup_world))
+			.add_systems(
+				Update,
+				(
+					quit.run_if(input_just_pressed(KeyCode::Escape)),
+					util::despawn_after_timer,
+					util::billboard,
+				),
+			);
+	}
+}
+impl CommonPlugin {
+	pub fn new(window_name: &str) -> Self {
+		Self {
+			window_name: window_name.to_string(),
+		}
+	}
+}
 
 pub fn rapier_config() -> RapierConfiguration {
 	let mut rapier_config = RapierConfiguration::new(1.);
@@ -66,44 +127,17 @@ pub fn gridbox_material_extra(
 	})
 }
 
-pub fn setup(
+pub fn setup_world(
 	mut commands: Commands,
 	mut meshes: ResMut<Assets<Mesh>>,
 	mut materials: ResMut<Assets<StandardMaterial>>,
 	asset_server: Res<AssetServer>,
 ) {
 	let gray_material = gridbox_material("grey2", &mut materials, &asset_server);
-	let green_material = gridbox_material("green1", &mut materials, &asset_server);
 
 	commands.spawn((
 		Name::new("Planet"),
 		PlanetBundle::new(Vec3::Y * -1000.0, 1000.0, 10.0, &mut meshes, gray_material),
-	));
-
-	let cube_mesh = meshes.add(Cuboid::from_size(Vec3::ONE));
-	commands.spawn((
-		Name::new("Cube 1"),
-		BoxBundle::new(
-			Vec3::new(0.0, 4.0, 0.0),
-			cube_mesh.clone(),
-			green_material.clone(),
-		),
-	));
-	commands.spawn((
-		Name::new("Cube 2"),
-		BoxBundle::new(
-			Vec3::new(0.5, 5.5, 0.0),
-			cube_mesh.clone(),
-			green_material.clone(),
-		),
-	));
-	commands.spawn((
-		Name::new("Cube 3"),
-		BoxBundle::new(
-			Vec3::new(-0.5, 7.0, 0.0),
-			cube_mesh.clone(),
-			green_material.clone(),
-		),
 	));
 
 	commands.spawn((

@@ -1,94 +1,127 @@
-use bevy::input::common_conditions::input_just_pressed;
-use bevy::log::LogPlugin;
+use std::net::UdpSocket;
+use std::time::SystemTime;
+
 use bevy::prelude::*;
+use bevy::render::mesh::CapsuleUvProfile;
 use bevy_rapier3d::prelude::*;
+use bevy_renet::renet::transport::{NetcodeServerTransport, ServerAuthentication, ServerConfig};
 use bevy_renet::renet::RenetServer;
+use bevy_renet::transport::NetcodeServerPlugin;
+use sbepis::entity::{Healing, RandomInput, RotateTowardMovement, SpawnHealthBar, TargetPlayer};
 use sbepis::netcode::*;
+use sbepis::{gridbox_material, main_bundles::*};
 
 fn main() {
-	let mut app = App::new();
-	app
-		.insert_resource(sbepis::rapier_config())
+	App::new()
 		.add_plugins((
-			DefaultPlugins
-				.set(WindowPlugin {
-					primary_window: Some(Window {
-						title: "SBEPIS Server".to_string(),
-						..default()
-					}),
-					..default()
-				})
-				.set(ImagePlugin {
-					default_sampler: bevy::render::texture::ImageSamplerDescriptor {
-						address_mode_u: bevy::render::texture::ImageAddressMode::Repeat,
-						address_mode_v: bevy::render::texture::ImageAddressMode::Repeat,
-						address_mode_w: bevy::render::texture::ImageAddressMode::Repeat,
-						..default()
-					}
-					.into(),
-				})
-				.set(LogPlugin {
-					filter: "info,sbepis=debug,avian3d=debug,wgpu=error,naga=warn,calloop=error,symphonia_core=warn,symphonia_bundle_mp3=warn".into(),
-					..default()
-				}),
-			RapierPhysicsPlugin::<NoUserData>::default(),
-			#[cfg(feature = "rapier_debug")]
-			RapierDebugRenderPlugin::default(),
-			#[cfg(feature = "inspector")]
-			bevy_inspector_egui::quick::WorldInspectorPlugin::new(),
+			sbepis::CommonPlugin::new("SBEPIS Server"),
+			ServerPlugin,
 			sbepis::overview_camera::OverviewCameraPlugin,
-			sbepis::player_commands::PlayerCommandsPlugin,
-			sbepis::skybox::SkyboxPlugin,
-			sbepis::entity::EntityPlugin,
-			sbepis::player_controller::PlayerControllerPlugin,
-			sbepis::npcs::NpcPlugin,
-			sbepis::gravity::GravityPlugin,
-			sbepis::fray::FrayPlugin,
 		))
-		.add_systems(Startup, (sbepis::set_window_icon, sbepis::setup))
-		.add_systems(
-			Update,
-			(
-				sbepis::quit.run_if(input_just_pressed(KeyCode::Escape)),
-				sbepis::util::despawn_after_timer,
-				sbepis::util::billboard,
-			),
-		)
-		.add_systems(Update, (server_send,
-            server_recieve));
-
-	add_netcode_network(&mut app);
-
-	app.run();
+		.add_systems(Startup, setup)
+		.run();
 }
 
-fn add_netcode_network(app: &mut App) {
-	use bevy_renet::renet::transport::{
-		NetcodeServerTransport, ServerAuthentication, ServerConfig,
-	};
-	use bevy_renet::transport::NetcodeServerPlugin;
-	use std::{net::UdpSocket, time::SystemTime};
+fn setup(
+	mut commands: Commands,
+	mut meshes: ResMut<Assets<Mesh>>,
+	mut materials: ResMut<Assets<StandardMaterial>>,
+	asset_server: Res<AssetServer>,
+) {
+	let green_material = gridbox_material("green1", &mut materials, &asset_server);
+	let cube_mesh = meshes.add(Cuboid::from_size(Vec3::ONE));
+	commands.spawn((
+		Name::new("Cube 1"),
+		BoxBundle::new(
+			Vec3::new(0.0, 4.0, 0.0),
+			cube_mesh.clone(),
+			green_material.clone(),
+		),
+	));
+	commands.spawn((
+		Name::new("Cube 2"),
+		BoxBundle::new(
+			Vec3::new(0.5, 5.5, 0.0),
+			cube_mesh.clone(),
+			green_material.clone(),
+		),
+	));
+	commands.spawn((
+		Name::new("Cube 3"),
+		BoxBundle::new(
+			Vec3::new(-0.5, 7.0, 0.0),
+			cube_mesh.clone(),
+			green_material.clone(),
+		),
+	));
 
-	app.add_plugins(NetcodeServerPlugin);
+	commands.spawn((
+		Name::new("Consort"),
+		EntityBundle::new(
+			Transform::from_translation(Vec3::new(-5.0, 10.0, 0.0)),
+			meshes.add(
+				Capsule3d::new(0.25, 0.5)
+					.mesh()
+					.rings(1)
+					.latitudes(8)
+					.longitudes(16)
+					.uv_profile(CapsuleUvProfile::Fixed),
+			),
+			gridbox_material("magenta", &mut materials, &asset_server),
+			Collider::capsule_y(0.25, 0.25),
+		),
+		SpawnHealthBar,
+		RandomInput::default(),
+		Healing(0.2),
+		RotateTowardMovement,
+	));
+	commands.spawn((
+		Name::new("Imp"),
+		EntityBundle::new(
+			Transform::from_translation(Vec3::new(-6.0, 10.0, 0.0)),
+			meshes.add(
+				Capsule3d::new(0.25, 0.5)
+					.mesh()
+					.rings(1)
+					.latitudes(8)
+					.longitudes(16)
+					.uv_profile(CapsuleUvProfile::Fixed),
+			),
+			gridbox_material("brown", &mut materials, &asset_server),
+			Collider::capsule_y(0.25, 0.25),
+		),
+		SpawnHealthBar,
+		TargetPlayer,
+		RotateTowardMovement,
+	));
+}
 
-	let server = RenetServer::new(connection_config());
+struct ServerPlugin;
+impl Plugin for ServerPlugin {
+	fn build(&self, app: &mut App) {
+		app.add_plugins(NetcodeServerPlugin);
 
-	let public_addr = "127.0.0.1:5000".parse().unwrap();
-	let socket = UdpSocket::bind(public_addr).unwrap();
-	let current_time: std::time::Duration = SystemTime::now()
-		.duration_since(SystemTime::UNIX_EPOCH)
-		.unwrap();
-	let server_config = ServerConfig {
-		current_time,
-		max_clients: 64,
-		protocol_id: PROTOCOL_ID,
-		public_addresses: vec![public_addr],
-		authentication: ServerAuthentication::Unsecure,
-	};
+		let server = RenetServer::new(connection_config());
 
-	let transport = NetcodeServerTransport::new(server_config, socket).unwrap();
-	app.insert_resource(server);
-	app.insert_resource(transport);
+		let public_addr = "127.0.0.1:5000".parse().unwrap();
+		let socket = UdpSocket::bind(public_addr).unwrap();
+		let current_time: std::time::Duration = SystemTime::now()
+			.duration_since(SystemTime::UNIX_EPOCH)
+			.unwrap();
+		let server_config = ServerConfig {
+			current_time,
+			max_clients: 64,
+			protocol_id: PROTOCOL_ID,
+			public_addresses: vec![public_addr],
+			authentication: ServerAuthentication::Unsecure,
+		};
+
+		let transport = NetcodeServerTransport::new(server_config, socket).unwrap();
+		app.insert_resource(server);
+		app.insert_resource(transport);
+
+		app.add_systems(Update, (server_send, server_recieve));
+	}
 }
 
 fn server_send(mut server: ResMut<RenetServer>) {
