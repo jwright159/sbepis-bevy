@@ -2,14 +2,11 @@ use std::net::UdpSocket;
 use std::time::SystemTime;
 
 use bevy::prelude::*;
-use bevy::render::mesh::CapsuleUvProfile;
-use bevy_rapier3d::prelude::*;
 use bevy_renet::renet::transport::{NetcodeServerTransport, ServerAuthentication, ServerConfig};
-use bevy_renet::renet::RenetServer;
+use bevy_renet::renet::{RenetServer, ServerEvent};
 use bevy_renet::transport::NetcodeServerPlugin;
-use sbepis::entity::{Healing, RandomInput, RotateTowardMovement, SpawnHealthBar, TargetPlayer};
+use bevy_renet::RenetServerPlugin;
 use sbepis::netcode::*;
-use sbepis::{gridbox_material, main_bundles::*};
 
 fn main() {
 	App::new()
@@ -22,83 +19,39 @@ fn main() {
 		.run();
 }
 
-fn setup(
-	mut commands: Commands,
-	mut meshes: ResMut<Assets<Mesh>>,
-	mut materials: ResMut<Assets<StandardMaterial>>,
-	asset_server: Res<AssetServer>,
-) {
-	let green_material = gridbox_material("green1", &mut materials, &asset_server);
-	let cube_mesh = meshes.add(Cuboid::from_size(Vec3::ONE));
-	commands.spawn((
-		Name::new("Cube 1"),
-		BoxBundle::new(
-			Vec3::new(0.0, 4.0, 0.0),
-			cube_mesh.clone(),
-			green_material.clone(),
-		),
+fn setup(mut commands: Commands, mut server_commands: EventWriter<ServerCommand>) {
+	server_commands.send(ServerCommand::SpawnEntity(
+		commands.spawn_empty().id(),
+		EntityType::Cube,
+		Vec3::new(0.0, 4.0, 0.0),
 	));
-	commands.spawn((
-		Name::new("Cube 2"),
-		BoxBundle::new(
-			Vec3::new(0.5, 5.5, 0.0),
-			cube_mesh.clone(),
-			green_material.clone(),
-		),
+	server_commands.send(ServerCommand::SpawnEntity(
+		commands.spawn_empty().id(),
+		EntityType::Cube,
+		Vec3::new(0.5, 5.5, 0.0),
 	));
-	commands.spawn((
-		Name::new("Cube 3"),
-		BoxBundle::new(
-			Vec3::new(-0.5, 7.0, 0.0),
-			cube_mesh.clone(),
-			green_material.clone(),
-		),
+	server_commands.send(ServerCommand::SpawnEntity(
+		commands.spawn_empty().id(),
+		EntityType::Cube,
+		Vec3::new(-0.5, 7.0, 0.0),
 	));
 
-	commands.spawn((
-		Name::new("Consort"),
-		EntityBundle::new(
-			Transform::from_translation(Vec3::new(-5.0, 10.0, 0.0)),
-			meshes.add(
-				Capsule3d::new(0.25, 0.5)
-					.mesh()
-					.rings(1)
-					.latitudes(8)
-					.longitudes(16)
-					.uv_profile(CapsuleUvProfile::Fixed),
-			),
-			gridbox_material("magenta", &mut materials, &asset_server),
-			Collider::capsule_y(0.25, 0.25),
-		),
-		SpawnHealthBar,
-		RandomInput::default(),
-		Healing(0.2),
-		RotateTowardMovement,
+	server_commands.send(ServerCommand::SpawnEntity(
+		commands.spawn_empty().id(),
+		EntityType::Consort,
+		Vec3::new(0.0, 10.0, 0.0),
 	));
-	commands.spawn((
-		Name::new("Imp"),
-		EntityBundle::new(
-			Transform::from_translation(Vec3::new(-6.0, 10.0, 0.0)),
-			meshes.add(
-				Capsule3d::new(0.25, 0.5)
-					.mesh()
-					.rings(1)
-					.latitudes(8)
-					.longitudes(16)
-					.uv_profile(CapsuleUvProfile::Fixed),
-			),
-			gridbox_material("brown", &mut materials, &asset_server),
-			Collider::capsule_y(0.25, 0.25),
-		),
-		SpawnHealthBar,
-		TargetPlayer,
-		RotateTowardMovement,
+	server_commands.send(ServerCommand::SpawnEntity(
+		commands.spawn_empty().id(),
+		EntityType::Imp,
+		Vec3::new(-6.0, 10.0, 0.0),
 	));
 }
 
 struct ServerPlugin;
 impl Plugin for ServerPlugin {
 	fn build(&self, app: &mut App) {
+		app.add_plugins(RenetServerPlugin);
 		app.add_plugins(NetcodeServerPlugin);
 
 		let server = RenetServer::new(connection_config());
@@ -124,14 +77,44 @@ impl Plugin for ServerPlugin {
 	}
 }
 
-fn server_send(mut server: ResMut<RenetServer>) {
-	let sync_message = bincode::serialize(&Vec3::Y).unwrap();
-	server.broadcast_message(ServerChannel::ServerMessages, sync_message);
+fn server_send(
+	mut server: ResMut<RenetServer>,
+	mut commands: EventReader<ServerCommand>,
+	mut server_events: EventReader<ServerEvent>,
+	entities: Query<(Entity, &GlobalTransform, &EntityType)>,
+) {
+	for event in server_events.read() {
+		match event {
+			ServerEvent::ClientConnected { client_id } => {
+				info!("Client connected: {}", client_id);
+				for (entity, transform, entity_type) in entities.iter() {
+					server.send_message(
+						*client_id,
+						ServerChannel::Commands,
+						bincode::serialize(&ServerCommand::SpawnEntity(
+							entity,
+							*entity_type,
+							transform.translation(),
+						))
+						.unwrap(),
+					);
+				}
+			}
+			ServerEvent::ClientDisconnected { client_id, reason } => {
+				info!("Client disconnected: {} because {}", client_id, reason);
+			}
+		}
+	}
+
+	for command in commands.read() {
+		let command = bincode::serialize(&command).unwrap();
+		server.broadcast_message(ServerChannel::Commands, command);
+	}
 }
 
 fn server_recieve(mut server: ResMut<RenetServer>) {
 	for client_id in server.clients_id() {
-		while let Some(message) = server.receive_message(client_id, ClientChannel::Command) {
+		while let Some(message) = server.receive_message(client_id, ClientChannel::Commands) {
 			let server_message: Vec3 = bincode::deserialize(&message).unwrap();
 			println!("Recieved {}", server_message);
 		}

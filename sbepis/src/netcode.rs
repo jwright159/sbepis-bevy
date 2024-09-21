@@ -1,6 +1,10 @@
 use std::time::Duration;
 
+use bevy::prelude::*;
 use bevy_renet::renet::{ChannelConfig, ConnectionConfig, SendType};
+use serde::{Deserialize, Serialize};
+
+use crate::npc::{ConsortBundle, CubeBundle, ImpBundle};
 
 pub const PROTOCOL_ID: u64 = 0xdeadbeef;
 
@@ -14,13 +18,13 @@ pub fn connection_config() -> ConnectionConfig {
 
 pub enum ClientChannel {
 	Input,
-	Command,
+	Commands,
 }
 
 impl From<ClientChannel> for u8 {
 	fn from(channel_id: ClientChannel) -> Self {
 		match channel_id {
-			ClientChannel::Command => 0,
+			ClientChannel::Commands => 0,
 			ClientChannel::Input => 1,
 		}
 	}
@@ -37,7 +41,7 @@ impl ClientChannel {
 				},
 			},
 			ChannelConfig {
-				channel_id: Self::Command.into(),
+				channel_id: Self::Commands.into(),
 				max_memory_usage_bytes: 5 * 1024 * 1024,
 				send_type: SendType::ReliableOrdered {
 					resend_time: Duration::ZERO,
@@ -48,7 +52,7 @@ impl ClientChannel {
 }
 
 pub enum ServerChannel {
-	ServerMessages,
+	Commands,
 	NetworkedEntities,
 }
 
@@ -56,7 +60,7 @@ impl From<ServerChannel> for u8 {
 	fn from(channel_id: ServerChannel) -> Self {
 		match channel_id {
 			ServerChannel::NetworkedEntities => 0,
-			ServerChannel::ServerMessages => 1,
+			ServerChannel::Commands => 1,
 		}
 	}
 }
@@ -70,12 +74,67 @@ impl ServerChannel {
 				send_type: SendType::Unreliable,
 			},
 			ChannelConfig {
-				channel_id: Self::ServerMessages.into(),
+				channel_id: Self::Commands.into(),
 				max_memory_usage_bytes: 10 * 1024 * 1024,
 				send_type: SendType::ReliableOrdered {
 					resend_time: Duration::from_millis(200),
 				},
 			},
 		]
+	}
+}
+
+#[derive(Debug, Serialize, Deserialize, Event)]
+pub enum ServerCommand {
+	SpawnEntity(Entity, EntityType, Vec3),
+	DespawnEntity(Entity),
+}
+
+#[derive(Debug, Serialize, Deserialize, Component, Clone, Copy)]
+pub enum EntityType {
+	Cube,
+	Imp,
+	Consort,
+}
+
+pub fn server_commands(
+	mut commands: Commands,
+	mut meshes: ResMut<Assets<Mesh>>,
+	mut materials: ResMut<Assets<StandardMaterial>>,
+	asset_server: Res<AssetServer>,
+	mut server_commands: EventReader<ServerCommand>,
+) {
+	for command in server_commands.read() {
+		match command {
+			ServerCommand::SpawnEntity(entity, entity_type, position) => match entity_type {
+				EntityType::Cube => {
+					commands.entity(*entity).insert(CubeBundle::new(
+						*position,
+						&mut meshes,
+						&mut materials,
+						&asset_server,
+					));
+				}
+				EntityType::Consort => {
+					commands.entity(*entity).insert(ConsortBundle::new(
+						*position,
+						&mut meshes,
+						&mut materials,
+						&asset_server,
+					));
+				}
+				EntityType::Imp => {
+					commands.entity(*entity).insert(ImpBundle::new(
+						*position,
+						&mut meshes,
+						&mut materials,
+						&asset_server,
+					));
+				}
+			},
+			ServerCommand::DespawnEntity(entity) => {
+				commands.entity(*entity).despawn();
+			}
+		}
 	}
 }

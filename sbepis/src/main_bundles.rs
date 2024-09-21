@@ -62,7 +62,6 @@ pub struct BoxBundle {
 	pbr: PbrBundle,
 	collider: Collider,
 	gravity_rigidbody_bundle: GravityRigidbodyBundle,
-	health: GelViscosity,
 }
 
 impl BoxBundle {
@@ -82,10 +81,6 @@ impl BoxBundle {
 				..default()
 			},
 			collider: Collider::cuboid(0.5, 0.5, 0.5),
-			health: GelViscosity {
-				value: 1.0,
-				max: 1.0,
-			},
 		}
 	}
 }

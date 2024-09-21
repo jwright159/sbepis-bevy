@@ -8,6 +8,7 @@ use bevy::prelude::*;
 use bevy::window::{CursorGrabMode, PrimaryWindow};
 use bevy::winit::WinitWindows;
 use bevy_rapier3d::prelude::*;
+use netcode::ServerCommand;
 use winit::window::Icon;
 
 use self::main_bundles::*;
@@ -18,6 +19,7 @@ pub mod gravity;
 pub mod input;
 pub mod main_bundles;
 pub mod netcode;
+pub mod npc;
 pub mod overview_camera;
 pub mod player_commands;
 pub mod player_controller;
@@ -31,6 +33,7 @@ impl Plugin for CommonPlugin {
 	fn build(&self, app: &mut App) {
 		app
 			.insert_resource(rapier_config())
+			.add_event::<ServerCommand>()
 			.add_plugins((
 				DefaultPlugins
 					.set(WindowPlugin {
@@ -72,6 +75,7 @@ impl Plugin for CommonPlugin {
 					quit.run_if(input_just_pressed(KeyCode::Escape)),
 					util::despawn_after_timer,
 					util::billboard,
+					netcode::server_commands,
 				),
 			);
 	}

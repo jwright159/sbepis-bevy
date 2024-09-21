@@ -1,12 +1,14 @@
 use std::net::UdpSocket;
 use std::time::SystemTime;
 
+use bevy::ecs::entity::EntityHashMap;
 use bevy::prelude::*;
-use bevy_renet::client_connected;
 use bevy_renet::renet::transport::{
 	ClientAuthentication, NetcodeClientTransport, NetcodeTransportError,
 };
 use bevy_renet::renet::RenetClient;
+use bevy_renet::transport::NetcodeClientPlugin;
+use bevy_renet::{client_connected, RenetClientPlugin};
 use sbepis::netcode::*;
 
 fn main() {
@@ -23,13 +25,20 @@ fn main() {
 #[derive(Debug, Resource)]
 struct CurrentClientId(u64);
 
+#[derive(Debug, Default, Resource)]
+struct ServerClientEntityMap {
+	server_to_client: EntityHashMap<Entity>,
+	// client_to_server: EntityHashMap<Entity>,
+}
+
 #[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct Connected;
 
 struct ClientPlugin;
 impl Plugin for ClientPlugin {
 	fn build(&self, app: &mut App) {
-		app.add_plugins(bevy_renet::transport::NetcodeClientPlugin);
+		app.add_plugins(RenetClientPlugin);
+		app.add_plugins(NetcodeClientPlugin);
 
 		let client = RenetClient::new(connection_config());
 
@@ -51,6 +60,7 @@ impl Plugin for ClientPlugin {
 		app.insert_resource(client);
 		app.insert_resource(transport);
 		app.insert_resource(CurrentClientId(client_id));
+		app.insert_resource(ServerClientEntityMap::default());
 
 		// If any error is found we just panic
 		#[allow(clippy::never_loop)]
@@ -69,12 +79,29 @@ impl Plugin for ClientPlugin {
 
 fn client_send(mut client: ResMut<RenetClient>) {
 	let input_message = bincode::serialize(&Vec3::X).unwrap();
-	client.send_message(ClientChannel::Command, input_message);
+	client.send_message(ClientChannel::Commands, input_message);
 }
 
-fn client_recieve(mut client: ResMut<RenetClient>) {
-	while let Some(message) = client.receive_message(ServerChannel::ServerMessages) {
-		let server_message: Vec3 = bincode::deserialize(&message).unwrap();
-		println!("Recieved {}", server_message);
+fn client_recieve(
+	mut commands: Commands,
+	mut client: ResMut<RenetClient>,
+	mut server_commands: EventWriter<ServerCommand>,
+	mut entity_map: ResMut<ServerClientEntityMap>,
+) {
+	while let Some(message) = client.receive_message(ServerChannel::Commands) {
+		let mut command: ServerCommand = bincode::deserialize(&message).unwrap();
+		println!("Recieved {:?}", command);
+		match &mut command {
+			ServerCommand::SpawnEntity(entity, _, _) => {
+				let client_entity = commands.spawn_empty().id();
+				entity_map.server_to_client.insert(*entity, client_entity);
+				*entity = client_entity;
+			}
+			ServerCommand::DespawnEntity(entity) => {
+				let client_entity = *entity_map.server_to_client.get(entity).unwrap();
+				*entity = client_entity;
+			}
+		}
+		server_commands.send(command);
 	}
 }
