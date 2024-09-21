@@ -3,6 +3,7 @@
 use std::io::Cursor;
 
 use bevy::input::common_conditions::input_just_pressed;
+use bevy::log::LogPlugin;
 use bevy::prelude::*;
 use bevy::window::{CursorGrabMode, PrimaryWindow};
 use bevy::winit::WinitWindows;
@@ -48,6 +49,10 @@ fn main() {
 						..default()
 					}
 					.into(),
+				})
+				.set(LogPlugin {
+					filter: "info,sbepis_bevy=debug,avian3d=debug,wgpu=error,naga=warn,calloop=error,symphonia_core=warn,symphonia_bundle_mp3=warn".into(),
+					..default()
 				}),
 			RapierPhysicsPlugin::<NoUserData>::default(),
 			#[cfg(feature = "rapier_debug")]
