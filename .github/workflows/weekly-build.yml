@@ -42,7 +42,8 @@ jobs:
     - name: Compress build files
       run: |
         mkdir -p build/SBEPIS
-        cp ./target/release/sbepis build/SBEPIS/SBEPIS
+        cp ./target/release/client build/SBEPIS/SBEPIS
+        cp ./target/release/server build/SBEPIS/SBEPIS-server
         cp -r ./sbepis/assets build/SBEPIS/
         tar -czf $FILENAME -C build SBEPIS
 
@@ -81,7 +82,8 @@ jobs:
     - name: Compress build files
       run: |
         mkdir build\SBEPIS
-        cp .\target\release\sbepis.exe build\SBEPIS\SBEPIS.exe
+        cp .\target\release\client.exe build\SBEPIS\SBEPIS.exe
+        cp .\target\release\server.exe build\SBEPIS\SBEPIS-server.exe
         cp -r .\sbepis\assets build\SBEPIS\
         Compress-Archive -Path .\build\SBEPIS -DestinationPath $env:FILENAME
 

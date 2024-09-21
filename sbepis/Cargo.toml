@@ -4,10 +4,9 @@ version = "0.1.0"
 edition = "2021"
 
 [features]
-debug = ["inspector", "overview_camera", "terminal", "rapier_debug"]
+debug = ["inspector", "terminal", "rapier_debug"]
 default = []
-inspector = ["dep:bevy-inspector-egui", "bevy_panorbit_camera?/bevy_egui"]
-overview_camera = ["dep:bevy_panorbit_camera"]
+inspector = ["dep:bevy-inspector-egui", "bevy_panorbit_camera/bevy_egui"]
 spawn_debug_notes_on_staff = []
 terminal = []
 rapier_debug = []
@@ -15,7 +14,7 @@ rapier_debug = []
 [dependencies]
 bevy = { version = "0.14.1", features = ["wav", "mp3", "wayland"] }
 bevy-inspector-egui = { version = "0.25.1", optional = true }
-bevy_panorbit_camera = { version = "0.19.1", optional = true }
+bevy_panorbit_camera = "0.19.1"
 bevy_rapier3d = "0.27.0"
 image = "0.25.2"
 itertools = "0.13.0"

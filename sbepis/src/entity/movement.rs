@@ -59,10 +59,24 @@ pub struct TargetPlayer;
 
 pub fn target_player(
 	mut target_players: Query<(&Transform, &mut MovementInput), With<TargetPlayer>>,
-	player: Query<&Transform, With<PlayerBody>>,
+	players: Query<&Transform, With<PlayerBody>>,
 ) {
-	let player_transform = player.single();
 	for (transform, mut input) in target_players.iter_mut() {
-		input.0 = (player_transform.translation - transform.translation).normalize();
+		if players.iter().count() == 0 {
+			input.0 = Vec3::ZERO;
+			return;
+		}
+
+		let delta = players
+			.iter()
+			.map(|t| t.translation - transform.translation)
+			.min_by(|a_delta, b_delta| {
+				a_delta
+					.length_squared()
+					.partial_cmp(&b_delta.length_squared())
+					.unwrap()
+			})
+			.unwrap();
+		input.0 = delta.normalize();
 	}
 }

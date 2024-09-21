@@ -92,7 +92,7 @@ pub fn sweep_dealers(
 	rapier_context: Res<RapierContext>,
 	debug_collider_visualizers: Query<Entity, With<DebugColliderVisualizer>>,
 ) {
-	let debug_collider_visualizer = debug_collider_visualizers.single();
+	let debug_collider_visualizer = debug_collider_visualizers.get_single();
 	for (dealer_entity, mut dealer, end, transform) in dealers.iter_mut() {
 		let (pivot, pivot_transform) = pivots.get(dealer.pivot).expect("Sweep pivot not found");
 
@@ -124,10 +124,12 @@ pub fn sweep_dealers(
 				true
 			},
 		);
-		commands
-			.entity(debug_collider_visualizer)
-			.insert(collider)
-			.insert(Transform::from_translation(position).with_rotation(rotation));
+		if let Ok(debug_collider_visualizer) = debug_collider_visualizer {
+			commands
+				.entity(debug_collider_visualizer)
+				.insert(collider)
+				.insert(Transform::from_translation(position).with_rotation(rotation));
+		}
 
 		dealer.last_transform = *transform;
 

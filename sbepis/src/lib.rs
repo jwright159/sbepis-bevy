@@ -2,8 +2,6 @@
 
 use std::io::Cursor;
 
-use bevy::input::common_conditions::input_just_pressed;
-use bevy::log::LogPlugin;
 use bevy::prelude::*;
 use bevy::window::{CursorGrabMode, PrimaryWindow};
 use bevy::winit::WinitWindows;
@@ -12,76 +10,25 @@ use winit::window::Icon;
 
 use self::main_bundles::*;
 
-mod entity;
-mod fray;
-mod gravity;
+pub mod entity;
+pub mod fray;
+pub mod gravity;
 pub mod input;
-mod main_bundles;
-mod npcs;
-#[cfg(feature = "overview_camera")]
-mod overview_camera;
-mod player_commands;
-mod player_controller;
-mod skybox;
+pub mod main_bundles;
+pub mod npcs;
+pub mod overview_camera;
+pub mod player_commands;
+pub mod player_controller;
+pub mod skybox;
 pub mod util;
 
-fn main() {
+pub fn rapier_config() -> RapierConfiguration {
 	let mut rapier_config = RapierConfiguration::new(1.);
 	rapier_config.gravity = Vec3::ZERO;
-	let rapier_config = rapier_config;
-
-	App::new()
-		.insert_resource(rapier_config)
-		.add_plugins((
-			DefaultPlugins
-				.set(WindowPlugin {
-					primary_window: Some(Window {
-						title: "SBEPIS".to_string(),
-						..default()
-					}),
-					..default()
-				})
-				.set(ImagePlugin {
-					default_sampler: bevy::render::texture::ImageSamplerDescriptor {
-						address_mode_u: bevy::render::texture::ImageAddressMode::Repeat,
-						address_mode_v: bevy::render::texture::ImageAddressMode::Repeat,
-						address_mode_w: bevy::render::texture::ImageAddressMode::Repeat,
-						..default()
-					}
-					.into(),
-				})
-				.set(LogPlugin {
-					filter: "info,sbepis_bevy=debug,avian3d=debug,wgpu=error,naga=warn,calloop=error,symphonia_core=warn,symphonia_bundle_mp3=warn".into(),
-					..default()
-				}),
-			RapierPhysicsPlugin::<NoUserData>::default(),
-			#[cfg(feature = "rapier_debug")]
-			RapierDebugRenderPlugin::default(),
-			#[cfg(feature = "inspector")]
-			bevy_inspector_egui::quick::WorldInspectorPlugin::new(),
-			#[cfg(feature = "overview_camera")]
-			overview_camera::OverviewCameraPlugin,
-			player_commands::PlayerCommandsPlugin,
-			skybox::SkyboxPlugin,
-			entity::EntityPlugin,
-			player_controller::PlayerControllerPlugin,
-			npcs::NpcPlugin,
-			gravity::GravityPlugin,
-			fray::FrayPlugin,
-		))
-		.add_systems(Startup, (set_window_icon, setup, hide_mouse))
-		.add_systems(
-			Update,
-			(
-				quit.run_if(input_just_pressed(KeyCode::Escape)),
-				util::despawn_after_timer,
-				util::billboard,
-			),
-		)
-		.run();
+	rapier_config
 }
 
-fn set_window_icon(windows: NonSend<WinitWindows>) {
+pub fn set_window_icon(windows: NonSend<WinitWindows>) {
 	let icon_buf = Cursor::new(include_bytes!("../assets/house.png"));
 	let image = image::load(icon_buf, image::ImageFormat::Png).unwrap();
 	let image = image.into_rgba8();
@@ -94,11 +41,11 @@ fn set_window_icon(windows: NonSend<WinitWindows>) {
 	}
 }
 
-fn gridbox_texture(color: &str) -> String {
+pub fn gridbox_texture(color: &str) -> String {
 	format!("Gridbox Prototype Materials/prototype_512x512_{color}.png")
 }
 
-fn gridbox_material(
+pub fn gridbox_material(
 	color: &str,
 	materials: &mut Assets<StandardMaterial>,
 	asset_server: &AssetServer,
@@ -106,7 +53,7 @@ fn gridbox_material(
 	gridbox_material_extra(color, materials, asset_server, StandardMaterial::default())
 }
 
-fn gridbox_material_extra(
+pub fn gridbox_material_extra(
 	color: &str,
 	materials: &mut Assets<StandardMaterial>,
 	asset_server: &AssetServer,
@@ -118,7 +65,7 @@ fn gridbox_material_extra(
 	})
 }
 
-fn setup(
+pub fn setup(
 	mut commands: Commands,
 	mut meshes: ResMut<Assets<Mesh>>,
 	mut materials: ResMut<Assets<StandardMaterial>>,
@@ -175,12 +122,12 @@ fn setup(
 	));
 }
 
-fn hide_mouse(mut window: Query<&mut Window, With<PrimaryWindow>>) {
+pub fn hide_mouse(mut window: Query<&mut Window, With<PrimaryWindow>>) {
 	let mut window = window.single_mut();
 	window.cursor.grab_mode = CursorGrabMode::Locked;
 	window.cursor.visible = false;
 }
 
-fn quit(mut ev_quit: EventWriter<AppExit>) {
+pub fn quit(mut ev_quit: EventWriter<AppExit>) {
 	ev_quit.send(AppExit::Success);
 }

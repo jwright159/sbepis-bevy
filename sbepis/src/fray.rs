@@ -1,13 +1,10 @@
 use std::f32::consts::TAU;
 use std::time::Duration;
 
+use crate::util::MapRange;
 use bevy::prelude::*;
 
-use crate::player_controller::PlayerCamera;
-use crate::util::MapRange;
-
 pub struct FrayPlugin;
-
 impl Plugin for FrayPlugin {
 	fn build(&self, app: &mut App) {
 		app.register_type::<FrayMusic>()
@@ -45,7 +42,7 @@ fn play_background_music(mut commands: Commands, asset_server: Res<AssetServer>)
 pub fn setup_beat_counter_camera(
 	mut commands: Commands,
 	beat_counters: Query<Entity, With<BeatCounter>>,
-	camera: Query<Entity, With<PlayerCamera>>,
+	camera: Query<Entity, With<Camera>>,
 ) {
 	let camera = camera.single();
 	for beat_counter in beat_counters.iter() {

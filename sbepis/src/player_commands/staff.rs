@@ -1,6 +1,6 @@
 use crate::player_commands::note_holder::NoteNodeHolder;
 use crate::player_commands::notes::PlayNoteAction;
-use crate::player_controller::{PlayerAction, PlayerCamera};
+use crate::player_controller::PlayerAction;
 use bevy::prelude::*;
 use leafwing_input_manager::prelude::ActionState;
 use leafwing_input_manager::Actionlike;
@@ -100,7 +100,7 @@ pub fn spawn_staff(mut commands: Commands, asset_server: Res<AssetServer>) {
 pub fn setup_staff_camera(
 	mut commands: Commands,
 	staff: Query<Entity, With<CommandStaff>>,
-	camera: Query<Entity, With<PlayerCamera>>,
+	camera: Query<Entity, With<Camera>>,
 ) {
 	commands
 		.entity(staff.single())

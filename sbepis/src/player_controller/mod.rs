@@ -25,13 +25,31 @@ mod weapons;
 pub struct PlayerControllerPlugin;
 impl Plugin for PlayerControllerPlugin {
 	fn build(&self, app: &mut App) {
+		app.add_event::<DamageEvent>().add_systems(
+			Update,
+			(
+				initialize_weapon_sets,
+				animate_hammer,
+				animate_sword,
+				animate_rifle,
+				charge_rifle,
+				sweep_dealers,
+				deal_all_damage,
+				update_damage_numbers,
+			),
+		);
+	}
+}
+
+pub struct SpawnPlayerPlugin;
+impl Plugin for SpawnPlayerPlugin {
+	fn build(&self, app: &mut App) {
 		app.insert_resource(MouseSensitivity(0.003))
 			.insert_resource(PlayerSpeed {
 				speed: 5.0,
 				sprint_modifier: 2.0,
 				jump_speed: 5.0,
 			})
-			.add_event::<DamageEvent>()
 			.add_plugins(InputManagerPlugin::<PlayerAction>::default())
 			.add_systems(
 				Startup,
@@ -58,14 +76,6 @@ impl Plugin for PlayerControllerPlugin {
 					attack.run_if(button_just_pressed(PlayerAction::Use)),
 					switch_weapon_next.run_if(button_just_pressed(PlayerAction::NextWeapon)),
 					switch_weapon_prev.run_if(button_just_pressed(PlayerAction::PrevWeapon)),
-					initialize_weapon_sets,
-					animate_hammer,
-					animate_sword,
-					animate_rifle,
-					charge_rifle,
-					sweep_dealers,
-					deal_all_damage,
-					update_damage_numbers,
 				),
 			);
 	}
