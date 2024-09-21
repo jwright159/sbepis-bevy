@@ -15,6 +15,7 @@ pub mod fray;
 pub mod gravity;
 pub mod input;
 pub mod main_bundles;
+pub mod netcode;
 pub mod npcs;
 pub mod overview_camera;
 pub mod player_commands;
