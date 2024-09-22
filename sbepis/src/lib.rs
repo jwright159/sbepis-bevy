@@ -48,8 +48,7 @@ impl Plugin for CommonPlugin {
 							address_mode_v: bevy::render::texture::ImageAddressMode::Repeat,
 							address_mode_w: bevy::render::texture::ImageAddressMode::Repeat,
 							..default()
-						}
-						.into(),
+						},
 					})
 					.set(LogPlugin {
 						filter: "info,sbepis=debug,avian3d=debug,wgpu=error,naga=warn,calloop=error,symphonia_core=warn,symphonia_bundle_mp3=warn".into(),

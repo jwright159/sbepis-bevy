@@ -61,7 +61,7 @@ impl Plugin for ClientPlugin {
 
 		// If any error is found we just panic
 		fn panic_on_error_system(mut renet_error: EventReader<NetcodeTransportError>) {
-			for e in renet_error.read() {
+			if let Some(e) = renet_error.read().next() {
 				panic!("{}", e);
 			}
 		}

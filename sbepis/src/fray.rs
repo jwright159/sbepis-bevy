@@ -81,9 +81,8 @@ impl FrayMusic {
 
 	pub fn beat_progress(&self) -> f32 {
 		let beat = self.beat() as f32;
-		let beat_time = beat as f32 * self.beat_duration();
-		let beat_progress = (self.adjusted_time() - beat_time) / self.beat_duration();
-		beat_progress
+		let beat_time = beat * self.beat_duration();
+		(self.adjusted_time() - beat_time) / self.beat_duration()
 	}
 
 	pub fn modify_fray_damage(&self, damage: f32) -> f32 {
