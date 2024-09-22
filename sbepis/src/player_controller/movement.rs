@@ -24,10 +24,17 @@ pub struct PlayerHead;
 #[derive(Component, Default)]
 pub struct MouseAim {
 	pub pitch: f32,
+	pub last_pitch: f32,
 	pub yaw: f32,
 	pub last_yaw: f32,
 }
 impl MouseAim {
+	pub fn pitch_delta(&mut self) -> f32 {
+		let delta = self.pitch - self.last_pitch;
+		self.last_pitch = self.pitch;
+		delta
+	}
+
 	pub fn yaw_delta(&mut self) -> f32 {
 		let delta = self.yaw - self.last_yaw;
 		self.last_yaw = self.yaw;
@@ -48,17 +55,19 @@ pub fn mouse_input(
 	sensitivity: Res<MouseSensitivity>,
 ) {
 	for mut aim in player_aim.iter_mut() {
-		aim.pitch += mouse_delta.y * sensitivity.0;
-		aim.yaw += mouse_delta.x * sensitivity.0;
+		aim.yaw -= mouse_delta.x * sensitivity.0;
+		aim.pitch -= mouse_delta.y * sensitivity.0;
 
-		aim.pitch = aim.pitch.clamp(-PI / 2.0, PI / 2.0);
 		aim.yaw = aim.yaw.rem_euclid(2.0 * PI);
+		aim.pitch = aim.pitch.clamp(-PI / 2.0, PI / 2.0);
 	}
 }
 
 pub fn update_player_aim(mut aim: Query<(&mut AimInput, &mut MouseAim, &GlobalTransform)>) {
 	for (mut aim_input, mut mouse_aim, transform) in aim.iter_mut() {
-		aim_input.0 = transform.transform_vector3(-Vec3::Z).try_into().unwrap();
+		aim_input.0 = Quat::from_axis_angle(transform.right().into(), mouse_aim.pitch_delta())
+			* Quat::from_axis_angle(transform.up().into(), mouse_aim.yaw_delta())
+			* aim_input.0;
 	}
 }
 

@@ -27,19 +27,37 @@ impl Default for AimInput {
 
 #[derive(Component)]
 pub struct AimRotators {
-	pub head: Entity, // rotates pitch, child of body
-	pub body: Entity, // rotates yaw
+	pub body: Entity,         // rotates yaw
+	pub head: Option<Entity>, // rotates pitch, child of body
 }
+
+#[derive(Component)]
+pub struct Headless;
 
 pub fn rotate_head_and_body(
 	inputs: Query<(&AimRotators, &AimInput)>,
 	mut rotators: Query<&mut Transform>,
 ) {
 	for (rotator, input) in inputs.iter() {
-		let [mut body, mut head] = rotators.get_many_mut([rotator.body, rotator.head]).unwrap();
-		body.rotation = Quat::from_look_to(input.reject_from(body.up().into()), body.up());
-		let head_input = body.rotation * input.0;
-		head.rotation = Quat::from_look_to(head_input, Vec3::Y);
+		let body_rotation = {
+			let mut body = rotators.get_mut(rotator.body).unwrap();
+			body.rotation = Quat::from_look_to(input.reject_from(body.up().into()), body.up());
+			body.rotation
+		};
+
+		if let Some(head) = rotator.head {
+			let mut head = rotators.get_mut(head).unwrap();
+			let head_input = body_rotation.inverse() * input.0;
+			head.rotation = Quat::from_look_to(head_input, Vec3::Y);
+		}
+	}
+}
+
+pub fn ignore_heads(mut commands: Commands, bodies: Query<Entity, Added<Headless>>) {
+	for body in bodies.iter() {
+		commands
+			.entity(body)
+			.insert(AimRotators { body, head: None });
 	}
 }
 

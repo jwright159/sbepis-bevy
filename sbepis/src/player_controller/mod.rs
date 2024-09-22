@@ -88,7 +88,10 @@ fn setup_heads(mut commands: Commands, bodies: Query<Entity, Added<PlayerBody>>)
 			.set_parent(body)
 			.id();
 
-		commands.entity(body).insert(AimRotators { body, head });
+		commands.entity(body).insert(AimRotators {
+			body,
+			head: Some(head),
+		});
 	}
 }
 
@@ -97,9 +100,11 @@ fn setup_client(
 	bodies: Query<&AimRotators, (Added<AimRotators>, With<ClientPlayer>)>,
 ) {
 	for AimRotators { body, head } in bodies.iter() {
-		commands.entity(*body).insert(MouseAim::default());
+		let [body, head] = [*body, head.unwrap()];
 
-		commands.entity(*head).insert((
+		commands.entity(body).insert(MouseAim::default());
+
+		commands.entity(head).insert((
 			ClientPlayer,
 			Camera3dBundle {
 				projection: Projection::Perspective(PerspectiveProjection {
@@ -120,7 +125,7 @@ fn setup_client(
 				..default()
 			}),
 			DamageNumbers,
-			TargetCamera(*head),
+			TargetCamera(head),
 		));
 	}
 }

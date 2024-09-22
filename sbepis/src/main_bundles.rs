@@ -4,7 +4,7 @@ use bevy::prelude::*;
 use bevy::render::mesh::CapsuleUvProfile;
 use bevy_rapier3d::prelude::*;
 
-use crate::entity::movement::AimInput;
+use crate::entity::movement::{AimInput, Headless};
 use crate::entity::{
 	GelViscosity, GravityOrientation, Healing, MovementInput, RandomInput, RotateTowardMovement,
 	SpawnHealthBar, TargetPlayer,
@@ -142,6 +142,7 @@ pub struct ConsortBundle {
 	healing: Healing,
 	rotate: RotateTowardMovement,
 	entity_type: EntityType,
+	headless: Headless,
 }
 impl ConsortBundle {
 	pub fn new(
@@ -170,6 +171,7 @@ impl ConsortBundle {
 			healing: Healing(0.2),
 			rotate: RotateTowardMovement,
 			entity_type: EntityType::Consort,
+			headless: Headless,
 		}
 	}
 }
@@ -182,6 +184,7 @@ pub struct ImpBundle {
 	target_player: TargetPlayer,
 	rotate: RotateTowardMovement,
 	entity_type: EntityType,
+	headless: Headless,
 }
 impl ImpBundle {
 	pub fn new(
@@ -209,6 +212,7 @@ impl ImpBundle {
 			target_player: TargetPlayer,
 			rotate: RotateTowardMovement,
 			entity_type: EntityType::Imp,
+			headless: Headless,
 		}
 	}
 }

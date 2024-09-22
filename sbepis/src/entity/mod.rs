@@ -17,6 +17,7 @@ impl Plugin for EntityPlugin {
 		app.add_systems(
 			Update,
 			(
+				ignore_heads,
 				orient,
 				random_vec2,
 				target_player,
