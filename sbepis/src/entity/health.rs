@@ -112,7 +112,7 @@ pub fn despawn_invalid_health_bars(
 	transforms: Query<&Transform>,
 ) {
 	for health_bar in health_bars.iter() {
-		if let Err(_) = entities.get(health_bar.entity) {
+		if entities.get(health_bar.entity).is_err() {
 			let root_transform = transforms
 				.get(health_bar.root)
 				.expect("Gel vial root not found");

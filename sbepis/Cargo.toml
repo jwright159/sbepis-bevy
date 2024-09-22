@@ -3,6 +3,10 @@ name = "sbepis"
 version = "0.1.0"
 edition = "2021"
 
+[lints.clippy]
+type_complexity = "allow"
+too_many_arguments = "allow"
+
 [features]
 debug = ["inspector", "overview_camera", "terminal", "rapier_debug"]
 default = []

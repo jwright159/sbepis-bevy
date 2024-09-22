@@ -86,8 +86,8 @@ fn create_vertex(coord_a: IVec3, coord_b: IVec3) -> Vertex {
 
 	// Create vertex
 	Vertex {
-		position: position,
-		normal: normal,
+		position,
+		normal,
 		id: IVec2::new(index_a.min(index_b) as i32, index_a.max(index_b) as i32),
 	}
 }
@@ -117,11 +117,11 @@ pub fn process_cube(id: IVec3) -> Vec<Triangle> {
 	// A value of 0 means cube is entirely inside the surface; 255 entirely outside.
 	// The value is used to look up the edge table, which indicates which edges of the cube the surface passes through.
 	let mut cube_configuration = 0;
-	for i in 0..8 {
+	for (i, corner_coord) in corner_coords.iter().enumerate() {
 		// Think of the configuration as an 8-bit binary number (each bit represents the state of a corner point).
 		// The state of each corner point is either 0: above the surface, or 1: below the surface.
 		// The code below sets the corresponding bit to 1, if the point is below the surface.
-		if sample_density(corner_coords[i]) < SURFACE_THRESHOLD {
+		if sample_density(*corner_coord) < SURFACE_THRESHOLD {
 			cube_configuration |= 1 << i;
 		}
 	}

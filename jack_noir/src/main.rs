@@ -54,15 +54,10 @@ impl Jack {
 				.flat_map(|v| v.weights.iter().map(|w| w.action_type.clone()))
 				.flat_map(|v| -> Box<dyn Iterator<Item = Action>> {
 					if v.beneficial_to_target.is_some() {
-						Box::new(
-							self.potential_targets
-								.iter()
-								.map(move |t| Action {
-									action_type: v.clone(),
-									target: Some(t.clone()),
-								})
-								.into_iter(),
-						)
+						Box::new(self.potential_targets.iter().map(move |t| Action {
+							action_type: v.clone(),
+							target: Some(t.clone()),
+						}))
 					} else {
 						Box::new(
 							vec![Action {
@@ -131,6 +126,10 @@ lazy_static! {
 		name: "Nothing".to_string(),
 		beneficial_to_target: None,
 	});
+}
+
+fn main() {
+	println!("No main method, only tests here");
 }
 
 #[cfg(test)]
@@ -284,8 +283,4 @@ mod tests {
 			}
 		);
 	}
-}
-
-fn main() {
-	println!("No main method, only tests here");
 }

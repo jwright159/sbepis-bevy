@@ -178,18 +178,16 @@ pub fn charge_rifle(
 		};
 
 		let beat = rifle_barrel.get_beat(fray);
-		if rifle_barrel.charge < rifle_barrel.max_charge {
-			if rifle_barrel.last_beat != beat {
-				rifle_barrel.charge += 1;
+		if rifle_barrel.charge < rifle_barrel.max_charge && rifle_barrel.last_beat != beat {
+			rifle_barrel.charge += 1;
 
-				commands.spawn((
-					Name::new("Rifle Charge SFX"),
-					AudioBundle {
-						source: asset_server.load("flute.wav"),
-						settings: PlaybackSettings::DESPAWN.with_speed(2.0),
-					},
-				));
-			}
+			commands.spawn((
+				Name::new("Rifle Charge SFX"),
+				AudioBundle {
+					source: asset_server.load("flute.wav"),
+					settings: PlaybackSettings::DESPAWN.with_speed(2.0),
+				},
+			));
 		}
 		rifle_barrel.update_last_beat(fray);
 	}
