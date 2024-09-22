@@ -9,7 +9,7 @@ impl Plugin for FrayPlugin {
 	fn build(&self, app: &mut App) {
 		app.register_type::<FrayMusic>()
 			.add_systems(Startup, play_background_music)
-			.add_systems(PostStartup, setup_beat_counter_camera)
+			.add_systems(Update, setup_beat_counter_camera)
 			.add_systems(Update, tick_fray_music);
 	}
 }
@@ -42,11 +42,12 @@ fn play_background_music(mut commands: Commands, asset_server: Res<AssetServer>)
 pub fn setup_beat_counter_camera(
 	mut commands: Commands,
 	beat_counters: Query<Entity, With<BeatCounter>>,
-	camera: Query<Entity, With<Camera>>,
+	cameras: Query<Entity, Added<Camera>>,
 ) {
-	let camera = camera.single();
-	for beat_counter in beat_counters.iter() {
-		commands.entity(beat_counter).insert(TargetCamera(camera));
+	for camera in cameras.iter() {
+		for beat_counter in beat_counters.iter() {
+			commands.entity(beat_counter).insert(TargetCamera(camera));
+		}
 	}
 }
 

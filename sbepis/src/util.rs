@@ -4,6 +4,7 @@ use interpolation::{Ease, EaseFunction};
 use std::array::IntoIter;
 use std::ops::Range;
 
+use crate::netcode::ClientPlayer;
 use crate::player_controller::PlayerBody;
 
 pub trait MapRange<T> {
@@ -92,12 +93,13 @@ pub struct Billboard;
 pub fn billboard(
 	mut transforms: Query<&mut Transform, With<Billboard>>,
 	player_camera: Query<&GlobalTransform, With<Camera>>,
-	player_body: Query<&GlobalTransform, With<PlayerBody>>,
+	player_body: Query<&GlobalTransform, (With<PlayerBody>, With<ClientPlayer>)>,
 ) {
-	let player_camera = player_camera.get_single().expect("No player camera found");
-	let player_body = player_body.get_single().unwrap_or(player_camera);
-	for mut transform in transforms.iter_mut() {
-		transform.look_at(player_camera.translation(), player_body.up());
+	for player_camera in player_camera.iter() {
+		let player_body = player_body.get_single().unwrap_or(player_camera);
+		for mut transform in transforms.iter_mut() {
+			transform.look_at(player_camera.translation(), player_body.up());
+		}
 	}
 }
 

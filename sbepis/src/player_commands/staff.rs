@@ -100,11 +100,11 @@ pub fn spawn_staff(mut commands: Commands, asset_server: Res<AssetServer>) {
 pub fn setup_staff_camera(
 	mut commands: Commands,
 	staff: Query<Entity, With<CommandStaff>>,
-	camera: Query<Entity, With<Camera>>,
+	cameras: Query<Entity, Added<Camera>>,
 ) {
-	commands
-		.entity(staff.single())
-		.insert(TargetCamera(camera.single()));
+	for camera in cameras.iter() {
+		commands.entity(staff.single()).insert(TargetCamera(camera));
+	}
 }
 
 #[cfg(feature = "spawn_debug_notes_on_staff")]

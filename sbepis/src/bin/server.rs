@@ -7,6 +7,7 @@ use bevy_renet::renet::{RenetServer, ServerEvent};
 use bevy_renet::transport::NetcodeServerPlugin;
 use bevy_renet::RenetServerPlugin;
 use sbepis::netcode::*;
+use sbepis::player_controller::PlayerBody;
 
 fn main() {
 	App::new()
@@ -73,20 +74,29 @@ impl Plugin for ServerPlugin {
 		app.insert_resource(server);
 		app.insert_resource(transport);
 
-		app.add_systems(Update, (server_send, server_recieve));
+		app.add_systems(Update, (server_events, server_send, server_recieve));
 	}
 }
 
-fn server_send(
+fn server_events(
 	mut server: ResMut<RenetServer>,
-	mut commands: EventReader<ServerCommand>,
+	mut commands: Commands,
+	mut server_commands: EventWriter<ServerCommand>,
 	mut server_events: EventReader<ServerEvent>,
 	entities: Query<(Entity, &GlobalTransform, &EntityType)>,
+	players: Query<(Entity, &PlayerBody)>,
 ) {
 	for event in server_events.read() {
 		match event {
 			ServerEvent::ClientConnected { client_id } => {
 				info!("Client connected: {}", client_id);
+
+				server_commands.send(ServerCommand::SpawnEntity(
+					commands.spawn_empty().id(),
+					EntityType::Player(*client_id),
+					Vec3::new(0.0, 2.0, 0.0),
+				));
+
 				for (entity, transform, entity_type) in entities.iter() {
 					server.send_message(
 						*client_id,
@@ -102,11 +112,21 @@ fn server_send(
 			}
 			ServerEvent::ClientDisconnected { client_id, reason } => {
 				info!("Client disconnected: {} because {}", client_id, reason);
+
+				// let entity = players
+				// 	.iter()
+				// 	.filter(|(_, p)| p.0 == *client_id)
+				// 	.next()
+				// 	.unwrap()
+				// 	.0;
+				// server_commands.send(ServerCommand::DespawnEntity(entity));
 			}
 		}
 	}
+}
 
-	for command in commands.read() {
+fn server_send(mut server: ResMut<RenetServer>, mut server_commands: EventReader<ServerCommand>) {
+	for command in server_commands.read() {
 		let command = bincode::serialize(&command).unwrap();
 		server.broadcast_message(ServerChannel::Commands, command);
 	}
@@ -116,7 +136,7 @@ fn server_recieve(mut server: ResMut<RenetServer>) {
 	for client_id in server.clients_id() {
 		while let Some(message) = server.receive_message(client_id, ClientChannel::Commands) {
 			let server_message: Vec3 = bincode::deserialize(&message).unwrap();
-			println!("Recieved {}", server_message);
+			debug!("Recieved {}", server_message);
 		}
 	}
 }

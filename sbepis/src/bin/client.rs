@@ -22,9 +22,6 @@ fn main() {
 		.run();
 }
 
-#[derive(Debug, Resource)]
-struct CurrentClientId(u64);
-
 #[derive(Debug, Default, Resource)]
 struct ServerClientEntityMap {
 	server_to_client: EntityHashMap<Entity>,
@@ -63,7 +60,6 @@ impl Plugin for ClientPlugin {
 		app.insert_resource(ServerClientEntityMap::default());
 
 		// If any error is found we just panic
-		#[allow(clippy::never_loop)]
 		fn panic_on_error_system(mut renet_error: EventReader<NetcodeTransportError>) {
 			for e in renet_error.read() {
 				panic!("{}", e);
@@ -90,7 +86,7 @@ fn client_recieve(
 ) {
 	while let Some(message) = client.receive_message(ServerChannel::Commands) {
 		let mut command: ServerCommand = bincode::deserialize(&message).unwrap();
-		println!("Recieved {:?}", command);
+		debug!("Recieved {:?}", command);
 		match &mut command {
 			ServerCommand::SpawnEntity(entity, _, _) => {
 				let client_entity = commands.spawn_empty().id();

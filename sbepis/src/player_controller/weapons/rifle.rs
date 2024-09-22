@@ -10,7 +10,7 @@ use interpolation::EaseFunction;
 
 use crate::fray::FrayMusic;
 use crate::gridbox_material;
-use crate::player_controller::PlayerCamera;
+use crate::player_controller::PlayerHead;
 use crate::util::MapRange;
 
 use super::{DamageEvent, InAnimation};
@@ -103,7 +103,7 @@ pub fn animate_rifle(
 	mut ev_hit: EventWriter<DamageEvent>,
 	asset_server: Res<AssetServer>,
 	rapier_context: Res<RapierContext>,
-	player_camera: Query<&GlobalTransform, With<PlayerCamera>>,
+	player_camera: Query<&GlobalTransform, With<PlayerHead>>,
 ) {
 	let fray = fray.get_single().expect("Could not find fray");
 	for mut rifle_barrel in rifle_barrels.iter_mut() {

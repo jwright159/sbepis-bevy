@@ -19,7 +19,6 @@ pub mod gravity;
 pub mod input;
 pub mod main_bundles;
 pub mod netcode;
-pub mod npc;
 pub mod overview_camera;
 pub mod player_commands;
 pub mod player_controller;

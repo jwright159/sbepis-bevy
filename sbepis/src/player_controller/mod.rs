@@ -1,24 +1,20 @@
 use std::f32::consts::PI;
 
 use bevy::prelude::*;
-use bevy::render::mesh::CapsuleUvProfile;
-use bevy_rapier3d::prelude::*;
 use leafwing_input_manager::prelude::*;
 
-use crate::gridbox_material;
+use crate::entity::movement::AimRotators;
 use crate::input::*;
-use crate::main_bundles::EntityBundle;
+use crate::netcode::ClientPlayer;
 
-use self::camera_controls::*;
-pub use self::camera_controls::{MouseSensitivity, PlayerBody, PlayerCamera};
 use self::movement::*;
-use self::movement::{axes_to_ground_velocity, jump};
+pub use self::movement::{MouseAim, PlayerBody, PlayerHead};
 use self::weapons::hammer::*;
 use self::weapons::rifle::*;
 use self::weapons::sword::*;
+pub use self::weapons::WeaponSet;
 use self::weapons::*;
 
-mod camera_controls;
 mod movement;
 mod weapons;
 
@@ -28,7 +24,9 @@ impl Plugin for PlayerControllerPlugin {
 		app.add_event::<DamageEvent>().add_systems(
 			Update,
 			(
-				initialize_weapon_sets,
+				setup_heads,
+				setup_weapon_sets,
+				update_player_aim,
 				animate_hammer,
 				animate_sword,
 				animate_rifle,
@@ -53,25 +51,23 @@ impl Plugin for SpawnPlayerPlugin {
 			.add_plugins(InputManagerPlugin::<PlayerAction>::default())
 			.add_systems(
 				Startup,
-				(
-					setup,
-					spawn_input_manager(
-						InputMap::default()
-							.with_dual_axis(PlayerAction::Move, KeyboardVirtualDPad::WASD)
-							.with(PlayerAction::Jump, KeyCode::Space)
-							.with_dual_axis(PlayerAction::Look, MouseMove::default())
-							.with(PlayerAction::Sprint, KeyCode::ShiftLeft)
-							.with(PlayerAction::Use, MouseButton::Left)
-							.with(PlayerAction::NextWeapon, MouseScrollDirection::UP)
-							.with(PlayerAction::PrevWeapon, MouseScrollDirection::DOWN),
-					),
+				spawn_input_manager(
+					InputMap::default()
+						.with_dual_axis(PlayerAction::Move, KeyboardVirtualDPad::WASD)
+						.with(PlayerAction::Jump, KeyCode::Space)
+						.with_dual_axis(PlayerAction::Look, MouseMove::default())
+						.with(PlayerAction::Sprint, KeyCode::ShiftLeft)
+						.with(PlayerAction::Use, MouseButton::Left)
+						.with(PlayerAction::NextWeapon, MouseScrollDirection::UP)
+						.with(PlayerAction::PrevWeapon, MouseScrollDirection::DOWN),
 				),
 			)
 			.add_systems(
 				Update,
 				(
-					dual_axes_input(PlayerAction::Look).pipe(rotate_camera_and_body),
-					clamped_dual_axes_input(PlayerAction::Move).pipe(axes_to_ground_velocity),
+					setup_client,
+					dual_axes_input(PlayerAction::Look).pipe(mouse_input),
+					clamped_dual_axes_input(PlayerAction::Move).pipe(movement_input),
 					jump::<PlayerBody>.run_if(button_just_pressed(PlayerAction::Jump)),
 					attack.run_if(button_just_pressed(PlayerAction::Use)),
 					switch_weapon_next.run_if(button_just_pressed(PlayerAction::NextWeapon)),
@@ -81,99 +77,52 @@ impl Plugin for SpawnPlayerPlugin {
 	}
 }
 
-fn setup(
-	mut commands: Commands,
-	mut meshes: ResMut<Assets<Mesh>>,
-	mut materials: ResMut<Assets<StandardMaterial>>,
-	asset_server: Res<AssetServer>,
-) {
-	let body = commands
-		.spawn((
-			Name::new("Player Body"),
-			EntityBundle::new(
-				Transform::from_translation(Vec3::new(5.0, 10.0, 0.0)),
-				meshes.add(
-					Capsule3d::new(0.25, 1.0)
-						.mesh()
-						.rings(1)
-						.latitudes(8)
-						.longitudes(16)
-						.uv_profile(CapsuleUvProfile::Fixed),
-				),
-				gridbox_material("white", &mut materials, &asset_server),
-				Collider::capsule_y(0.5, 0.25),
-			),
-			PlayerBody,
-		))
-		.id();
+fn setup_heads(mut commands: Commands, bodies: Query<Entity, Added<PlayerBody>>) {
+	for body in bodies.iter() {
+		let head = commands
+			.spawn((
+				Name::new("Player Head"),
+				SpatialBundle::from_transform(Transform::from_translation(Vec3::Y * 0.5)),
+				PlayerHead,
+			))
+			.set_parent(body)
+			.id();
 
-	let camera = commands
-		.spawn((
-			Name::new("Player Camera"),
+		commands.entity(body).insert(AimRotators { body, head });
+	}
+}
+
+fn setup_client(
+	mut commands: Commands,
+	bodies: Query<&AimRotators, (Added<AimRotators>, With<ClientPlayer>)>,
+) {
+	for AimRotators { body, head } in bodies.iter() {
+		commands.entity(*body).insert(MouseAim::default());
+
+		commands.entity(*head).insert((
+			ClientPlayer,
 			Camera3dBundle {
-				transform: Transform::from_translation(Vec3::Y * 0.5),
 				projection: Projection::Perspective(PerspectiveProjection {
 					fov: 70.0 / 180. * PI,
 					..default()
 				}),
+				transform: Transform::from_translation(Vec3::Y * 0.5),
 				..default()
 			},
-			PlayerCamera,
-			Pitch(0.0),
-		))
-		.set_parent(body)
-		.id();
+		));
 
-	let (hammer_pivot, _hammer_head) = spawn_hammer(
-		&mut commands,
-		&asset_server,
-		&mut materials,
-		&mut meshes,
-		body,
-	);
-
-	let (sword_pivot, _sword_blade) = spawn_sword(
-		&mut commands,
-		&asset_server,
-		&mut materials,
-		&mut meshes,
-		body,
-	);
-
-	let (rifle_pivot, _rifle_barrel) = spawn_rifle(
-		&mut commands,
-		&asset_server,
-		&mut materials,
-		&mut meshes,
-		body,
-	);
-
-	commands.entity(body).insert((
-		WeaponSet {
-			weapons: vec![sword_pivot, hammer_pivot, rifle_pivot],
-			active_weapon: 0,
-		},
-		UninitializedWeaponSet,
-	));
-
-	commands.spawn((
-		Name::new("Damage Numbers"),
-		TextBundle::from_section("Damage", TextStyle::default()).with_style(Style {
-			position_type: PositionType::Absolute,
-			bottom: Val::Px(5.0),
-			right: Val::Px(5.0),
-			..default()
-		}),
-		DamageNumbers,
-		TargetCamera(camera),
-	));
-
-	commands.spawn((
-		Name::new("Debug Collider Visualizer"),
-		DebugColliderVisualizer,
-		SpatialBundle::default(),
-		CollisionGroups::new(Group::NONE, Group::NONE),
-	));
+		commands.spawn((
+			Name::new("Damage Numbers"),
+			TextBundle::from_section("Damage", TextStyle::default()).with_style(Style {
+				position_type: PositionType::Absolute,
+				bottom: Val::Px(5.0),
+				right: Val::Px(5.0),
+				..default()
+			}),
+			DamageNumbers,
+			TargetCamera(*head),
+		));
+	}
 }
 
 #[derive(Clone, Copy, Eq, PartialEq, Hash, Reflect, Debug)]

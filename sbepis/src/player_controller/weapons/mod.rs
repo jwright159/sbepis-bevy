@@ -6,6 +6,7 @@ use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 
 use crate::entity::GelViscosity;
+use crate::netcode::ClientPlayer;
 use crate::util::QuaternionEx;
 
 pub mod hammer;
@@ -30,11 +31,8 @@ pub struct DamageNumbers;
 #[derive(Component)]
 pub struct WeaponSet {
 	pub weapons: Vec<Entity>,
-	pub active_weapon: usize,
+	pub active_weapon: Option<usize>,
 }
-
-#[derive(Component)]
-pub struct UninitializedWeaponSet;
 
 #[derive(Component)]
 pub struct ActiveWeapon;
@@ -190,40 +188,54 @@ pub fn update_damage_numbers(
 	}
 }
 
-pub fn initialize_weapon_sets(
-	mut commands: Commands,
-	weapon_sets: Query<(Entity, &WeaponSet), With<UninitializedWeaponSet>>,
-) {
-	for (entity, weapon_set) in weapon_sets.iter() {
-		for (index, weapon) in weapon_set.weapons.iter().enumerate() {
-			if index == weapon_set.active_weapon {
-				show_weapon(&mut commands, *weapon);
-			} else {
-				hide_weapon(&mut commands, *weapon);
+pub fn setup_weapon_sets(mut commands: Commands, weapon_sets: Query<&WeaponSet, Added<WeaponSet>>) {
+	for weapon_set in weapon_sets.iter() {
+		if let Some(active_weapon) = weapon_set.active_weapon {
+			for (index, weapon) in weapon_set.weapons.iter().enumerate() {
+				if index == active_weapon {
+					show_weapon(&mut commands, *weapon);
+				} else {
+					hide_weapon(&mut commands, *weapon);
+				}
 			}
 		}
-		commands.entity(entity).remove::<UninitializedWeaponSet>();
 	}
 }
 
-pub fn switch_weapon_next(mut commands: Commands, mut weapon_sets: Query<&mut WeaponSet>) {
+pub fn switch_weapon_next(
+	mut commands: Commands,
+	mut weapon_sets: Query<&mut WeaponSet, With<ClientPlayer>>,
+) {
 	for mut weapon_set in weapon_sets.iter_mut() {
-		let old_weapon = weapon_set.weapons[weapon_set.active_weapon];
-		hide_weapon(&mut commands, old_weapon);
-		weapon_set.active_weapon = (weapon_set.active_weapon + 1) % weapon_set.weapons.len();
-		let new_weapon = weapon_set.weapons[weapon_set.active_weapon];
-		show_weapon(&mut commands, new_weapon);
+		if let Some(mut active_weapon) = weapon_set.active_weapon {
+			let old_weapon = weapon_set.weapons[active_weapon];
+			hide_weapon(&mut commands, old_weapon);
+
+			active_weapon = (active_weapon + 1) % weapon_set.weapons.len();
+			weapon_set.active_weapon = Some(active_weapon);
+
+			let new_weapon = weapon_set.weapons[active_weapon];
+			show_weapon(&mut commands, new_weapon);
+		}
 	}
 }
 
-pub fn switch_weapon_prev(mut commands: Commands, mut weapon_sets: Query<&mut WeaponSet>) {
+pub fn switch_weapon_prev(
+	mut commands: Commands,
+	mut weapon_sets: Query<&mut WeaponSet, With<ClientPlayer>>,
+) {
 	for mut weapon_set in weapon_sets.iter_mut() {
-		let old_weapon = weapon_set.weapons[weapon_set.active_weapon];
-		hide_weapon(&mut commands, old_weapon);
-		weapon_set.active_weapon =
-			(weapon_set.active_weapon + weapon_set.weapons.len() - 1) % weapon_set.weapons.len();
-		let new_weapon = weapon_set.weapons[weapon_set.active_weapon];
-		show_weapon(&mut commands, new_weapon);
+		if let Some(mut active_weapon) = weapon_set.active_weapon {
+			let old_weapon = weapon_set.weapons[active_weapon];
+			hide_weapon(&mut commands, old_weapon);
+
+			active_weapon =
+				(active_weapon + weapon_set.weapons.len() - 1) % weapon_set.weapons.len();
+			weapon_set.active_weapon = Some(active_weapon);
+
+			let new_weapon = weapon_set.weapons[active_weapon];
+			show_weapon(&mut commands, new_weapon);
+		}
 	}
 }
 

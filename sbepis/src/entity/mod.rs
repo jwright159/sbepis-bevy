@@ -22,6 +22,7 @@ impl Plugin for EntityPlugin {
 				target_player,
 				strafe,
 				rotate_toward_movement,
+				rotate_head_and_body,
 				spawn_health_bars,
 				despawn_invalid_health_bars,
 				update_health_bars_health,

@@ -4,6 +4,7 @@ use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 
 use crate::player_controller::PlayerBody;
+use crate::util::QuaternionEx;
 
 #[derive(Component, Deref, DerefMut, Default)]
 pub struct MovementInput(pub Vec3);
@@ -15,17 +16,42 @@ pub fn strafe(mut bodies: Query<(&mut Velocity, &Transform, &MovementInput)>) {
 	}
 }
 
+#[derive(Component, Deref, DerefMut)]
+pub struct AimInput(pub Dir3);
+
+impl Default for AimInput {
+	fn default() -> Self {
+		AimInput(Dir3::NEG_Z)
+	}
+}
+
+#[derive(Component)]
+pub struct AimRotators {
+	pub head: Entity, // rotates pitch, child of body
+	pub body: Entity, // rotates yaw
+}
+
+pub fn rotate_head_and_body(
+	inputs: Query<(&AimRotators, &AimInput)>,
+	mut rotators: Query<&mut Transform>,
+) {
+	for (rotator, input) in inputs.iter() {
+		let [mut body, mut head] = rotators.get_many_mut([rotator.body, rotator.head]).unwrap();
+		body.rotation = Quat::from_look_to(input.reject_from(body.up().into()), body.up());
+		let head_input = body.rotation * input.0;
+		head.rotation = Quat::from_look_to(head_input, Vec3::Y);
+	}
+}
+
 #[derive(Component)]
 pub struct RotateTowardMovement;
 
 pub fn rotate_toward_movement(
-	mut bodies: Query<(&mut Transform, &MovementInput), With<RotateTowardMovement>>,
+	mut bodies: Query<(&mut AimInput, &MovementInput), With<RotateTowardMovement>>,
 ) {
-	for (mut transform, input) in bodies.iter_mut() {
-		if input.length() > 0. {
-			let forward = input.0.reject_from(transform.up().into());
-			let up = transform.up();
-			transform.look_to(forward, up);
+	for (mut aim, input) in bodies.iter_mut() {
+		if let Ok(dir) = input.0.try_into() {
+			aim.0 = dir;
 		}
 	}
 }

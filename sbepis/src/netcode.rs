@@ -1,10 +1,10 @@
 use std::time::Duration;
 
 use bevy::prelude::*;
-use bevy_renet::renet::{ChannelConfig, ConnectionConfig, SendType};
+use bevy_renet::renet::{ChannelConfig, ClientId, ConnectionConfig, SendType};
 use serde::{Deserialize, Serialize};
 
-use crate::npc::{ConsortBundle, CubeBundle, ImpBundle};
+use crate::{ConsortBundle, CubeBundle, ImpBundle, PlayerBundle};
 
 pub const PROTOCOL_ID: u64 = 0xdeadbeef;
 
@@ -95,6 +95,7 @@ pub enum EntityType {
 	Cube,
 	Imp,
 	Consort,
+	Player(ClientId),
 }
 
 pub fn server_commands(
@@ -103,6 +104,7 @@ pub fn server_commands(
 	mut materials: ResMut<Assets<StandardMaterial>>,
 	asset_server: Res<AssetServer>,
 	mut server_commands: EventReader<ServerCommand>,
+	client_id: Option<Res<CurrentClientId>>,
 ) {
 	for command in server_commands.read() {
 		match command {
@@ -131,6 +133,20 @@ pub fn server_commands(
 						&asset_server,
 					));
 				}
+				EntityType::Player(player_id) => {
+					commands.entity(*entity).insert(PlayerBundle::new(
+						*position,
+						&mut meshes,
+						&mut materials,
+						&asset_server,
+					));
+
+					if let Some(ref client_id) = client_id {
+						if client_id.0 == player_id.raw() {
+							commands.entity(*entity).insert(ClientPlayer);
+						}
+					}
+				}
 			},
 			ServerCommand::DespawnEntity(entity) => {
 				commands.entity(*entity).despawn();
@@ -138,3 +154,10 @@ pub fn server_commands(
 		}
 	}
 }
+
+#[derive(Component)]
+pub struct ClientPlayer;
+
+#[derive(Debug, Resource)]
+#[allow(dead_code)]
+pub struct CurrentClientId(pub u64);
