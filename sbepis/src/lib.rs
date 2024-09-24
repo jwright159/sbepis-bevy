@@ -51,7 +51,7 @@ impl Plugin for CommonPlugin {
 						},
 					})
 					.set(LogPlugin {
-						filter: "info,sbepis=debug,avian3d=debug,wgpu=error,naga=warn,calloop=error,symphonia_core=warn,symphonia_bundle_mp3=warn".into(),
+						filter: "info,sbepis=debug,client=debug,server=debug,avian3d=debug,wgpu=error,naga=warn,calloop=error,symphonia_core=warn,symphonia_bundle_mp3=warn".into(),
 						..default()
 					}),
 				RapierPhysicsPlugin::<NoUserData>::default(),

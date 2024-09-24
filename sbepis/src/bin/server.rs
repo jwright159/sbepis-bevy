@@ -6,8 +6,10 @@ use bevy_renet::renet::transport::{NetcodeServerTransport, ServerAuthentication,
 use bevy_renet::renet::{RenetServer, ServerEvent};
 use bevy_renet::transport::NetcodeServerPlugin;
 use bevy_renet::RenetServerPlugin;
+use sbepis::entity::RandomInput;
 use sbepis::netcode::*;
 use sbepis::player_controller::PlayerBody;
+use serde::Serialize;
 
 fn main() {
 	App::new()
@@ -22,28 +24,28 @@ fn main() {
 
 fn setup(mut commands: Commands, mut server_commands: EventWriter<ServerCommand>) {
 	server_commands.send(ServerCommand::SpawnEntity(
-		commands.spawn_empty().id(),
+		ServerEntity(commands.spawn_empty().id()),
 		EntityType::Cube,
 		Vec3::new(0.0, 4.0, 0.0),
 	));
 	server_commands.send(ServerCommand::SpawnEntity(
-		commands.spawn_empty().id(),
+		ServerEntity(commands.spawn_empty().id()),
 		EntityType::Cube,
 		Vec3::new(0.5, 5.5, 0.0),
 	));
 	server_commands.send(ServerCommand::SpawnEntity(
-		commands.spawn_empty().id(),
+		ServerEntity(commands.spawn_empty().id()),
 		EntityType::Cube,
 		Vec3::new(-0.5, 7.0, 0.0),
 	));
 
 	server_commands.send(ServerCommand::SpawnEntity(
-		commands.spawn_empty().id(),
+		ServerEntity(commands.spawn_empty().id()),
 		EntityType::Consort,
 		Vec3::new(0.0, 10.0, 0.0),
 	));
 	server_commands.send(ServerCommand::SpawnEntity(
-		commands.spawn_empty().id(),
+		ServerEntity(commands.spawn_empty().id()),
 		EntityType::Imp,
 		Vec3::new(-6.0, 10.0, 0.0),
 	));
@@ -73,8 +75,18 @@ impl Plugin for ServerPlugin {
 		let transport = NetcodeServerTransport::new(server_config, socket).unwrap();
 		app.insert_resource(server);
 		app.insert_resource(transport);
+		app.insert_resource(ServerState::Server);
 
-		app.add_systems(Update, (server_events, server_send, server_recieve));
+		app.add_systems(
+			Update,
+			(
+				server_events,
+				server_send,
+				server_recieve,
+				server_send_component::<RandomInput>,
+				server_send_component_entity_not_player::<Transform>,
+			),
+		);
 	}
 }
 
@@ -92,7 +104,7 @@ fn server_events(
 				info!("Client connected: {}", client_id);
 
 				server_commands.send(ServerCommand::SpawnEntity(
-					commands.spawn_empty().id(),
+					ServerEntity(commands.spawn_empty().id()),
 					EntityType::Player(*client_id),
 					Vec3::new(0.0, 2.0, 0.0),
 				));
@@ -102,7 +114,7 @@ fn server_events(
 						*client_id,
 						ServerChannel::Commands,
 						bincode::serialize(&ServerCommand::SpawnEntity(
-							entity,
+							ServerEntity(entity),
 							*entity_type,
 							transform.translation(),
 						))
@@ -129,6 +141,40 @@ fn server_send(mut server: ResMut<RenetServer>, mut server_commands: EventReader
 	for command in server_commands.read() {
 		let command = bincode::serialize(&command).unwrap();
 		server.broadcast_message(ServerChannel::Commands, command);
+	}
+}
+
+fn server_send_component<ComponentType>(
+	mut server: ResMut<RenetServer>,
+	entities: Query<(Entity, &ComponentType)>,
+) where
+	ComponentType: Component + Clone + Serialize,
+{
+	for (entity, component) in entities.iter() {
+		server.broadcast_message(
+			ServerChannel::NetworkedEntities,
+			bincode::serialize(&(entity, component.clone())).unwrap(),
+		);
+	}
+}
+
+fn server_send_component_entity_not_player<ComponentType>(
+	mut server: ResMut<RenetServer>,
+	entities: Query<(Entity, &ComponentType, &EntityType)>,
+) where
+	ComponentType: Component + Clone + Serialize,
+{
+	for (entity, component, entity_type) in entities.iter() {
+		match entity_type {
+			EntityType::Player(_) => continue,
+
+			_ => {
+				server.broadcast_message(
+					ServerChannel::NetworkedEntities,
+					bincode::serialize(&(entity, component.clone())).unwrap(),
+				);
+			}
+		}
 	}
 }
 

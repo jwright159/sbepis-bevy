@@ -2,6 +2,7 @@ use std::time::Duration;
 
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
+use serde::{Deserialize, Serialize};
 
 use crate::player_controller::PlayerBody;
 use crate::util::QuaternionEx;
@@ -74,7 +75,7 @@ pub fn rotate_toward_movement(
 	}
 }
 
-#[derive(Component, Default)]
+#[derive(Component, Default, Debug, Clone, Serialize, Deserialize)]
 pub struct RandomInput {
 	pub input: Vec3,
 	pub time_since_last_change: Duration,
