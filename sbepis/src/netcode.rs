@@ -1,9 +1,11 @@
+use std::any::TypeId;
 use std::time::Duration;
 
 use bevy::prelude::*;
 use bevy::utils::hashbrown::HashMap;
 use bevy::utils::EntityHash;
-use bevy_renet::renet::{ChannelConfig, ClientId, ConnectionConfig, SendType};
+use bevy_rapier3d::prelude::Velocity;
+use bevy_renet::renet::{Bytes, ChannelConfig, ClientId, ConnectionConfig, SendType};
 use serde::{Deserialize, Serialize};
 
 use crate::{ConsortBundle, CubeBundle, ImpBundle, PlayerBundle};
@@ -178,7 +180,10 @@ pub struct ServerEntity(pub Entity);
 pub enum ServerState {
 	Server,
 	Client {
-		server_to_client: HashMap<ServerEntity, Entity, EntityHash>,
+		server_to_client_entities: HashMap<ServerEntity, Entity, EntityHash>,
+		client_to_server_entities: HashMap<Entity, ServerEntity, EntityHash>,
+		server_to_client_types: HashMap<u64, u64>,
+		client_to_server_types: HashMap<u64, u64>,
 	},
 }
 
@@ -186,15 +191,30 @@ impl ServerState {
 	pub fn decode_entity(&self, entity: ServerEntity) -> Option<Entity> {
 		match self {
 			Self::Server => Some(entity.0),
-			Self::Client { server_to_client } => server_to_client.get(&entity).copied(),
+			Self::Client {
+				server_to_client_entities: server_to_client,
+				client_to_server_entities: _,
+				server_to_client_types: _,
+				client_to_server_types: _,
+			} => server_to_client.get(&entity).copied(),
 		}
 	}
 
-	pub fn decode_and_insert_entity(&mut self, entity: ServerEntity, new_entity: Entity) -> Entity {
+	pub fn decode_and_insert_entity(
+		&mut self,
+		entity: ServerEntity,
+		client_entity: Entity,
+	) -> Entity {
 		match self {
 			Self::Server => entity.0,
-			Self::Client { server_to_client } => {
-				server_to_client.insert(entity, new_entity);
+			Self::Client {
+				server_to_client_entities: server_to_client,
+				client_to_server_entities: client_to_server,
+				server_to_client_types: _,
+				client_to_server_types: _,
+			} => {
+				server_to_client.insert(entity, client_entity);
+				client_to_server.insert(client_entity, entity);
 				entity.0
 			}
 		}
@@ -203,7 +223,96 @@ impl ServerState {
 	pub fn decode_and_remove_entity(&mut self, entity: ServerEntity) -> Option<Entity> {
 		match self {
 			Self::Server => Some(entity.0),
-			Self::Client { server_to_client } => server_to_client.remove(&entity),
+			Self::Client {
+				server_to_client_entities: server_to_client,
+				client_to_server_entities: client_to_server,
+				server_to_client_types: _,
+				client_to_server_types: _,
+			} => {
+				let client_entity = server_to_client.remove(&entity);
+				if let Some(client_entity) = client_entity {
+					client_to_server.remove(&client_entity);
+				}
+				client_entity
+			}
 		}
 	}
+
+	pub fn encode_entity(&self, entity: Entity) -> Option<ServerEntity> {
+		match self {
+			Self::Server => Some(ServerEntity(entity)),
+			Self::Client {
+				server_to_client_entities: _,
+				client_to_server_entities: client_to_server,
+				server_to_client_types: _,
+				client_to_server_types: _,
+			} => client_to_server.get(&entity).copied(),
+		}
+	}
+
+	pub fn insert_server_types(&mut self, types: SyncServerTypes) {
+		if let Self::Client {
+			server_to_client_entities: _,
+			client_to_server_entities: _,
+			server_to_client_types,
+			client_to_server_types,
+		} = self
+		{
+			let client_types = SyncServerTypes::default();
+			server_to_client_types.insert(types.transform, client_types.transform);
+			client_to_server_types.insert(client_types.transform, types.transform);
+			server_to_client_types.insert(types.velocity, client_types.velocity);
+			client_to_server_types.insert(client_types.velocity, types.velocity);
+		}
+	}
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SyncServerTypes {
+	pub transform: u64,
+	pub velocity: u64,
+}
+
+impl Default for SyncServerTypes {
+	fn default() -> Self {
+		Self {
+			transform: hash_type_id(&TypeId::of::<Transform>()),
+			velocity: hash_type_id(&TypeId::of::<Velocity>()),
+		}
+	}
+}
+
+fn hash_type_id(type_id: &TypeId) -> u64 {
+	use std::collections::hash_map::DefaultHasher;
+	use std::hash::{Hash, Hasher};
+
+	let mut hasher = DefaultHasher::new();
+	type_id.hash(&mut hasher);
+	hasher.finish()
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ComponentData {
+	pub entity: ServerEntity,
+	pub component_type: u64,
+	#[serde(
+		serialize_with = "serialize_bytes",
+		deserialize_with = "deserialize_bytes"
+	)]
+	pub data: Bytes,
+}
+
+fn serialize_bytes<S>(data: &Bytes, serializer: S) -> Result<S::Ok, S::Error>
+where
+	S: serde::Serializer,
+{
+	serializer.serialize_bytes(data.as_ref())
+}
+
+fn deserialize_bytes<'de, D>(deserializer: D) -> Result<Bytes, D::Error>
+where
+	D: serde::Deserializer<'de>,
+{
+	let data = <&[u8]>::deserialize(deserializer)?;
+	Ok(Bytes::copy_from_slice(data))
 }

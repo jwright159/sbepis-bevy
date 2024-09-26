@@ -1,9 +1,9 @@
-use std::any::type_name;
 use std::fmt::Debug;
 use std::net::UdpSocket;
 use std::time::SystemTime;
 
 use bevy::prelude::*;
+use bevy_rapier3d::prelude::Velocity;
 use bevy_renet::renet::transport::{
 	ClientAuthentication, NetcodeClientTransport, NetcodeTransportError,
 };
@@ -12,7 +12,7 @@ use bevy_renet::transport::NetcodeClientPlugin;
 use bevy_renet::{client_connected, RenetClientPlugin};
 use sbepis::entity::RandomInput;
 use sbepis::netcode::*;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 fn main() {
 	App::new()
@@ -55,7 +55,10 @@ impl Plugin for ClientPlugin {
 		app.insert_resource(transport);
 		app.insert_resource(CurrentClientId(client_id));
 		app.insert_resource(ServerState::Client {
-			server_to_client: default(),
+			server_to_client_entities: default(),
+			client_to_server_entities: default(),
+			server_to_client_types: default(),
+			client_to_server_types: default(),
 		});
 
 		// If any error is found we just panic
@@ -67,33 +70,31 @@ impl Plugin for ClientPlugin {
 
 		app.add_systems(Update, panic_on_error_system);
 
-		app.add_event::<NetworkedEntityEvent>();
-
 		app.configure_sets(Update, Connected.run_if(client_connected));
 		app.add_systems(
 			Update,
 			(
-				client_send,
-				client_recieve,
+				client_send_commands,
+				client_send_component_player::<Transform>,
+				client_send_component_player::<Velocity>,
+				client_recieve_commands,
 				client_recieve_component_events,
 				client_recieve_component::<RandomInput>,
 				client_recieve_component::<Transform>,
+				client_recieve_component::<Velocity>,
 			)
 				.in_set(Connected),
 		);
 	}
 }
 
-fn client_send(mut client: ResMut<RenetClient>) {
-	let input_message = bincode::serialize(&Vec3::X).unwrap();
-	client.send_message(ClientChannel::Commands, input_message);
-}
+fn client_send_commands(mut client: ResMut<RenetClient>) {}
 
-fn client_recieve(
+fn client_recieve_commands(
 	mut commands: Commands,
 	mut client: ResMut<RenetClient>,
 	mut server_commands: EventWriter<ServerCommand>,
-	mut entity_map: ResMut<ServerState>,
+	mut server_state: ResMut<ServerState>,
 ) {
 	while let Some(message) = client.receive_message(ServerChannel::Commands) {
 		let mut command: ServerCommand = bincode::deserialize(&message).unwrap();
@@ -101,10 +102,10 @@ fn client_recieve(
 		match &mut command {
 			ServerCommand::SpawnEntity(entity, _, _) => {
 				let client_entity = commands.spawn_empty().id();
-				entity.0 = entity_map.decode_and_insert_entity(*entity, client_entity);
+				entity.0 = server_state.decode_and_insert_entity(*entity, client_entity);
 			}
 			ServerCommand::DespawnEntity(entity) => {
-				if let Some(client_entity) = entity_map.decode_entity(*entity) {
+				if let Some(client_entity) = server_state.decode_entity(*entity) {
 					entity.0 = client_entity;
 				} else {
 					continue;
@@ -116,34 +117,45 @@ fn client_recieve(
 }
 
 fn client_recieve_component_events(
+	mut commands: Commands,
 	mut client: ResMut<RenetClient>,
-	mut events: EventWriter<NetworkedEntityEvent>,
+	server_state: Res<ServerState>,
 ) {
 	while let Some(data) = client.receive_message(ServerChannel::NetworkedEntities) {
-		events.send(NetworkedEntityEvent(data));
-	}
-}
-
-fn client_recieve_component<T>(
-	mut commands: Commands,
-	mut events: EventReader<NetworkedEntityEvent>,
-	entity_map: Res<ServerState>,
-) where
-	T: Component + for<'de> Deserialize<'de> + Debug,
-{
-	for NetworkedEntityEvent(data) in events.read() {
-		if let Ok((entity, component)) = bincode::deserialize::<(ServerEntity, T)>(data) {
-			if let Some(entity) = entity_map.decode_entity(entity) {
-				debug!(
-					"Recieved component {} for entity {}",
-					type_name::<T>(),
-					entity
-				);
+		if let Ok((entity, component)) = bincode::deserialize::<(ServerEntity, ComponentType)>(data)
+		{
+			if let Some(entity) = server_state.decode_entity(entity) {
 				commands.entity(entity).insert(component);
 			}
 		}
 	}
 }
 
-#[derive(Event)]
-pub struct NetworkedEntityEvent(Bytes);
+#[derive(Debug)]
+struct SomeObject(i32);
+
+fn foo() {
+	let foo = SomeObject(5);
+	bar(foo);
+	println!("foo: {:?}", foo);
+}
+
+fn bar(num: SomeObject) {
+	println!("num: {:?}", num);
+}
+
+fn client_send_component_player<ComponentType>(
+	mut client: ResMut<RenetClient>,
+	entities: Query<(Entity, &ComponentType), With<ClientPlayer>>,
+	server_state: Res<ServerState>,
+) where
+	ComponentType: Component + Clone + Serialize + Debug,
+{
+	for (entity, component) in entities.iter() {
+		if let Some(entity) = server_state.encode_entity(entity) {
+			debug!("Sent {:?} {:?}", entity, component);
+			let data = bincode::serialize(&(entity, component.clone())).unwrap();
+			client.send_message(ClientChannel::Input, data);
+		}
+	}
+}
