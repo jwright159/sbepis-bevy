@@ -10,6 +10,7 @@ use self::orientation::*;
 pub mod health;
 pub mod movement;
 pub mod orientation;
+pub mod spawner;
 
 pub struct EntityPlugin;
 impl Plugin for EntityPlugin {

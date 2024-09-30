@@ -1,7 +1,10 @@
+use std::time::Duration;
+
 use bevy::prelude::*;
 use bevy::render::mesh::CapsuleUvProfile;
 use bevy_rapier3d::geometry::Collider;
 
+use crate::entity::spawner::{spawn_entities, SpawnEntityInformation, SpawnedEntity, Spawner};
 use crate::entity::{Healing, RandomInput, RotateTowardMovement, SpawnHealthBar, TargetPlayer};
 use crate::gridbox_material;
 use crate::main_bundles::EntityBundle;
@@ -9,54 +12,114 @@ use crate::main_bundles::EntityBundle;
 pub struct NpcPlugin;
 impl Plugin for NpcPlugin {
 	fn build(&self, app: &mut App) {
-		app.add_systems(Startup, setup);
+		app.add_systems(Startup, setup).add_systems(
+			Update,
+			(
+				spawn_entities::<ConsortSpawner, Consort>.pipe(spawn_consort),
+				spawn_entities::<ImpSpawner, Imp>.pipe(spawn_imp),
+			),
+		);
 	}
 }
 
-fn setup(
+#[derive(Component)]
+pub struct Consort;
+
+#[derive(Component)]
+pub struct ConsortSpawner;
+
+#[derive(Component)]
+pub struct Imp;
+
+#[derive(Component)]
+pub struct ImpSpawner;
+
+fn setup(mut commands: Commands) {
+	commands.spawn((
+		ConsortSpawner,
+		Spawner {
+			max_amount: 5,
+			spawn_delay: Duration::from_secs_f32(5.),
+			spawn_timer: Duration::ZERO,
+		},
+		TransformBundle::from_transform(Transform::from_translation(Vec3::new(-20., 1., 0.))),
+	));
+	commands.spawn((
+		ImpSpawner,
+		Spawner {
+			max_amount: 5,
+			spawn_delay: Duration::from_secs_f32(5.),
+			spawn_timer: Duration::ZERO,
+		},
+		TransformBundle::from_transform(Transform::from_translation(Vec3::new(20., 1., 0.))),
+	));
+}
+
+fn spawn_consort(
+	In(spawn_info): In<Option<SpawnEntityInformation>>,
 	mut commands: Commands,
 	mut meshes: ResMut<Assets<Mesh>>,
 	mut materials: ResMut<Assets<StandardMaterial>>,
 	asset_server: Res<AssetServer>,
 ) {
-	commands.spawn((
-		Name::new("Consort"),
-		EntityBundle::new(
-			Transform::from_translation(Vec3::new(-5.0, 10.0, 0.0)),
-			meshes.add(
-				Capsule3d::new(0.25, 0.5)
-					.mesh()
-					.rings(1)
-					.latitudes(8)
-					.longitudes(16)
-					.uv_profile(CapsuleUvProfile::Fixed),
+	if let Some(spawn_info) = spawn_info {
+		commands.spawn((
+			Name::new("Consort"),
+			EntityBundle::new(
+				Transform::from_translation(spawn_info.position),
+				meshes.add(
+					Capsule3d::new(0.25, 0.5)
+						.mesh()
+						.rings(1)
+						.latitudes(8)
+						.longitudes(16)
+						.uv_profile(CapsuleUvProfile::Fixed),
+				),
+				gridbox_material("magenta", &mut materials, &asset_server),
+				Collider::capsule_y(0.25, 0.25),
 			),
-			gridbox_material("magenta", &mut materials, &asset_server),
-			Collider::capsule_y(0.25, 0.25),
-		),
-		SpawnHealthBar,
-		RandomInput::default(),
-		Healing(0.2),
-		RotateTowardMovement,
-	));
+			SpawnHealthBar,
+			RandomInput::default(),
+			Healing(0.2),
+			RotateTowardMovement,
+			SpawnedEntity {
+				spawner: spawn_info.spawner,
+			},
+			Consort,
+		));
+	}
+}
 
-	commands.spawn((
-		Name::new("Imp"),
-		EntityBundle::new(
-			Transform::from_translation(Vec3::new(-6.0, 10.0, 0.0)),
-			meshes.add(
-				Capsule3d::new(0.25, 0.5)
-					.mesh()
-					.rings(1)
-					.latitudes(8)
-					.longitudes(16)
-					.uv_profile(CapsuleUvProfile::Fixed),
+fn spawn_imp(
+	In(spawn_info): In<Option<SpawnEntityInformation>>,
+	mut commands: Commands,
+	mut meshes: ResMut<Assets<Mesh>>,
+	mut materials: ResMut<Assets<StandardMaterial>>,
+	asset_server: Res<AssetServer>,
+) {
+	if let Some(spawn_info) = spawn_info {
+		commands.spawn((
+			Name::new("Imp"),
+			EntityBundle::new(
+				Transform::from_translation(spawn_info.position),
+				meshes.add(
+					Capsule3d::new(0.25, 0.5)
+						.mesh()
+						.rings(1)
+						.latitudes(8)
+						.longitudes(16)
+						.uv_profile(CapsuleUvProfile::Fixed),
+				),
+				gridbox_material("brown", &mut materials, &asset_server),
+				Collider::capsule_y(0.25, 0.25),
 			),
-			gridbox_material("brown", &mut materials, &asset_server),
-			Collider::capsule_y(0.25, 0.25),
-		),
-		SpawnHealthBar,
-		TargetPlayer,
-		RotateTowardMovement,
-	));
+			SpawnHealthBar,
+			TargetPlayer,
+			RotateTowardMovement,
+			SpawnedEntity {
+				spawner: spawn_info.spawner,
+			},
+			Imp,
+		));
+	}
 }
