@@ -5,12 +5,16 @@ use bevy::render::mesh::CapsuleUvProfile;
 use bevy_rapier3d::prelude::*;
 use leafwing_input_manager::prelude::*;
 
+use crate::camera::PlayerCamera;
 use crate::gridbox_material;
 use crate::input::*;
 use crate::main_bundles::EntityBundle;
+use crate::menus::{
+	InputManagerMenuPlugin, Menu, MenuStack, MenuWithInputManager, MenuWithoutMouse,
+};
 
 use self::camera_controls::*;
-pub use self::camera_controls::{MouseSensitivity, PlayerBody, PlayerCamera};
+pub use self::camera_controls::{MouseSensitivity, PlayerBody};
 use self::movement::*;
 use self::movement::{axes_to_ground_velocity, jump};
 use self::weapons::hammer::*;
@@ -32,23 +36,8 @@ impl Plugin for PlayerControllerPlugin {
 				jump_speed: 5.0,
 			})
 			.add_event::<DamageEvent>()
-			.add_plugins(InputManagerPlugin::<PlayerAction>::default())
-			.add_systems(
-				Startup,
-				(
-					setup,
-					spawn_input_manager(
-						InputMap::default()
-							.with_dual_axis(PlayerAction::Move, KeyboardVirtualDPad::WASD)
-							.with(PlayerAction::Jump, KeyCode::Space)
-							.with_dual_axis(PlayerAction::Look, MouseMove::default())
-							.with(PlayerAction::Sprint, KeyCode::ShiftLeft)
-							.with(PlayerAction::Use, MouseButton::Left)
-							.with(PlayerAction::NextWeapon, MouseScrollDirection::UP)
-							.with(PlayerAction::PrevWeapon, MouseScrollDirection::DOWN),
-					),
-				),
-			)
+			.add_plugins(InputManagerMenuPlugin::<PlayerAction>::default())
+			.add_systems(Startup, setup)
 			.add_systems(
 				Update,
 				(
@@ -76,7 +65,29 @@ fn setup(
 	mut meshes: ResMut<Assets<Mesh>>,
 	mut materials: ResMut<Assets<StandardMaterial>>,
 	asset_server: Res<AssetServer>,
+	mut menu_stack: ResMut<MenuStack>,
 ) {
+	let input = commands
+		.spawn((
+			input_manager_bundle(
+				InputMap::default()
+					.with_dual_axis(PlayerAction::Move, KeyboardVirtualDPad::WASD)
+					.with(PlayerAction::Jump, KeyCode::Space)
+					.with_dual_axis(PlayerAction::Look, MouseMove::default())
+					.with(PlayerAction::Sprint, KeyCode::ShiftLeft)
+					.with(PlayerAction::Use, MouseButton::Left)
+					.with(PlayerAction::Interact, KeyCode::KeyE)
+					.with(PlayerAction::NextWeapon, MouseScrollDirection::UP)
+					.with(PlayerAction::PrevWeapon, MouseScrollDirection::DOWN),
+				false,
+			),
+			Menu,
+			MenuWithInputManager,
+			MenuWithoutMouse,
+		))
+		.id();
+	menu_stack.push(input);
+
 	let body = commands
 		.spawn((
 			Name::new("Player Body"),
@@ -173,10 +184,10 @@ pub enum PlayerAction {
 	Look,
 	Sprint,
 	Use,
+	Interact,
 	NextWeapon,
 	PrevWeapon,
 }
-
 impl Actionlike for PlayerAction {
 	fn input_control_kind(&self) -> InputControlKind {
 		match self {
@@ -185,6 +196,7 @@ impl Actionlike for PlayerAction {
 			PlayerAction::Look => InputControlKind::DualAxis,
 			PlayerAction::Sprint => InputControlKind::Button,
 			PlayerAction::Use => InputControlKind::Button,
+			PlayerAction::Interact => InputControlKind::Button,
 			PlayerAction::NextWeapon => InputControlKind::Button,
 			PlayerAction::PrevWeapon => InputControlKind::Button,
 		}

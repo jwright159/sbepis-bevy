@@ -1,28 +1,25 @@
 use bevy::input::common_conditions::input_just_pressed;
 use bevy::prelude::*;
-use bevy::window::{CursorGrabMode, PrimaryWindow};
 
-use crate::player_controller::PlayerCamera;
+use crate::camera::PlayerCamera;
+use crate::menus::{Menu, MenuActivated, MenuDeactivated, MenuStack, MenuWithMouse};
 
 pub struct OverviewCameraPlugin;
 
 impl Plugin for OverviewCameraPlugin {
 	fn build(&self, app: &mut App) {
-		app.insert_resource(UsingOverviewCamera(true))
-			.add_plugins((bevy_panorbit_camera::PanOrbitCameraPlugin,))
+		app.add_plugins((bevy_panorbit_camera::PanOrbitCameraPlugin,))
 			.add_systems(Startup, (setup,))
 			.add_systems(
 				Update,
 				(
 					toggle_camera.run_if(input_just_pressed(KeyCode::Tab)),
-					set_cameras.run_if(resource_changed::<UsingOverviewCamera>),
+					enable_overview_camera,
+					disable_overview_camera,
 				),
 			);
 	}
 }
-
-#[derive(Resource)]
-pub struct UsingOverviewCamera(pub bool);
 
 #[derive(Component)]
 pub struct OverviewCamera;
@@ -32,6 +29,10 @@ fn setup(mut commands: Commands) {
 		Name::new("Overview Camera"),
 		Camera3dBundle {
 			transform: Transform::from_xyz(4.0, 6.5, 8.0).looking_at(Vec3::ZERO, Vec3::Y),
+			camera: Camera {
+				is_active: false,
+				..default()
+			},
 			..default()
 		},
 		bevy_panorbit_camera::PanOrbitCamera {
@@ -42,27 +43,43 @@ fn setup(mut commands: Commands) {
 			..default()
 		},
 		OverviewCamera,
+		Menu,
+		MenuWithMouse,
 	));
 }
 
-pub fn toggle_camera(mut using_overview_camera: ResMut<UsingOverviewCamera>) {
-	using_overview_camera.0 = !using_overview_camera.0;
+pub fn toggle_camera(
+	mut menu_stack: ResMut<MenuStack>,
+	overview_camera: Query<Entity, With<OverviewCamera>>,
+) {
+	let overview_camera = overview_camera
+		.get_single()
+		.expect("No overview camera found");
+	menu_stack.toggle(overview_camera);
 }
 
-pub fn set_cameras(
+pub fn enable_overview_camera(
+	mut ev_activated: EventReader<MenuActivated>,
 	mut overview_camera: Query<&mut Camera, (With<OverviewCamera>, Without<PlayerCamera>)>,
 	mut player_camera: Query<&mut Camera, (With<PlayerCamera>, Without<OverviewCamera>)>,
-	mut window: Query<&mut Window, With<PrimaryWindow>>,
-	using_overview_camera: Res<UsingOverviewCamera>,
 ) {
-	overview_camera.single_mut().is_active = using_overview_camera.0;
-	player_camera.single_mut().is_active = !using_overview_camera.0;
+	for MenuActivated(menu) in ev_activated.read() {
+		if overview_camera.get(*menu).is_ok() {
+			overview_camera.single_mut().is_active = true;
+			player_camera.single_mut().is_active = false;
+		}
+	}
+}
 
-	let mut window = window.single_mut();
-	window.cursor.grab_mode = if using_overview_camera.0 {
-		CursorGrabMode::None
-	} else {
-		CursorGrabMode::Locked
-	};
-	window.cursor.visible = using_overview_camera.0;
+pub fn disable_overview_camera(
+	mut ev_deactivated: EventReader<MenuDeactivated>,
+	mut overview_camera: Query<&mut Camera, (With<OverviewCamera>, Without<PlayerCamera>)>,
+	mut player_camera: Query<&mut Camera, (With<PlayerCamera>, Without<OverviewCamera>)>,
+) {
+	for MenuDeactivated(menu) in ev_deactivated.read() {
+		if overview_camera.get(*menu).is_ok() {
+			overview_camera.single_mut().is_active = false;
+			player_camera.single_mut().is_active = true;
+		}
+	}
 }

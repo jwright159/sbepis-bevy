@@ -3,8 +3,7 @@ use std::f32::consts::PI;
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 
-#[derive(Component)]
-pub struct PlayerCamera;
+use crate::camera::PlayerCamera;
 
 #[derive(Component)]
 pub struct Pitch(pub f32);

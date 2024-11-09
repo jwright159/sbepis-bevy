@@ -1,6 +1,8 @@
 use bevy::audio::PlaybackMode;
 use bevy::prelude::*;
 
+use crate::some_or_return;
+
 use super::notes::{Note, NotePlayedEvent};
 
 pub fn check_note_patterns<T: Event + NotePatternEvent>(
@@ -9,10 +11,9 @@ pub fn check_note_patterns<T: Event + NotePatternEvent>(
 	mut ev_command_sent: EventWriter<CommandSentEvent>,
 ) {
 	let event = T::compare_notes(note_holder.current_pattern.as_slice());
-	if let Some(event) = event {
-		ev_command.send(event);
-		ev_command_sent.send(CommandSentEvent);
-	}
+	let event = some_or_return!(event);
+	ev_command.send(event);
+	ev_command_sent.send(CommandSentEvent);
 }
 
 #[derive(Resource, Default)]

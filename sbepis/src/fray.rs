@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use bevy::prelude::*;
 
-use crate::player_controller::PlayerCamera;
+use crate::camera::PlayerCameraNode;
 use crate::util::MapRange;
 
 pub struct FrayPlugin;
@@ -12,7 +12,6 @@ impl Plugin for FrayPlugin {
 	fn build(&self, app: &mut App) {
 		app.register_type::<FrayMusic>()
 			.add_systems(Startup, play_background_music)
-			.add_systems(PostStartup, setup_beat_counter_camera)
 			.add_systems(Update, tick_fray_music);
 	}
 }
@@ -39,18 +38,8 @@ fn play_background_music(mut commands: Commands, asset_server: Res<AssetServer>)
 			left: Val::Px(5.0),
 			..default()
 		}),
+		PlayerCameraNode,
 	));
-}
-
-pub fn setup_beat_counter_camera(
-	mut commands: Commands,
-	beat_counters: Query<Entity, With<BeatCounter>>,
-	camera: Query<Entity, With<PlayerCamera>>,
-) {
-	let camera = camera.single();
-	for beat_counter in beat_counters.iter() {
-		commands.entity(beat_counter).insert(TargetCamera(camera));
-	}
 }
 
 #[derive(Component, Reflect, Clone)]

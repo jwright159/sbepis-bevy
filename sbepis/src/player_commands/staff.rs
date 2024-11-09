@@ -1,14 +1,13 @@
+use crate::camera::PlayerCameraNode;
+use crate::menus::MenuStack;
 use crate::player_commands::note_holder::NoteNodeHolder;
 use crate::player_commands::notes::PlayNoteAction;
-use crate::player_controller::{PlayerAction, PlayerCamera};
 use bevy::prelude::*;
 use leafwing_input_manager::prelude::ActionState;
 use leafwing_input_manager::Actionlike;
 
-#[derive(Component, Default)]
-pub struct CommandStaff {
-	pub is_open: bool,
-}
+#[derive(Component)]
+pub struct CommandStaff;
 
 // This should be enough information to map all notes
 pub const F5_LINE_TOP: f32 = 15.0;
@@ -44,7 +43,8 @@ pub fn spawn_staff(mut commands: Commands, asset_server: Res<AssetServer>) {
 				background_color: bevy::color::palettes::css::BEIGE.into(),
 				..default()
 			},
-			CommandStaff::default(),
+			CommandStaff,
+			PlayerCameraNode,
 		))
 		.with_children(|parent| {
 			// Clef
@@ -97,44 +97,6 @@ pub fn spawn_staff(mut commands: Commands, asset_server: Res<AssetServer>) {
 		});
 }
 
-pub fn setup_staff_camera(
-	mut commands: Commands,
-	staff: Query<Entity, With<CommandStaff>>,
-	camera: Query<Entity, With<PlayerCamera>>,
-) {
-	commands
-		.entity(staff.single())
-		.insert(TargetCamera(camera.single()));
-}
-
-#[cfg(feature = "spawn_debug_notes_on_staff")]
-pub fn spawn_debug_notes(
-	mut commands: Commands,
-	mut note_holder: Query<(&mut NoteNodeHolder, Entity)>,
-) {
-	let (mut note_holder, note_holder_entity) = note_holder.single_mut();
-
-	commands.entity(note_holder_entity).with_children(|parent| {
-		for note in [
-			Note::C4,
-			Note::D4,
-			Note::E4,
-			Note::F4,
-			Note::G4,
-			Note::A4,
-			Note::B4,
-			Note::C5,
-			Note::D5,
-			Note::E5,
-			Note::F5,
-			Note::G5,
-			Note::A5,
-		] {
-			parent.spawn(note_bundle(&mut note_holder, note.clone()));
-		}
-	});
-}
-
 #[derive(Actionlike, Clone, Copy, Eq, PartialEq, Hash, Reflect, Debug)]
 pub enum ToggleStaffAction {
 	ToggleStaff,
@@ -143,35 +105,41 @@ pub enum ToggleStaffAction {
 #[derive(Event, Default)]
 pub struct ToggleStaffEvent;
 
-pub fn toggle_staff(mut staff: Query<&mut CommandStaff>) {
-	let mut staff = staff.single_mut();
-	staff.is_open = !staff.is_open;
+#[derive(Resource, Default)]
+pub struct StaffState {
+	pub is_open: bool,
 }
 
-pub fn is_staff_open(staff: Query<&CommandStaff>) -> bool {
-	staff.single().is_open
+pub fn toggle_staff(mut staff_state: ResMut<StaffState>) {
+	staff_state.is_open = !staff_state.is_open;
+}
+
+pub fn is_staff_open(staff_state: Res<StaffState>) -> bool {
+	staff_state.is_open
 }
 
 pub fn show_staff(mut staff_style: Query<&mut Style, With<CommandStaff>>) {
-	staff_style.single_mut().display = Display::Flex;
+	for mut style in staff_style.iter_mut() {
+		style.display = Display::Flex;
+	}
 }
 
 pub fn hide_staff(mut staff_style: Query<&mut Style, With<CommandStaff>>) {
-	staff_style.single_mut().display = Display::None;
+	for mut style in staff_style.iter_mut() {
+		style.display = Display::None;
+	}
 }
 
-pub fn disable_note_input(mut note_input: Query<&mut ActionState<PlayNoteAction>>) {
-	note_input.single_mut().disable();
+pub fn disable_note_input(
+	mut menu_stack: ResMut<MenuStack>,
+	note_input: Query<Entity, With<ActionState<PlayNoteAction>>>,
+) {
+	menu_stack.remove(note_input.single());
 }
 
-pub fn enable_note_input(mut note_input: Query<&mut ActionState<PlayNoteAction>>) {
-	note_input.single_mut().enable();
-}
-
-pub fn disable_movement_input(mut movement_input: Query<&mut ActionState<PlayerAction>>) {
-	movement_input.single_mut().disable();
-}
-
-pub fn enable_movement_input(mut movement_input: Query<&mut ActionState<PlayerAction>>) {
-	movement_input.single_mut().enable();
+pub fn enable_note_input(
+	mut menu_stack: ResMut<MenuStack>,
+	note_input: Query<Entity, With<ActionState<PlayNoteAction>>>,
+) {
+	menu_stack.push(note_input.single());
 }

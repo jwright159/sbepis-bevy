@@ -8,9 +8,9 @@ use bevy_rapier3d::plugin::RapierContext;
 use bevy_rapier3d::prelude::QueryFilter;
 use interpolation::EaseFunction;
 
+use crate::camera::PlayerCamera;
 use crate::fray::FrayMusic;
 use crate::gridbox_material;
-use crate::player_controller::PlayerCamera;
 use crate::util::MapRange;
 
 use super::{DamageEvent, InAnimation};

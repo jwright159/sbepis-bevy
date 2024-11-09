@@ -4,7 +4,8 @@ use interpolation::{Ease, EaseFunction};
 use std::array::IntoIter;
 use std::ops::Range;
 
-use crate::player_controller::{PlayerBody, PlayerCamera};
+use crate::camera::PlayerCamera;
+use crate::player_controller::PlayerBody;
 
 pub trait MapRange<T> {
 	fn map_range(self, range_in: Range<T>, range_out: Range<T>) -> T;
@@ -121,4 +122,24 @@ impl QuaternionEx for Quat {
 		let up = back.cross(right);
 		Quat::from_mat3(&Mat3::from_cols(right, up, back.into()))
 	}
+}
+
+#[macro_export]
+macro_rules! some_or_return {
+	($value:expr) => {
+		match $value {
+			Some(value) => value,
+			None => return,
+		}
+	};
+}
+
+#[macro_export]
+macro_rules! ok_or_return {
+	($value:expr) => {
+		match $value {
+			Ok(value) => value,
+			Err(_) => return,
+		}
+	};
 }

@@ -6,8 +6,9 @@ use bevy_rapier3d::geometry::Collider;
 
 use crate::entity::spawner::{spawn_entities, SpawnEntityInformation, SpawnedEntity, Spawner};
 use crate::entity::{Healing, RandomInput, RotateTowardMovement, SpawnHealthBar, TargetPlayer};
-use crate::gridbox_material;
 use crate::main_bundles::EntityBundle;
+use crate::questing::QuestGiver;
+use crate::{gridbox_material, some_or_return};
 
 pub struct NpcPlugin;
 impl Plugin for NpcPlugin {
@@ -62,32 +63,32 @@ fn spawn_consort(
 	mut materials: ResMut<Assets<StandardMaterial>>,
 	asset_server: Res<AssetServer>,
 ) {
-	if let Some(spawn_info) = spawn_info {
-		commands.spawn((
-			Name::new("Consort"),
-			EntityBundle::new(
-				Transform::from_translation(spawn_info.position),
-				meshes.add(
-					Capsule3d::new(0.25, 0.5)
-						.mesh()
-						.rings(1)
-						.latitudes(8)
-						.longitudes(16)
-						.uv_profile(CapsuleUvProfile::Fixed),
-				),
-				gridbox_material("magenta", &mut materials, &asset_server),
-				Collider::capsule_y(0.25, 0.25),
+	let spawn_info = some_or_return!(spawn_info);
+	commands.spawn((
+		Name::new("Consort"),
+		EntityBundle::new(
+			Transform::from_translation(spawn_info.position),
+			meshes.add(
+				Capsule3d::new(0.25, 0.5)
+					.mesh()
+					.rings(1)
+					.latitudes(8)
+					.longitudes(16)
+					.uv_profile(CapsuleUvProfile::Fixed),
 			),
-			SpawnHealthBar,
-			RandomInput::default(),
-			Healing(0.2),
-			RotateTowardMovement,
-			SpawnedEntity {
-				spawner: spawn_info.spawner,
-			},
-			Consort,
-		));
-	}
+			gridbox_material("magenta", &mut materials, &asset_server),
+			Collider::capsule_y(0.25, 0.25),
+		),
+		SpawnHealthBar,
+		RandomInput::default(),
+		Healing(0.2),
+		RotateTowardMovement,
+		SpawnedEntity {
+			spawner: spawn_info.spawner,
+		},
+		Consort,
+		QuestGiver::default(),
+	));
 }
 
 fn spawn_imp(
@@ -97,29 +98,28 @@ fn spawn_imp(
 	mut materials: ResMut<Assets<StandardMaterial>>,
 	asset_server: Res<AssetServer>,
 ) {
-	if let Some(spawn_info) = spawn_info {
-		commands.spawn((
-			Name::new("Imp"),
-			EntityBundle::new(
-				Transform::from_translation(spawn_info.position),
-				meshes.add(
-					Capsule3d::new(0.25, 0.5)
-						.mesh()
-						.rings(1)
-						.latitudes(8)
-						.longitudes(16)
-						.uv_profile(CapsuleUvProfile::Fixed),
-				),
-				gridbox_material("brown", &mut materials, &asset_server),
-				Collider::capsule_y(0.25, 0.25),
+	let spawn_info = some_or_return!(spawn_info);
+	commands.spawn((
+		Name::new("Imp"),
+		EntityBundle::new(
+			Transform::from_translation(spawn_info.position),
+			meshes.add(
+				Capsule3d::new(0.25, 0.5)
+					.mesh()
+					.rings(1)
+					.latitudes(8)
+					.longitudes(16)
+					.uv_profile(CapsuleUvProfile::Fixed),
 			),
-			SpawnHealthBar,
-			TargetPlayer,
-			RotateTowardMovement,
-			SpawnedEntity {
-				spawner: spawn_info.spawner,
-			},
-			Imp,
-		));
-	}
+			gridbox_material("brown", &mut materials, &asset_server),
+			Collider::capsule_y(0.25, 0.25),
+		),
+		SpawnHealthBar,
+		TargetPlayer,
+		RotateTowardMovement,
+		SpawnedEntity {
+			spawner: spawn_info.spawner,
+		},
+		Imp,
+	));
 }

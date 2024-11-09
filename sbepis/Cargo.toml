@@ -12,7 +12,6 @@ debug = ["inspector", "overview_camera", "terminal", "rapier_debug"]
 default = []
 inspector = ["dep:bevy-inspector-egui", "bevy_panorbit_camera?/bevy_egui"]
 overview_camera = ["dep:bevy_panorbit_camera"]
-spawn_debug_notes_on_staff = []
 terminal = []
 rapier_debug = []
 
@@ -28,6 +27,7 @@ num-traits = "0.2.19"
 winit = "0.30.4"
 rand = "0.8.5"
 interpolation = "0.3.0"
+uuid = "1.10.0"
 
 [build-dependencies]
 winres = "0.1"

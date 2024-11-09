@@ -5,23 +5,26 @@ use std::io::Cursor;
 use bevy::input::common_conditions::input_just_pressed;
 use bevy::log::LogPlugin;
 use bevy::prelude::*;
-use bevy::window::{CursorGrabMode, PrimaryWindow};
 use bevy::winit::WinitWindows;
 use bevy_rapier3d::prelude::*;
 use winit::window::Icon;
 
 use self::main_bundles::*;
 
+mod camera;
 mod entity;
 mod fray;
 mod gravity;
 pub mod input;
+pub mod iter_system;
 mod main_bundles;
+mod menus;
 mod npcs;
 #[cfg(feature = "overview_camera")]
 mod overview_camera;
 mod player_commands;
 mod player_controller;
+mod questing;
 mod skybox;
 pub mod util;
 
@@ -61,14 +64,17 @@ fn main() {
 			#[cfg(feature = "overview_camera")]
 			overview_camera::OverviewCameraPlugin,
 			player_commands::PlayerCommandsPlugin,
+			camera::PlayerCameraPlugin,
 			skybox::SkyboxPlugin,
 			entity::EntityPlugin,
 			player_controller::PlayerControllerPlugin,
 			npcs::NpcPlugin,
 			gravity::GravityPlugin,
 			fray::FrayPlugin,
+			questing::QuestingPlugin,
+			menus::MenusPlugin,
 		))
-		.add_systems(Startup, (set_window_icon, setup, hide_mouse))
+		.add_systems(Startup, (set_window_icon, setup))
 		.add_systems(
 			Update,
 			(
@@ -172,12 +178,6 @@ fn setup(
 			..default()
 		},
 	));
-}
-
-fn hide_mouse(mut window: Query<&mut Window, With<PrimaryWindow>>) {
-	let mut window = window.single_mut();
-	window.cursor.grab_mode = CursorGrabMode::Locked;
-	window.cursor.visible = false;
 }
 
 fn quit(mut ev_quit: EventWriter<AppExit>) {
