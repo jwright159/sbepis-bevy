@@ -1,22 +1,32 @@
+use bevy::ecs::schedule::SystemConfigs;
 use bevy::prelude::*;
 use bevy::window::{CursorGrabMode, PrimaryWindow};
 use leafwing_input_manager::plugin::InputManagerPlugin;
-use leafwing_input_manager::prelude::ActionState;
+use leafwing_input_manager::prelude::{ActionState, InputMap};
 use leafwing_input_manager::{Actionlike, InputControlKind};
+
+use crate::input::input_managers_where_button_just_pressed;
+use crate::iter_system::IteratorSystemTrait;
 
 pub struct MenusPlugin;
 impl Plugin for MenusPlugin {
 	fn build(&self, app: &mut App) {
 		app.register_type::<MenuStack>()
+			.register_type::<ActionState<MenuAction>>()
+			.register_type::<InputMap<MenuAction>>()
 			.init_resource::<MenuStack>()
 			.add_event::<MenuActivated>()
 			.add_event::<MenuDeactivated>()
+			.add_plugins(InputManagerMenuPlugin::<MenuAction>::default())
 			.add_systems(
 				Update,
 				(
 					activate_stack_current.run_if(resource_changed::<MenuStack>),
 					show_mouse,
 					hide_mouse,
+					hide_menus,
+					despawn_menus,
+					close_menu_on(MenuAction::CloseMenu),
 				),
 			);
 	}
@@ -55,6 +65,12 @@ pub struct MenuWithMouse;
 #[derive(Component)]
 pub struct MenuWithoutMouse;
 
+#[derive(Component)]
+pub struct MenuHidesWhenClosed;
+
+#[derive(Component)]
+pub struct MenuDespawnsWhenClosed;
+
 #[derive(Resource, Default, Debug, Reflect)]
 pub struct MenuStack {
 	stack: Vec<Entity>,
@@ -87,6 +103,18 @@ pub struct MenuActivated(pub Entity);
 
 #[derive(Event)]
 pub struct MenuDeactivated(pub Entity);
+
+#[derive(Clone, Copy, Eq, PartialEq, Hash, Reflect, Debug)]
+pub enum MenuAction {
+	CloseMenu,
+}
+impl Actionlike for MenuAction {
+	fn input_control_kind(&self) -> InputControlKind {
+		match self {
+			MenuAction::CloseMenu => InputControlKind::Button,
+		}
+	}
+}
 
 fn activate_stack_current(
 	mut menu_stack: ResMut<MenuStack>,
@@ -157,14 +185,47 @@ fn disable_input_managers<Action: Actionlike>(
 	}
 }
 
-#[derive(Clone, Copy, Eq, PartialEq, Hash, Reflect, Debug)]
-pub enum MenuAction {
-	CloseMenu,
+pub fn close_menu(In(menu): In<Entity>, mut menu_stack: ResMut<MenuStack>) {
+	menu_stack.remove(menu);
 }
-impl Actionlike for MenuAction {
-	fn input_control_kind(&self) -> InputControlKind {
-		match self {
-			MenuAction::CloseMenu => InputControlKind::Button,
+
+fn hide_menus(
+	mut ev_deactivated: EventReader<MenuDeactivated>,
+	mut menus: Query<&mut Visibility, With<MenuHidesWhenClosed>>,
+) {
+	for MenuDeactivated(menu) in ev_deactivated.read() {
+		if let Ok(mut visibility) = menus.get_mut(*menu) {
+			*visibility = Visibility::Hidden;
 		}
 	}
+}
+
+fn despawn_menus(
+	mut ev_deactivated: EventReader<MenuDeactivated>,
+	mut menus: Query<Entity, With<MenuDespawnsWhenClosed>>,
+	mut commands: Commands,
+) {
+	for MenuDeactivated(menu) in ev_deactivated.read() {
+		if let Ok(menu) = menus.get_mut(*menu) {
+			commands.entity(menu).despawn_recursive();
+		}
+	}
+}
+
+pub fn show_menu<T: Component>(
+	mut menus: Query<(Entity, &mut Visibility), With<T>>,
+	mut menu_stack: ResMut<MenuStack>,
+) {
+	let (quest_screen, mut visibility) = menus
+		.get_single_mut()
+		.expect("Single menu with marker not found");
+	*visibility = Visibility::Inherited;
+	menu_stack.push(quest_screen);
+}
+
+pub fn close_menu_on<Action: Actionlike + Copy>(action: Action) -> SystemConfigs {
+	input_managers_where_button_just_pressed(action)
+		.iter_map(close_menu)
+		.map(|_| ())
+		.into_configs()
 }

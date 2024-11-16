@@ -9,12 +9,12 @@ use rand::distributions::{Distribution, Standard};
 use rand::Rng;
 use uuid::Uuid;
 
-use crate::camera::{PlayerCamera, PlayerCameraNode};
+use crate::camera::PlayerCamera;
 use crate::input::{
 	button_just_pressed, input_manager_bundle, input_managers_where_button_just_pressed,
 };
 use crate::iter_system::IteratorSystemTrait;
-use crate::menus::{InputManagerMenuPlugin, Menu, MenuStack, MenuWithInputManager, MenuWithMouse};
+use crate::menus::*;
 use crate::player_controller::PlayerAction;
 use crate::some_or_return;
 
@@ -32,6 +32,7 @@ impl Plugin for QuestingPlugin {
 			.add_systems(
 				Update,
 				(
+					// FIXME: Sometimes pressing interact will open and then immediately close the quest screen
 					interact_with_quest_giver
 						.pipe(propose_quest)
 						.run_if(button_just_pressed(PlayerAction::Interact)),
@@ -40,12 +41,10 @@ impl Plugin for QuestingPlugin {
 						.iter_map(get_proposed_quest)
 						.iter_map(finish_quest)
 						.map(|_| ()),
-					input_managers_where_button_just_pressed(QuestProposalAction::Accept)
-						.iter_map(close_proposal)
-						.map(|_| ()),
-					input_managers_where_button_just_pressed(QuestProposalAction::Decline)
-						.iter_map(close_proposal)
-						.map(|_| ()),
+					close_menu_on(QuestProposalAction::Accept),
+					close_menu_on(QuestProposalAction::Decline),
+					show_menu::<QuestScreen>
+						.run_if(button_just_pressed(PlayerAction::OpenQuestScreen)),
 				),
 			);
 
@@ -160,24 +159,32 @@ pub struct QuestProposal {
 }
 
 fn spawn_quest_screen(mut commands: Commands) {
-	commands.spawn((
-		Name::new("Quest Screen"),
-		NodeBundle {
-			style: Style {
-				width: Val::Percent(100.0),
-				height: Val::Percent(100.0),
-				flex_direction: FlexDirection::Column,
-				justify_content: JustifyContent::Center,
-				align_items: AlignItems::Center,
-				display: bevy::ui::Display::None,
+	commands
+		.spawn((
+			NodeBundle {
+				style: Style {
+					width: Val::Percent(100.0),
+					height: Val::Percent(100.0),
+					flex_direction: FlexDirection::Column,
+					justify_content: JustifyContent::Center,
+					align_items: AlignItems::Center,
+					..default()
+				},
+				background_color: bevy::color::palettes::css::GRAY.with_alpha(0.5).into(),
+				visibility: Visibility::Hidden,
 				..default()
 			},
-			background_color: bevy::color::palettes::css::GRAY.with_alpha(0.5).into(),
-			..default()
-		},
-		QuestScreen::default(),
-		PlayerCameraNode,
-	));
+			input_manager_bundle(
+				InputMap::default().with(MenuAction::CloseMenu, KeyCode::KeyJ),
+				false,
+			),
+			Menu,
+			MenuWithMouse,
+			MenuWithInputManager,
+			MenuHidesWhenClosed,
+			QuestScreen::default(),
+		))
+		.insert(Name::new("Quest Screen"));
 }
 
 fn interact_with_quest_giver(
@@ -260,6 +267,7 @@ fn propose_quest(
 			Menu,
 			MenuWithMouse,
 			MenuWithInputManager,
+			MenuDespawnsWhenClosed,
 			QuestProposal { quest_id },
 		))
 		.insert(Name::new(format!("Quest Proposal for {quest_id}")))
@@ -293,15 +301,6 @@ fn finish_quest(
 		.find(|qg| qg.given_quest == Some(quest_id))
 		.expect("Quest giver missing");
 	quest_giver.given_quest = None;
-}
-
-fn close_proposal(
-	In(input): In<Entity>,
-	mut commands: Commands,
-	mut menu_stack: ResMut<MenuStack>,
-) {
-	menu_stack.remove(input);
-	commands.entity(input).despawn_recursive();
 }
 
 fn update_quest_screen_nodes(

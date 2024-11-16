@@ -78,7 +78,8 @@ fn setup(
 					.with(PlayerAction::Use, MouseButton::Left)
 					.with(PlayerAction::Interact, KeyCode::KeyE)
 					.with(PlayerAction::NextWeapon, MouseScrollDirection::UP)
-					.with(PlayerAction::PrevWeapon, MouseScrollDirection::DOWN),
+					.with(PlayerAction::PrevWeapon, MouseScrollDirection::DOWN)
+					.with(PlayerAction::OpenQuestScreen, KeyCode::KeyJ),
 				false,
 			),
 			Menu,
@@ -187,6 +188,7 @@ pub enum PlayerAction {
 	Interact,
 	NextWeapon,
 	PrevWeapon,
+	OpenQuestScreen,
 }
 impl Actionlike for PlayerAction {
 	fn input_control_kind(&self) -> InputControlKind {
@@ -199,6 +201,7 @@ impl Actionlike for PlayerAction {
 			PlayerAction::Interact => InputControlKind::Button,
 			PlayerAction::NextWeapon => InputControlKind::Button,
 			PlayerAction::PrevWeapon => InputControlKind::Button,
+			PlayerAction::OpenQuestScreen => InputControlKind::Button,
 		}
 	}
 }
