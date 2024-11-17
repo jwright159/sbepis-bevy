@@ -21,7 +21,6 @@ pub struct QuestingPlugin;
 impl Plugin for QuestingPlugin {
 	fn build(&self, app: &mut App) {
 		app.register_type::<Quests>()
-			.register_type::<QuestScreen>()
 			.register_type::<QuestGiver>()
 			.register_type::<QuestId>()
 			.register_type::<Quest>()
@@ -152,9 +151,12 @@ pub struct QuestGiver {
 	pub given_quest: Option<QuestId>,
 }
 
-#[derive(Component, Default, Reflect)]
-pub struct QuestScreen {
-	pub quest_nodes: HashMap<QuestId, Entity>,
+#[derive(Component)]
+pub struct QuestScreen;
+
+#[derive(Component)]
+pub struct QuestScreenNode {
+	pub quest_id: QuestId,
 }
 
 #[derive(Component)]
@@ -197,7 +199,7 @@ fn spawn_quest_screen(mut commands: Commands) {
 			MenuWithMouse,
 			MenuWithInputManager,
 			MenuHidesWhenClosed,
-			QuestScreen::default(),
+			QuestScreen,
 		))
 		.insert(Name::new("Quest Screen"));
 }
@@ -323,13 +325,13 @@ fn add_quest_nodes(
 	mut ev_accepted: EventReader<QuestAccepted>,
 	mut commands: Commands,
 	quests: Res<Quests>,
-	mut quest_screen: Query<(Entity, &mut QuestScreen)>,
+	quest_screen: Query<Entity>,
 ) {
-	let (quest_screen_entity, mut quest_screen) = quest_screen.single_mut();
+	let quest_screen = quest_screen.single();
 
 	for QuestAccepted { quest_id } in ev_accepted.read() {
 		let quest = quests.0.get(quest_id).expect("Unknown quest");
-		let quest_node = commands
+		commands
 			.spawn((
 				Name::new(format!("Quest Node for {quest_id}")),
 				TextBundle {
@@ -343,22 +345,25 @@ fn add_quest_nodes(
 					),
 					..default()
 				},
+				QuestScreenNode {
+					quest_id: *quest_id,
+				},
 			))
-			.set_parent(quest_screen_entity)
-			.id();
-		quest_screen.quest_nodes.insert(*quest_id, quest_node);
+			.set_parent(quest_screen);
 	}
 }
 
 fn remove_quest_nodes(
 	mut ev_finished: EventReader<QuestFinished>,
 	mut commands: Commands,
-	mut quest_screen: Query<&mut QuestScreen>,
+	quest_nodes: Query<(Entity, &QuestScreenNode)>,
 ) {
-	let mut quest_screen = quest_screen.single_mut();
-
 	for QuestFinished { quest_id } in ev_finished.read() {
-		if let Some(quest_node) = quest_screen.quest_nodes.remove(quest_id) {
+		for quest_node in quest_nodes
+			.iter()
+			.filter(|(_, node)| node.quest_id == *quest_id)
+			.map(|(e, _)| e)
+		{
 			commands.entity(quest_node).despawn_recursive();
 		}
 	}
