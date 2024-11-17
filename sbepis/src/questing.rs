@@ -9,7 +9,7 @@ use rand::distributions::{Distribution, Standard};
 use rand::Rng;
 use uuid::Uuid;
 
-use crate::camera::PlayerCamera;
+use crate::camera::{PlayerCamera, PlayerCameraNode};
 use crate::input::{
 	button_just_pressed, input_manager_bundle, input_managers_where_button_just_pressed,
 };
@@ -32,7 +32,6 @@ impl Plugin for QuestingPlugin {
 			.add_systems(
 				Update,
 				(
-					// FIXME: Sometimes pressing interact will open and then immediately close the quest screen
 					interact_with_quest_giver
 						.pipe(propose_quest)
 						.run_if(button_just_pressed(PlayerAction::Interact)),
@@ -178,6 +177,7 @@ fn spawn_quest_screen(mut commands: Commands) {
 				InputMap::default().with(MenuAction::CloseMenu, KeyCode::KeyJ),
 				false,
 			),
+			PlayerCameraNode,
 			Menu,
 			MenuWithMouse,
 			MenuWithInputManager,
@@ -258,6 +258,7 @@ fn propose_quest(
 				style: Style { ..default() },
 				..default()
 			},
+			PlayerCameraNode,
 			input_manager_bundle(
 				InputMap::default()
 					.with(QuestProposalAction::Accept, KeyCode::KeyE)

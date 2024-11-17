@@ -1,7 +1,9 @@
+use std::time::Instant;
+
 use bevy::ecs::schedule::SystemConfigs;
 use bevy::prelude::*;
 use bevy::window::{CursorGrabMode, PrimaryWindow};
-use leafwing_input_manager::plugin::InputManagerPlugin;
+use leafwing_input_manager::plugin::{InputManagerPlugin, InputManagerSystem};
 use leafwing_input_manager::prelude::{ActionState, InputMap};
 use leafwing_input_manager::{Actionlike, InputControlKind};
 
@@ -39,11 +41,12 @@ impl<Action: Actionlike + TypePath + bevy::reflect::GetTypeRegistration> Plugin
 	fn build(&self, app: &mut App) {
 		app.add_plugins(InputManagerPlugin::<Action>::default())
 			.add_systems(
-				Update,
+				PreUpdate,
 				(
 					enable_input_managers::<Action>,
 					disable_input_managers::<Action>,
-				),
+				)
+					.in_set(InputManagerSystem::ManualControl),
 			);
 	}
 }
@@ -170,6 +173,10 @@ fn enable_input_managers<Action: Actionlike>(
 	for MenuActivated(menu) in ev_activated.read() {
 		if let Ok(mut input_manager) = menus.get_mut(*menu) {
 			input_manager.enable();
+
+			// On the first frame of a new input manager, already held buttons
+			// are "just pressed" so we need to clear them
+			input_manager.tick(Instant::now(), Instant::now());
 		}
 	}
 }
