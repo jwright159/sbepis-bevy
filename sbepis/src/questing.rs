@@ -1,9 +1,8 @@
 use std::fmt::{self, Display, Formatter};
 
 use bevy::prelude::*;
-use bevy::utils::{HashMap, HashSet};
+use bevy::utils::HashMap;
 use bevy_rapier3d::prelude::*;
-use itertools::Itertools;
 use leafwing_input_manager::prelude::*;
 use rand::distributions::{Distribution, Standard};
 use rand::Rng;
@@ -27,6 +26,8 @@ impl Plugin for QuestingPlugin {
 			.register_type::<QuestId>()
 			.register_type::<Quest>()
 			.init_resource::<Quests>()
+			.add_event::<QuestAccepted>()
+			.add_event::<QuestFinished>()
 			.add_plugins(InputManagerMenuPlugin::<QuestProposalAction>::default())
 			.add_systems(Startup, spawn_quest_screen)
 			.add_systems(
@@ -35,13 +36,18 @@ impl Plugin for QuestingPlugin {
 					interact_with_quest_giver
 						.pipe(propose_quest)
 						.run_if(button_just_pressed(PlayerAction::Interact)),
-					update_quest_screen_nodes,
+					input_managers_where_button_just_pressed(QuestProposalAction::Accept)
+						.iter_map(get_proposed_quest)
+						.iter_map(accept_quest)
+						.map(|_| ()),
 					input_managers_where_button_just_pressed(QuestProposalAction::Decline)
 						.iter_map(get_proposed_quest)
 						.iter_map(finish_quest)
 						.map(|_| ()),
 					close_menu_on(QuestProposalAction::Accept),
 					close_menu_on(QuestProposalAction::Decline),
+					add_quest_nodes,
+					remove_quest_nodes,
 					show_menu::<QuestScreen>
 						.run_if(button_just_pressed(PlayerAction::OpenQuestScreen)),
 				),
@@ -148,12 +154,21 @@ pub struct QuestGiver {
 
 #[derive(Component, Default, Reflect)]
 pub struct QuestScreen {
-	pub quests: HashSet<QuestId>,
 	pub quest_nodes: HashMap<QuestId, Entity>,
 }
 
 #[derive(Component)]
 pub struct QuestProposal {
+	pub quest_id: QuestId,
+}
+
+#[derive(Event)]
+pub struct QuestAccepted {
+	pub quest_id: QuestId,
+}
+
+#[derive(Event)]
+pub struct QuestFinished {
 	pub quest_id: QuestId,
 }
 
@@ -216,7 +231,6 @@ fn propose_quest(
 	In(quest_giver): In<Option<Entity>>,
 	mut commands: Commands,
 	mut quests: ResMut<Quests>,
-	mut quest_screen: Query<&mut QuestScreen>,
 	mut quest_givers: Query<&mut QuestGiver>,
 	mut menu_stack: ResMut<MenuStack>,
 ) {
@@ -235,9 +249,6 @@ fn propose_quest(
 		.0
 		.get(&quest_id)
 		.expect("Unknown quest even though we just inserted it");
-
-	let mut quest_screen = quest_screen.single_mut();
-	quest_screen.quests.insert(quest_id);
 
 	quest_giver.given_quest = Some(quest_id);
 
@@ -284,42 +295,40 @@ fn get_proposed_quest(
 	quest_proposals.get(input).map(|qp| qp.quest_id).ok()
 }
 
+fn accept_quest(In(quest_id): In<Option<QuestId>>, mut ev_accepted: EventWriter<QuestAccepted>) {
+	let quest_id = some_or_return!(quest_id);
+	ev_accepted.send(QuestAccepted { quest_id });
+}
+
 fn finish_quest(
 	In(quest_id): In<Option<QuestId>>,
 	mut quests: ResMut<Quests>,
-	mut quest_screen: Query<&mut QuestScreen>,
 	mut quest_givers: Query<&mut QuestGiver>,
+	mut ev_finished: EventWriter<QuestFinished>,
 ) {
 	let quest_id = some_or_return!(quest_id);
 
 	quests.0.remove(&quest_id);
-
-	let mut quest_screen = quest_screen.single_mut();
-	quest_screen.quests.remove(&quest_id);
 
 	let mut quest_giver = quest_givers
 		.iter_mut()
 		.find(|qg| qg.given_quest == Some(quest_id))
 		.expect("Quest giver missing");
 	quest_giver.given_quest = None;
+
+	ev_finished.send(QuestFinished { quest_id });
 }
 
-fn update_quest_screen_nodes(
+fn add_quest_nodes(
+	mut ev_accepted: EventReader<QuestAccepted>,
 	mut commands: Commands,
 	quests: Res<Quests>,
 	mut quest_screen: Query<(Entity, &mut QuestScreen)>,
 ) {
 	let (quest_screen_entity, mut quest_screen) = quest_screen.single_mut();
 
-	// Add new quests
-	let new_quests = quest_screen
-		.quests
-		.iter()
-		.filter(|q| !quest_screen.quest_nodes.keys().contains(q))
-		.copied()
-		.collect_vec();
-	for quest_id in new_quests {
-		let quest = quests.0.get(&quest_id).expect("Unknown quest");
+	for QuestAccepted { quest_id } in ev_accepted.read() {
+		let quest = quests.0.get(quest_id).expect("Unknown quest");
 		let quest_node = commands
 			.spawn((
 				Name::new(format!("Quest Node for {quest_id}")),
@@ -337,18 +346,19 @@ fn update_quest_screen_nodes(
 			))
 			.set_parent(quest_screen_entity)
 			.id();
-		quest_screen.quest_nodes.insert(quest_id, quest_node);
+		quest_screen.quest_nodes.insert(*quest_id, quest_node);
 	}
+}
 
-	// Remove old quests
-	let old_quests = quest_screen
-		.quest_nodes
-		.keys()
-		.filter(|q| !quest_screen.quests.contains(*q))
-		.copied()
-		.collect_vec();
-	for quest_id in old_quests {
-		if let Some(quest_node) = quest_screen.quest_nodes.remove(&quest_id) {
+fn remove_quest_nodes(
+	mut ev_finished: EventReader<QuestFinished>,
+	mut commands: Commands,
+	mut quest_screen: Query<&mut QuestScreen>,
+) {
+	let mut quest_screen = quest_screen.single_mut();
+
+	for QuestFinished { quest_id } in ev_finished.read() {
+		if let Some(quest_node) = quest_screen.quest_nodes.remove(quest_id) {
 			commands.entity(quest_node).despawn_recursive();
 		}
 	}
