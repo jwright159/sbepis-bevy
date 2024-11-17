@@ -10,10 +10,10 @@ use rand::Rng;
 use uuid::Uuid;
 
 use crate::camera::{PlayerCamera, PlayerCameraNode};
-use crate::input::{
-	button_just_pressed, input_manager_bundle, input_managers_where_button_just_pressed,
+use crate::input::{button_just_pressed, input_manager_bundle};
+use crate::iter_system::{
+	DoSystemTrait, DoneSystemTrait, FilterOkSystemTrait, IteratorSystemTrait,
 };
-use crate::iter_system::IteratorSystemTrait;
 use crate::menus::*;
 use crate::player_controller::PlayerAction;
 use crate::some_or_return;
@@ -27,7 +27,7 @@ impl Plugin for QuestingPlugin {
 			.register_type::<Quest>()
 			.init_resource::<Quests>()
 			.add_event::<QuestAccepted>()
-			.add_event::<QuestFinished>()
+			.add_event::<QuestDeclined>()
 			.add_plugins(InputManagerMenuPlugin::<QuestProposalAction>::default())
 			.add_systems(Startup, spawn_quest_screen)
 			.add_systems(
@@ -36,18 +36,29 @@ impl Plugin for QuestingPlugin {
 					interact_with_quest_giver
 						.pipe(propose_quest)
 						.run_if(button_just_pressed(PlayerAction::Interact)),
-					input_managers_where_button_just_pressed(QuestProposalAction::Accept)
+					fire_input_and_button_events::<
+						QuestProposalAction,
+						QuestProposalAccept,
+						QuestAccepted,
+					>(QuestProposalAction::Accept, QuestAccepted::new),
+					fire_input_and_button_events::<
+						QuestProposalAction,
+						QuestProposalDecline,
+						QuestDeclined,
+					>(QuestProposalAction::Decline, QuestDeclined::new),
+					input_managers_where_action_fired::<QuestAccepted>()
+						.iter_do(close_menu)
 						.iter_map(get_proposed_quest)
-						.iter_map(accept_quest)
-						.map(|_| ()),
-					input_managers_where_button_just_pressed(QuestProposalAction::Decline)
+						.iter_filter_some()
+						.iter_do(add_quest_nodes)
+						.iter_done(),
+					input_managers_where_action_fired::<QuestDeclined>()
+						.iter_do(close_menu)
 						.iter_map(get_proposed_quest)
-						.iter_map(finish_quest)
-						.map(|_| ()),
-					close_menu_on(QuestProposalAction::Accept),
-					close_menu_on(QuestProposalAction::Decline),
-					add_quest_nodes,
-					remove_quest_nodes,
+						.iter_filter_some()
+						.iter_do(remove_quest)
+						.iter_do(remove_quest_nodes)
+						.iter_done(),
 					change_displayed_node,
 					show_menu::<QuestScreen>
 						.run_if(button_just_pressed(PlayerAction::OpenQuestScreen)),
@@ -173,14 +184,54 @@ pub struct QuestProposal {
 	pub quest_id: QuestId,
 }
 
-#[derive(Event)]
-pub struct QuestAccepted {
-	pub quest_id: QuestId,
+#[derive(Component)]
+pub struct QuestProposalAccept {
+	pub quest_proposal: Entity,
+}
+impl InputManagerReference for QuestProposalAccept {
+	fn input_manager(&self) -> Entity {
+		self.quest_proposal
+	}
+}
+
+#[derive(Component)]
+pub struct QuestProposalDecline {
+	pub quest_proposal: Entity,
+}
+impl InputManagerReference for QuestProposalDecline {
+	fn input_manager(&self) -> Entity {
+		self.quest_proposal
+	}
 }
 
 #[derive(Event)]
-pub struct QuestFinished {
-	pub quest_id: QuestId,
+pub struct QuestAccepted {
+	pub quest_proposal: Entity,
+}
+impl QuestAccepted {
+	pub fn new(quest_proposal: Entity) -> Self {
+		Self { quest_proposal }
+	}
+}
+impl InputManagerReference for QuestAccepted {
+	fn input_manager(&self) -> Entity {
+		self.quest_proposal
+	}
+}
+
+#[derive(Event)]
+pub struct QuestDeclined {
+	pub quest_proposal: Entity,
+}
+impl QuestDeclined {
+	pub fn new(quest_proposal: Entity) -> Self {
+		Self { quest_proposal }
+	}
+}
+impl InputManagerReference for QuestDeclined {
+	fn input_manager(&self) -> Entity {
+		self.quest_proposal
+	}
 }
 
 fn spawn_quest_screen(mut commands: Commands) {
@@ -299,6 +350,7 @@ fn propose_quest(
 					width: Val::Percent(100.0),
 					max_width: Val::Px(600.0),
 					padding: UiRect::all(Val::Px(10.0)),
+					flex_direction: FlexDirection::Column,
 					..default()
 				},
 				background_color: css::GRAY.into(),
@@ -319,20 +371,90 @@ fn propose_quest(
 		))
 		.insert(Name::new(format!("Quest Proposal for {quest_id}")))
 		.with_children(|parent| {
+			let proposal = parent.parent_entity();
+
 			parent.spawn(TextBundle {
 				text: Text::from_section(
-					format!(
-						"{}\n\n{}\n\n[E] to accept or [Space] to decline",
-						quest.name, quest.description
-					),
+					format!("{}\n\n{}", quest.name, quest.description),
 					TextStyle {
 						font_size: 20.0,
 						color: Color::WHITE,
 						..default()
 					},
 				),
+				style: Style {
+					margin: UiRect::bottom(Val::Px(10.0)),
+					..default()
+				},
 				..default()
 			});
+			parent
+				.spawn(NodeBundle {
+					style: Style {
+						flex_direction: FlexDirection::Row,
+						column_gap: Val::Px(10.0),
+						..default()
+					},
+					..default()
+				})
+				.with_children(|parent| {
+					parent
+						.spawn((
+							ButtonBundle {
+								style: Style {
+									padding: UiRect::all(Val::Px(10.0)),
+									flex_grow: 1.0,
+									..default()
+								},
+								background_color: css::DARK_GRAY.into(),
+								..default()
+							},
+							QuestProposalAccept {
+								quest_proposal: proposal,
+							},
+						))
+						.with_children(|parent| {
+							parent.spawn(TextBundle {
+								text: Text::from_section(
+									"Accept [E]",
+									TextStyle {
+										font_size: 20.0,
+										color: Color::WHITE,
+										..default()
+									},
+								),
+								..default()
+							});
+						});
+					parent
+						.spawn((
+							ButtonBundle {
+								style: Style {
+									padding: UiRect::all(Val::Px(10.0)),
+									flex_grow: 1.0,
+									..default()
+								},
+								background_color: css::DARK_GRAY.into(),
+								..default()
+							},
+							QuestProposalDecline {
+								quest_proposal: proposal,
+							},
+						))
+						.with_children(|parent| {
+							parent.spawn(TextBundle {
+								text: Text::from_section(
+									"Decline [Space]",
+									TextStyle {
+										font_size: 20.0,
+										color: Color::WHITE,
+										..default()
+									},
+								),
+								..default()
+							});
+						});
+				});
 		})
 		.id();
 
@@ -346,19 +468,11 @@ fn get_proposed_quest(
 	quest_proposals.get(input).map(|qp| qp.quest_id).ok()
 }
 
-fn accept_quest(In(quest_id): In<Option<QuestId>>, mut ev_accepted: EventWriter<QuestAccepted>) {
-	let quest_id = some_or_return!(quest_id);
-	ev_accepted.send(QuestAccepted { quest_id });
-}
-
-fn finish_quest(
-	In(quest_id): In<Option<QuestId>>,
+fn remove_quest(
+	In(quest_id): In<QuestId>,
 	mut quests: ResMut<Quests>,
 	mut quest_givers: Query<&mut QuestGiver>,
-	mut ev_finished: EventWriter<QuestFinished>,
 ) {
-	let quest_id = some_or_return!(quest_id);
-
 	quests.0.remove(&quest_id);
 
 	let mut quest_giver = quest_givers
@@ -366,12 +480,10 @@ fn finish_quest(
 		.find(|qg| qg.given_quest == Some(quest_id))
 		.expect("Quest giver missing");
 	quest_giver.given_quest = None;
-
-	ev_finished.send(QuestFinished { quest_id });
 }
 
 fn add_quest_nodes(
-	mut ev_accepted: EventReader<QuestAccepted>,
+	In(quest_id): In<QuestId>,
 	mut commands: Commands,
 	quests: Res<Quests>,
 	quest_screen_node_list: Query<Entity, With<QuestScreenNodeList>>,
@@ -380,74 +492,67 @@ fn add_quest_nodes(
 	let quest_screen_node_list = quest_screen_node_list.single();
 	let quest_screen_node_display = quest_screen_node_display.single();
 
-	for QuestAccepted { quest_id } in ev_accepted.read() {
-		let quest = quests.0.get(quest_id).expect("Unknown quest");
+	let quest = quests.0.get(&quest_id).expect("Unknown quest");
 
-		let display = commands
-			.spawn(TextBundle {
+	let display = commands
+		.spawn(TextBundle {
+			text: Text::from_section(
+				quest.description.clone(),
+				TextStyle {
+					font_size: 20.0,
+					color: Color::WHITE,
+					..default()
+				},
+			),
+			style: Style {
+				display: bevy::ui::Display::None,
+				..default()
+			},
+			..default()
+		})
+		.set_parent(quest_screen_node_display)
+		.id();
+
+	commands
+		.spawn((
+			ButtonBundle {
+				style: Style {
+					padding: UiRect::all(Val::Px(10.0)),
+					width: Val::Percent(100.0),
+					..default()
+				},
+				background_color: css::GRAY.into(),
+				..default()
+			},
+			QuestScreenNode { quest_id, display },
+		))
+		.set_parent(quest_screen_node_list)
+		.with_children(|parent| {
+			parent.spawn(TextBundle {
 				text: Text::from_section(
-					quest.description.clone(),
+					quest.name.clone(),
 					TextStyle {
 						font_size: 20.0,
 						color: Color::WHITE,
 						..default()
 					},
 				),
-				style: Style {
-					display: bevy::ui::Display::None,
-					..default()
-				},
 				..default()
-			})
-			.set_parent(quest_screen_node_display)
-			.id();
-
-		commands
-			.spawn((
-				ButtonBundle {
-					style: Style {
-						padding: UiRect::all(Val::Px(10.0)),
-						width: Val::Percent(100.0),
-						..default()
-					},
-					background_color: css::GRAY.into(),
-					..default()
-				},
-				QuestScreenNode {
-					quest_id: *quest_id,
-					display,
-				},
-			))
-			.set_parent(quest_screen_node_list)
-			.with_children(|parent| {
-				parent.spawn(TextBundle {
-					text: Text::from_section(
-						quest.name.clone(),
-						TextStyle {
-							font_size: 20.0,
-							color: Color::WHITE,
-							..default()
-						},
-					),
-					..default()
-				});
 			});
-	}
+		});
 }
 
 fn remove_quest_nodes(
-	mut ev_finished: EventReader<QuestFinished>,
+	In(quest_id): In<QuestId>,
 	mut commands: Commands,
 	quest_nodes: Query<(Entity, &QuestScreenNode)>,
 ) {
-	for QuestFinished { quest_id } in ev_finished.read() {
-		for (quest_node_entity, quest_node) in quest_nodes
-			.iter()
-			.filter(|(_, node)| node.quest_id == *quest_id)
-		{
-			commands.entity(quest_node_entity).despawn_recursive();
-			commands.entity(quest_node.display).despawn_recursive();
-		}
+	for (quest_node_entity, quest_node) in quest_nodes
+		.iter()
+		.filter(|(_, node)| node.quest_id == quest_id)
+	{
+		commands.entity(quest_node_entity).despawn_recursive();
+		commands.entity(quest_node.display).despawn_recursive();
 	}
 }
 

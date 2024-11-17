@@ -236,3 +236,71 @@ pub fn close_menu_on<Action: Actionlike + Copy>(action: Action) -> SystemConfigs
 		.map(|_| ())
 		.into_configs()
 }
+
+pub fn close_menu_on_event<Ev: Event + InputManagerReference>() -> SystemConfigs {
+	|mut ev_input: EventReader<Ev>| -> Vec<Entity> {
+		ev_input.read().map(|event| event.input_manager()).collect()
+	}
+	.iter_map(close_menu)
+	.map(|_| ())
+	.into_configs()
+}
+
+pub fn fire_input_events<Action: Actionlike + Copy, Ev: Event + InputManagerReference>(
+	action: Action,
+	event_generator: impl Fn(Entity) -> Ev + Send + Sync + 'static,
+) -> SystemConfigs {
+	input_managers_where_button_just_pressed(action)
+		.iter_map(move |In(input_manager), mut ev_action: EventWriter<Ev>| {
+			ev_action.send(event_generator(input_manager));
+		})
+		.map(|_| ())
+		.into_configs()
+}
+
+pub fn fire_button_events<
+	Button: Component + InputManagerReference,
+	Ev: Event + InputManagerReference,
+>(
+	event_generator: impl Fn(Entity) -> Ev + Send + Sync + 'static,
+) -> SystemConfigs {
+	(move |buttons: Query<(&Button, &Interaction), Changed<Interaction>>,
+	       mut ev_action: EventWriter<Ev>| {
+		buttons
+			.iter()
+			.filter(|(_, &interaction)| interaction == Interaction::Pressed)
+			.for_each(|(button, _)| {
+				ev_action.send(event_generator(button.input_manager()));
+			});
+	})
+	.into_configs()
+}
+
+pub fn fire_input_and_button_events<
+	Action: Actionlike + Copy,
+	Button: Component + InputManagerReference,
+	Ev: Event + InputManagerReference,
+>(
+	action: Action,
+	event_generator: impl Fn(Entity) -> Ev + Send + Sync + Clone + 'static,
+) -> SystemConfigs {
+	(
+		fire_input_events::<Action, Ev>(action, event_generator.clone()),
+		fire_button_events::<Button, Ev>(event_generator),
+	)
+		.into_configs()
+}
+
+pub trait InputManagerReference {
+	fn input_manager(&self) -> Entity;
+}
+
+pub fn input_managers_where_action_fired<Ev: Event + InputManagerReference>(
+) -> impl Fn(EventReader<Ev>) -> Vec<Entity> {
+	move |mut ev_input: EventReader<Ev>| {
+		ev_input
+			.read()
+			.map(InputManagerReference::input_manager)
+			.collect()
+	}
+}
