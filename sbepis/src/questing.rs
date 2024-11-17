@@ -293,19 +293,15 @@ fn propose_quest(
 
 	let proposal = commands
 		.spawn((
-			TextBundle {
-				text: Text::from_section(
-					format!(
-						"{}\n{}\n[E] to accept or [Space] to decline",
-						quest.name, quest.description
-					),
-					TextStyle {
-						font_size: 20.0,
-						color: Color::WHITE,
-						..default()
-					},
-				),
-				style: Style { ..default() },
+			NodeBundle {
+				style: Style {
+					margin: UiRect::all(Val::Auto),
+					width: Val::Percent(100.0),
+					max_width: Val::Px(600.0),
+					padding: UiRect::all(Val::Px(10.0)),
+					..default()
+				},
+				background_color: css::GRAY.into(),
 				..default()
 			},
 			PlayerCameraNode,
@@ -322,6 +318,22 @@ fn propose_quest(
 			QuestProposal { quest_id },
 		))
 		.insert(Name::new(format!("Quest Proposal for {quest_id}")))
+		.with_children(|parent| {
+			parent.spawn(TextBundle {
+				text: Text::from_section(
+					format!(
+						"{}\n\n{}\n\n[E] to accept or [Space] to decline",
+						quest.name, quest.description
+					),
+					TextStyle {
+						font_size: 20.0,
+						color: Color::WHITE,
+						..default()
+					},
+				),
+				..default()
+			});
+		})
 		.id();
 
 	menu_stack.push(proposal);
