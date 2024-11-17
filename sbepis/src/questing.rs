@@ -1,5 +1,6 @@
 use std::fmt::{self, Display, Formatter};
 
+use bevy::color::palettes::css;
 use bevy::prelude::*;
 use bevy::utils::HashMap;
 use bevy_rapier3d::prelude::*;
@@ -47,6 +48,7 @@ impl Plugin for QuestingPlugin {
 					close_menu_on(QuestProposalAction::Decline),
 					add_quest_nodes,
 					remove_quest_nodes,
+					change_displayed_node,
 					show_menu::<QuestScreen>
 						.run_if(button_just_pressed(PlayerAction::OpenQuestScreen)),
 				),
@@ -155,8 +157,15 @@ pub struct QuestGiver {
 pub struct QuestScreen;
 
 #[derive(Component)]
+pub struct QuestScreenNodeList;
+
+#[derive(Component)]
+pub struct QuestScreenNodeDisplay(Option<Entity>);
+
+#[derive(Component)]
 pub struct QuestScreenNode {
 	pub quest_id: QuestId,
+	pub display: Entity,
 }
 
 #[derive(Component)]
@@ -181,9 +190,6 @@ fn spawn_quest_screen(mut commands: Commands) {
 				style: Style {
 					width: Val::Percent(100.0),
 					height: Val::Percent(100.0),
-					flex_direction: FlexDirection::Column,
-					justify_content: JustifyContent::Center,
-					align_items: AlignItems::Center,
 					..default()
 				},
 				background_color: bevy::color::palettes::css::GRAY.with_alpha(0.5).into(),
@@ -201,7 +207,38 @@ fn spawn_quest_screen(mut commands: Commands) {
 			MenuHidesWhenClosed,
 			QuestScreen,
 		))
-		.insert(Name::new("Quest Screen"));
+		.insert(Name::new("Quest Screen"))
+		.with_children(|parent| {
+			parent.spawn((
+				NodeBundle {
+					style: Style {
+						flex_grow: 1.0,
+						flex_direction: FlexDirection::Column,
+						..default()
+					},
+					..default()
+				},
+				QuestScreenNodeList,
+			));
+			parent.spawn((NodeBundle {
+				style: Style {
+					width: Val::Px(2.0),
+					..default()
+				},
+				background_color: css::WHITE.into(),
+				..default()
+			},));
+			parent.spawn((
+				NodeBundle {
+					style: Style {
+						flex_grow: 4.0,
+						..default()
+					},
+					..default()
+				},
+				QuestScreenNodeDisplay(None),
+			));
+		});
 }
 
 fn interact_with_quest_giver(
@@ -325,16 +362,53 @@ fn add_quest_nodes(
 	mut ev_accepted: EventReader<QuestAccepted>,
 	mut commands: Commands,
 	quests: Res<Quests>,
-	quest_screen: Query<Entity>,
+	quest_screen_node_list: Query<Entity, With<QuestScreenNodeList>>,
+	quest_screen_node_display: Query<Entity, With<QuestScreenNodeDisplay>>,
 ) {
-	let quest_screen = quest_screen.single();
+	let quest_screen_node_list = quest_screen_node_list.single();
+	let quest_screen_node_display = quest_screen_node_display.single();
 
 	for QuestAccepted { quest_id } in ev_accepted.read() {
 		let quest = quests.0.get(quest_id).expect("Unknown quest");
+
+		let display = commands
+			.spawn(TextBundle {
+				text: Text::from_section(
+					quest.description.clone(),
+					TextStyle {
+						font_size: 20.0,
+						color: Color::WHITE,
+						..default()
+					},
+				),
+				style: Style {
+					display: bevy::ui::Display::None,
+					..default()
+				},
+				..default()
+			})
+			.set_parent(quest_screen_node_display)
+			.id();
+
 		commands
 			.spawn((
-				Name::new(format!("Quest Node for {quest_id}")),
-				TextBundle {
+				ButtonBundle {
+					style: Style {
+						padding: UiRect::all(Val::Px(10.0)),
+						width: Val::Percent(100.0),
+						..default()
+					},
+					background_color: css::GRAY.into(),
+					..default()
+				},
+				QuestScreenNode {
+					quest_id: *quest_id,
+					display,
+				},
+			))
+			.set_parent(quest_screen_node_list)
+			.with_children(|parent| {
+				parent.spawn(TextBundle {
 					text: Text::from_section(
 						quest.name.clone(),
 						TextStyle {
@@ -344,12 +418,8 @@ fn add_quest_nodes(
 						},
 					),
 					..default()
-				},
-				QuestScreenNode {
-					quest_id: *quest_id,
-				},
-			))
-			.set_parent(quest_screen);
+				});
+			});
 	}
 }
 
@@ -359,12 +429,36 @@ fn remove_quest_nodes(
 	quest_nodes: Query<(Entity, &QuestScreenNode)>,
 ) {
 	for QuestFinished { quest_id } in ev_finished.read() {
-		for quest_node in quest_nodes
+		for (quest_node_entity, quest_node) in quest_nodes
 			.iter()
 			.filter(|(_, node)| node.quest_id == *quest_id)
-			.map(|(e, _)| e)
 		{
-			commands.entity(quest_node).despawn_recursive();
+			commands.entity(quest_node_entity).despawn_recursive();
+			commands.entity(quest_node.display).despawn_recursive();
+		}
+	}
+}
+
+fn change_displayed_node(
+	quest_nodes: Query<(&QuestScreenNode, &Interaction), Changed<Interaction>>,
+	mut quest_node_displays: Query<&mut Style>,
+	mut quest_screen_node_display: Query<&mut QuestScreenNodeDisplay>,
+) {
+	let mut quest_screen_node_display = quest_screen_node_display.single_mut();
+
+	for (quest_node, &interaction) in quest_nodes.iter() {
+		if interaction == Interaction::Pressed {
+			if let Some(mut style) = quest_screen_node_display
+				.0
+				.and_then(|e| quest_node_displays.get_mut(e).ok())
+			{
+				style.display = bevy::ui::Display::None;
+			}
+
+			if let Ok(mut style) = quest_node_displays.get_mut(quest_node.display) {
+				style.display = bevy::ui::Display::DEFAULT;
+				quest_screen_node_display.0 = Some(quest_node.display);
+			}
 		}
 	}
 }
