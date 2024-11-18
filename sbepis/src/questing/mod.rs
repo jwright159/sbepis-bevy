@@ -11,13 +11,15 @@ use rand::Rng;
 use uuid::Uuid;
 
 use crate::camera::{PlayerCamera, PlayerCameraNode};
+use crate::entity::EntityKilled;
 use crate::input::{button_just_pressed, input_manager_bundle};
 use crate::iter_system::{
 	DoSystemTrait, DoneSystemTrait, FilterOkSystemTrait, IteratorSystemTrait,
 };
-use crate::menus::*;
+use crate::npcs::Imp;
 use crate::player_controller::PlayerAction;
-use crate::some_or_return;
+use crate::util::{map_event, MapRange};
+use crate::{menus::*, some_or_return};
 
 mod quest_markers;
 
@@ -33,13 +35,18 @@ impl Plugin for QuestingPlugin {
 			.init_resource::<Quests>()
 			.add_event::<QuestAccepted>()
 			.add_event::<QuestDeclined>()
+			.add_event::<QuestEnded>()
+			.add_event::<QuestCompleted>()
 			.add_plugins(InputManagerMenuPlugin::<QuestProposalAction>::default())
 			.add_systems(Startup, (spawn_quest_screen, load_quest_markers))
 			.add_systems(
 				Update,
 				(
 					interact_with_quest_giver
-						.pipe(propose_quest)
+						.iter_filter_some()
+						.iter_do(propose_quest_if_none)
+						.iter_do(complete_quest_if_done)
+						.iter_done()
 						.run_if(button_just_pressed(PlayerAction::Interact)),
 					fire_input_and_button_events::<
 						QuestProposalAction,
@@ -59,8 +66,8 @@ impl Plugin for QuestingPlugin {
 						.iter_done(),
 					input_managers_where_action_fired::<QuestDeclined>()
 						.iter_do(close_menu)
-						.iter_map(get_proposed_quest)
-						.iter_filter_some()
+						.iter_done(),
+					get_ended_quests
 						.iter_do(remove_quest)
 						.iter_do(remove_quest_nodes)
 						.iter_done(),
@@ -69,7 +76,13 @@ impl Plugin for QuestingPlugin {
 						.run_if(button_just_pressed(PlayerAction::OpenQuestScreen)),
 					spawn_quest_markers,
 					despawn_invalid_quest_markers,
+					update_quest_node_progress,
 					update_quest_markers,
+					update_killed_imps,
+					map_event(|In(ev): In<QuestDeclined>, prop: Query<&QuestProposal>| {
+						QuestEnded(prop.get(ev.quest_proposal).unwrap().quest_id)
+					}),
+					map_event(|In(ev): In<QuestCompleted>| QuestEnded(ev.0)),
 				),
 			);
 
@@ -125,14 +138,50 @@ impl bevy_inspector_egui::inspector_egui_impls::InspectorPrimitive for QuestId {
 
 #[derive(Debug, Reflect)]
 pub enum QuestType {
-	Fetch,
-	Kill(u32),
+	Fetch { done: bool },
+	Kill { amount: u32, done: u32 },
+}
+impl QuestType {
+	pub fn is_completed(&self) -> bool {
+		match self {
+			QuestType::Fetch { done } => *done,
+			QuestType::Kill { amount, done } => *done >= *amount,
+		}
+	}
+
+	pub fn min_progress(&self) -> u32 {
+		match self {
+			QuestType::Fetch { .. } => 0,
+			QuestType::Kill { .. } => 0,
+		}
+	}
+
+	pub fn max_progress(&self) -> u32 {
+		match self {
+			QuestType::Fetch { .. } => 1,
+			QuestType::Kill { amount, .. } => *amount,
+		}
+	}
+
+	pub fn progress(&self) -> u32 {
+		match self {
+			QuestType::Fetch { done } => *done as u32,
+			QuestType::Kill { done, amount } => (*done).min(*amount),
+		}
+	}
+
+	pub fn progress_range(&self) -> std::ops::Range<f32> {
+		self.min_progress() as f32..self.max_progress() as f32
+	}
 }
 impl Distribution<QuestType> for Standard {
 	fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> QuestType {
 		match rng.gen_range(0..=1) {
-			0 => QuestType::Fetch,
-			_ => QuestType::Kill(rng.gen_range(1..=5)),
+			0 => QuestType::Fetch { done: false },
+			_ => QuestType::Kill {
+				amount: rng.gen_range(1..=5),
+				done: 0,
+			},
 		}
 	}
 }
@@ -143,25 +192,24 @@ pub struct Quest {
 	pub quest_type: QuestType,
 	pub name: String,
 	pub description: String,
-	pub completed: bool,
 }
 impl Distribution<Quest> for Standard {
 	fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> Quest {
 		let quest_type: QuestType = rng.gen();
 		match quest_type {
-			QuestType::Kill(amount) => Quest {
+			QuestType::Kill {
+				amount, ..
+			} => Quest {
 				id: QuestId::new(),
 				name: "Awesome Kill Quest".to_string(),
 				quest_type,
 				description: format!("imps killed my grandma... pwease go take revenge on those darn imps for me... kill {amount}!!"),
-				completed: false,
 			},
-			QuestType::Fetch => Quest {
+			QuestType::Fetch { .. } => Quest {
 				id: QuestId::new(),
 				name: "Awesome Fetch Quest".to_string(),
 				quest_type,
 				description: "imps stole my orange cube... pwease go get it back!!".to_string(),
-				completed: false,
 			},
 		}
 	}
@@ -186,6 +234,8 @@ pub struct QuestScreenNodeDisplay(Option<Entity>);
 pub struct QuestScreenNode {
 	pub quest_id: QuestId,
 	pub display: Entity,
+	pub progress_text: Entity,
+	pub progress_bar: Entity,
 }
 
 #[derive(Component)]
@@ -213,6 +263,7 @@ impl InputManagerReference for QuestProposalDecline {
 	}
 }
 
+// ...These should probably all store QuestIds
 #[derive(Event)]
 pub struct QuestAccepted {
 	pub quest_proposal: Entity,
@@ -228,7 +279,7 @@ impl InputManagerReference for QuestAccepted {
 	}
 }
 
-#[derive(Event)]
+#[derive(Event, Clone)]
 pub struct QuestDeclined {
 	pub quest_proposal: Entity,
 }
@@ -242,6 +293,12 @@ impl InputManagerReference for QuestDeclined {
 		self.quest_proposal
 	}
 }
+
+#[derive(Event)]
+pub struct QuestEnded(pub QuestId);
+
+#[derive(Event, Clone)]
+pub struct QuestCompleted(pub QuestId);
 
 fn spawn_quest_screen(mut commands: Commands) {
 	commands
@@ -305,7 +362,7 @@ fn interact_with_quest_giver(
 	rapier_context: Res<RapierContext>,
 	player_camera: Query<&GlobalTransform, With<PlayerCamera>>,
 	quest_givers: Query<Entity, With<QuestGiver>>,
-) -> Option<Entity> {
+) -> Vec<Option<Entity>> {
 	let player_camera = player_camera.get_single().expect("Player camera missing");
 	let mut quest_giver = None;
 	rapier_context.intersections_with_ray(
@@ -323,17 +380,16 @@ fn interact_with_quest_giver(
 			}
 		},
 	);
-	quest_giver
+	vec![quest_giver]
 }
 
-fn propose_quest(
-	In(quest_giver): In<Option<Entity>>,
+fn propose_quest_if_none(
+	In(quest_giver): In<Entity>,
 	mut commands: Commands,
 	mut quests: ResMut<Quests>,
 	mut quest_givers: Query<&mut QuestGiver>,
 	mut menu_stack: ResMut<MenuStack>,
 ) {
-	let quest_giver = some_or_return!(quest_giver);
 	let mut quest_giver = quest_givers
 		.get_mut(quest_giver)
 		.expect("Quest giver missing");
@@ -470,6 +526,25 @@ fn propose_quest(
 	menu_stack.push(proposal);
 }
 
+fn complete_quest_if_done(
+	In(entity): In<Entity>,
+	mut ev_completed: EventWriter<QuestCompleted>,
+	quests: Res<Quests>,
+	quest_givers: Query<&QuestGiver>,
+) {
+	let quest_proposal = quest_givers.get(entity).expect("Quest giver not found");
+	let quest_id = some_or_return!(quest_proposal.given_quest);
+	let quest = quests.0.get(&quest_id).expect("Unknown quest");
+	if !quest.quest_type.is_completed() {
+		return;
+	}
+	ev_completed.send(QuestCompleted(quest_id));
+}
+
+fn get_ended_quests(mut ev_ended: EventReader<QuestEnded>) -> Vec<QuestId> {
+	ev_ended.read().map(|ev| ev.0).collect()
+}
+
 fn get_proposed_quest(
 	In(input): In<Entity>,
 	quest_proposals: Query<&QuestProposal>,
@@ -503,21 +578,74 @@ fn add_quest_nodes(
 
 	let quest = quests.0.get(&quest_id).expect("Unknown quest");
 
+	let mut progress_text: Option<Entity> = None;
+	let mut progress_bar: Option<Entity> = None;
+
 	let display = commands
-		.spawn(TextBundle {
-			text: Text::from_section(
-				quest.description.clone(),
-				TextStyle {
-					font_size: 20.0,
-					color: Color::WHITE,
-					..default()
-				},
-			),
+		.spawn(NodeBundle {
 			style: Style {
 				display: bevy::ui::Display::None,
+				flex_direction: FlexDirection::Column,
 				..default()
 			},
 			..default()
+		})
+		.with_children(|parent| {
+			parent.spawn(TextBundle {
+				text: Text::from_section(
+					quest.description.clone(),
+					TextStyle {
+						font_size: 20.0,
+						color: Color::WHITE,
+						..default()
+					},
+				),
+				..default()
+			});
+			progress_text = Some(
+				parent
+					.spawn(TextBundle {
+						text: Text::from_section(
+							format!(
+								"{}/{}",
+								quest.quest_type.progress(),
+								quest.quest_type.max_progress()
+							),
+							TextStyle {
+								font_size: 20.0,
+								color: Color::WHITE,
+								..default()
+							},
+						),
+						..default()
+					})
+					.id(),
+			);
+			parent
+				.spawn(NodeBundle {
+					style: Style {
+						height: Val::Px(30.0),
+						width: Val::Percent(100.0),
+						..default()
+					},
+					background_color: css::DARK_GRAY.into(),
+					..default()
+				})
+				.with_children(|parent| {
+					progress_bar = Some(
+						parent
+							.spawn(NodeBundle {
+								style: Style {
+									width: Val::Percent(0.0),
+									height: Val::Percent(100.0),
+									..default()
+								},
+								background_color: css::LIGHT_GRAY.into(),
+								..default()
+							})
+							.id(),
+					);
+				});
 		})
 		.set_parent(quest_screen_node_display)
 		.id();
@@ -533,7 +661,12 @@ fn add_quest_nodes(
 				background_color: css::GRAY.into(),
 				..default()
 			},
-			QuestScreenNode { quest_id, display },
+			QuestScreenNode {
+				quest_id,
+				display,
+				progress_text: progress_text.unwrap(),
+				progress_bar: progress_bar.unwrap(),
+			},
 		))
 		.set_parent(quest_screen_node_list)
 		.with_children(|parent| {
@@ -584,6 +717,49 @@ fn change_displayed_node(
 			if let Ok(mut style) = quest_node_displays.get_mut(quest_node.display) {
 				style.display = bevy::ui::Display::DEFAULT;
 				quest_screen_node_display.0 = Some(quest_node.display);
+			}
+		}
+	}
+}
+
+fn update_quest_node_progress(
+	quests: Res<Quests>,
+	mut quest_nodes: Query<&QuestScreenNode>,
+	mut progress_texts: Query<&mut Text>,
+	mut progress_bars: Query<&mut Style>,
+) {
+	if !quests.is_changed() {
+		return;
+	}
+
+	for quest_node in quest_nodes.iter_mut() {
+		let quest = quests.0.get(&quest_node.quest_id).expect("Unknown quest");
+		let mut progress_text = progress_texts.get_mut(quest_node.progress_text).unwrap();
+		let mut progress_bar = progress_bars.get_mut(quest_node.progress_bar).unwrap();
+
+		progress_text.sections[0].value = format!(
+			"{}/{}",
+			quest.quest_type.progress(),
+			quest.quest_type.max_progress()
+		);
+		progress_bar.width = Val::Percent(
+			(quest.quest_type.progress() as f32)
+				.map_range(quest.quest_type.progress_range(), 0.0..100.0),
+		);
+	}
+}
+
+fn update_killed_imps(
+	mut ev_killed: EventReader<EntityKilled>,
+	mut quests: ResMut<Quests>,
+	imps: Query<(), With<Imp>>,
+) {
+	for EntityKilled { entity } in ev_killed.read() {
+		if imps.get(*entity).is_ok() {
+			for (_, quest) in quests.0.iter_mut() {
+				if let QuestType::Kill { done, .. } = &mut quest.quest_type {
+					*done += 1;
+				}
 			}
 		}
 	}

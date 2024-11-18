@@ -13,7 +13,7 @@ use crate::fray::FrayMusic;
 use crate::gridbox_material;
 use crate::util::MapRange;
 
-use super::{DamageEvent, InAnimation};
+use super::{EntityDamaged, InAnimation};
 
 #[derive(Component)]
 pub struct RiflePivot;
@@ -100,7 +100,7 @@ pub fn animate_rifle(
 	mut rifle_pivots: Query<(Entity, &mut Transform, &mut InAnimation), With<RiflePivot>>,
 	time: Res<Time>,
 	fray: Query<&FrayMusic>,
-	mut ev_hit: EventWriter<DamageEvent>,
+	mut ev_hit: EventWriter<EntityDamaged>,
 	asset_server: Res<AssetServer>,
 	rapier_context: Res<RapierContext>,
 	player_camera: Query<&GlobalTransform, With<PlayerCamera>>,
@@ -143,7 +143,7 @@ pub fn animate_rifle(
 				rifle_barrel.charge = 0;
 				let damage = fray.modify_fray_damage(rifle_barrel.damage) * charge_multiplier;
 				let fray_modifier = fray.modify_fray_damage(1.0);
-				ev_hit.send(DamageEvent {
+				ev_hit.send(EntityDamaged {
 					victim: hit_entity,
 					damage,
 					fray_modifier,

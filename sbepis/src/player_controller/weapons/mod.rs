@@ -5,7 +5,7 @@ use bevy::ecs::entity::EntityHashSet;
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 
-use crate::entity::GelViscosity;
+use crate::entity::{EntityKilled, GelViscosity};
 use crate::util::QuaternionEx;
 
 pub mod hammer;
@@ -18,7 +18,7 @@ pub struct InAnimation {
 }
 
 #[derive(Event)]
-pub struct DamageEvent {
+pub struct EntityDamaged {
 	pub victim: Entity,
 	pub damage: f32,
 	pub fray_modifier: f32,
@@ -141,8 +141,8 @@ pub fn sweep_dealers(
 }
 
 pub fn deal_all_damage(
-	mut ev_hit: EventReader<DamageEvent>,
-	mut commands: Commands,
+	mut ev_hit: EventReader<EntityDamaged>,
+	mut ev_kill: EventWriter<EntityKilled>,
 	mut healths: Query<&mut GelViscosity>,
 ) {
 	for event in ev_hit.read() {
@@ -152,8 +152,9 @@ pub fn deal_all_damage(
 		let damage = event.damage;
 
 		if damage > 0.0 && health.value <= 0.0 {
-			commands.entity(event.victim).despawn_recursive();
-			return;
+			ev_kill.send(EntityKilled {
+				entity: event.victim,
+			});
 		}
 
 		health.value -= damage;
@@ -161,7 +162,7 @@ pub fn deal_all_damage(
 }
 
 pub fn update_damage_numbers(
-	mut ev_hit: EventReader<DamageEvent>,
+	mut ev_hit: EventReader<EntityDamaged>,
 	mut damage_numbers: Query<&mut Text, With<DamageNumbers>>,
 	hit_object: Query<&Name, With<GelViscosity>>,
 ) {

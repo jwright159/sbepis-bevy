@@ -15,7 +15,7 @@ pub mod spawner;
 pub struct EntityPlugin;
 impl Plugin for EntityPlugin {
 	fn build(&self, app: &mut App) {
-		app.add_systems(
+		app.add_event::<EntityKilled>().add_systems(
 			Update,
 			(
 				orient,
@@ -28,7 +28,19 @@ impl Plugin for EntityPlugin {
 				update_health_bars_health,
 				update_health_bars_size,
 				heal,
+				kill_entities,
 			),
 		);
+	}
+}
+
+#[derive(Event)]
+pub struct EntityKilled {
+	pub entity: Entity,
+}
+
+fn kill_entities(mut ev_killed: EventReader<EntityKilled>, mut commands: Commands) {
+	for ev in ev_killed.read() {
+		commands.entity(ev.entity).despawn_recursive();
 	}
 }

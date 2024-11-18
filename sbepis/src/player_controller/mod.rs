@@ -35,7 +35,7 @@ impl Plugin for PlayerControllerPlugin {
 				sprint_modifier: 2.0,
 				jump_speed: 5.0,
 			})
-			.add_event::<DamageEvent>()
+			.add_event::<EntityDamaged>()
 			.add_plugins(InputManagerMenuPlugin::<PlayerAction>::default())
 			.add_systems(Startup, setup)
 			.add_systems(

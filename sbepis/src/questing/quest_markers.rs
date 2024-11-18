@@ -102,7 +102,7 @@ pub fn update_quest_markers(
 		if let Some(quest_id) = quest_giver.given_quest {
 			let quest = quests.0.get(&quest_id).expect("Quest not found");
 			*new_visibility = Visibility::Hidden;
-			*updated_visibility = if quest.completed {
+			*updated_visibility = if quest.quest_type.is_completed() {
 				Visibility::Visible
 			} else {
 				Visibility::Hidden

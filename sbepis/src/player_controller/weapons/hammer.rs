@@ -9,7 +9,7 @@ use crate::fray::FrayMusic;
 use crate::gridbox_material;
 use crate::util::MapRange;
 
-use super::{DamageEvent, DamageSweep, EndDamageSweep, InAnimation, SweepPivot};
+use super::{DamageSweep, EndDamageSweep, EntityDamaged, InAnimation, SweepPivot};
 
 #[derive(Component)]
 pub struct HammerPivot;
@@ -83,7 +83,7 @@ pub fn animate_hammer(
 	mut hammer_pivots: Query<(Entity, &mut Transform, &mut InAnimation), With<HammerPivot>>,
 	time: Res<Time>,
 	fray: Query<&FrayMusic>,
-	mut ev_hit: EventWriter<DamageEvent>,
+	mut ev_hit: EventWriter<EntityDamaged>,
 	asset_server: Res<AssetServer>,
 ) {
 	let fray = fray.get_single().expect("Could not find fray");
@@ -132,7 +132,7 @@ pub fn animate_hammer(
 				for entity in dealer.hit_entities.iter() {
 					let damage = fray.modify_fray_damage(hammer_head.damage);
 					let fray_modifier = fray.modify_fray_damage(1.0);
-					ev_hit.send(DamageEvent {
+					ev_hit.send(EntityDamaged {
 						victim: *entity,
 						damage,
 						fray_modifier,
