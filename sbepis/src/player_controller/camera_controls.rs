@@ -2,8 +2,10 @@ use std::f32::consts::PI;
 
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
+use leafwing_input_manager::prelude::*;
 
 use crate::camera::PlayerCamera;
+use crate::player_controller::PlayerAction;
 
 #[derive(Component)]
 pub struct Pitch(pub f32);
@@ -49,4 +51,37 @@ pub fn rotate_camera_and_body(
 			.angvel
 			.reject_from(body_transform.rotation * Vec3::Z);
 	}
+}
+
+pub fn interact_with<T: Component>(
+	rapier_context: Res<RapierContext>,
+	player_camera: Query<&GlobalTransform, With<PlayerCamera>>,
+	entities: Query<Entity, With<T>>,
+	input: Query<&ActionState<PlayerAction>>,
+) -> Vec<Option<Entity>> {
+	if !match input.iter().find(|input| !input.disabled()) {
+		Some(input) => input.just_pressed(&PlayerAction::Interact),
+		None => false,
+	} {
+		return vec![];
+	}
+
+	let player_camera = player_camera.get_single().expect("Player camera missing");
+	let mut hit_entity = None;
+	rapier_context.intersections_with_ray(
+		player_camera.translation(),
+		player_camera.forward().into(),
+		3.0,
+		false,
+		QueryFilter::default(),
+		|entity, _intersection| {
+			if entities.get(entity).is_ok() {
+				hit_entity = Some(entity);
+				false
+			} else {
+				true
+			}
+		},
+	);
+	vec![hit_entity]
 }

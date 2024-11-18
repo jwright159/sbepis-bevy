@@ -3,23 +3,21 @@ use std::fmt::{self, Display, Formatter};
 use bevy::color::palettes::css;
 use bevy::prelude::*;
 use bevy::utils::HashMap;
-use bevy_rapier3d::prelude::*;
 use leafwing_input_manager::prelude::*;
 use quest_markers::*;
 use rand::distributions::{Distribution, Standard};
 use rand::Rng;
 use uuid::Uuid;
 
-use crate::camera::{PlayerCamera, PlayerCameraNode};
+use crate::camera::PlayerCameraNode;
 use crate::entity::EntityKilled;
 use crate::input::{button_just_pressed, input_manager_bundle};
-use crate::iter_system::{
-	DoSystemTrait, DoneSystemTrait, FilterOkSystemTrait, IteratorSystemTrait,
-};
+use crate::inventory::{Inventory, Item};
+use crate::iter_system::*;
 use crate::npcs::Imp;
-use crate::player_controller::PlayerAction;
+use crate::player_controller::{interact_with, PlayerAction};
 use crate::util::{map_event, MapRange};
-use crate::{menus::*, some_or_return};
+use crate::{gridbox_material, menus::*, some_or_return, BoxBundle};
 
 mod quest_markers;
 
@@ -42,12 +40,11 @@ impl Plugin for QuestingPlugin {
 			.add_systems(
 				Update,
 				(
-					interact_with_quest_giver
+					interact_with::<QuestGiver>
 						.iter_filter_some()
 						.iter_do(propose_quest_if_none)
 						.iter_do(complete_quest_if_done)
-						.iter_done()
-						.run_if(button_just_pressed(PlayerAction::Interact)),
+						.iter_done(),
 					fire_input_and_button_events::<
 						QuestProposalAction,
 						QuestProposalAccept,
@@ -79,10 +76,13 @@ impl Plugin for QuestingPlugin {
 					update_quest_node_progress,
 					update_quest_markers,
 					update_killed_imps,
+					update_picked_up_items,
 					map_event(|In(ev): In<QuestDeclined>, prop: Query<&QuestProposal>| {
 						QuestEnded(prop.get(ev.quest_proposal).unwrap().quest_id)
 					}),
 					map_event(|In(ev): In<QuestCompleted>| QuestEnded(ev.0)),
+					spawn_quest_drops,
+					consume_quest_drop,
 				),
 			);
 
@@ -356,31 +356,6 @@ fn spawn_quest_screen(mut commands: Commands) {
 				QuestScreenNodeDisplay(None),
 			));
 		});
-}
-
-fn interact_with_quest_giver(
-	rapier_context: Res<RapierContext>,
-	player_camera: Query<&GlobalTransform, With<PlayerCamera>>,
-	quest_givers: Query<Entity, With<QuestGiver>>,
-) -> Vec<Option<Entity>> {
-	let player_camera = player_camera.get_single().expect("Player camera missing");
-	let mut quest_giver = None;
-	rapier_context.intersections_with_ray(
-		player_camera.translation(),
-		player_camera.forward().into(),
-		3.0,
-		false,
-		QueryFilter::default(),
-		|entity, _intersection| {
-			if quest_givers.get(entity).is_ok() {
-				quest_giver = Some(entity);
-				false
-			} else {
-				true
-			}
-		},
-	);
-	vec![quest_giver]
 }
 
 fn propose_quest_if_none(
@@ -760,6 +735,85 @@ fn update_killed_imps(
 				if let QuestType::Kill { done, .. } = &mut quest.quest_type {
 					*done += 1;
 				}
+			}
+		}
+	}
+}
+
+fn update_picked_up_items(
+	inventories: Query<&Inventory>,
+	changed_inventories: Query<&Inventory, Changed<Inventory>>,
+	mut quests: ResMut<Quests>,
+) {
+	let inventory = some_or_return!(if quests.is_changed() {
+		inventories.iter().next()
+	} else {
+		changed_inventories.iter().next()
+	});
+	let num_items = inventory.items.len();
+	for (_, quest) in quests.0.iter_mut() {
+		if let QuestType::Fetch { done } = &mut quest.quest_type {
+			*done = num_items > 0;
+		}
+	}
+}
+
+fn spawn_quest_drops(
+	mut ev_killed: EventReader<EntityKilled>,
+	mut commands: Commands,
+	quests: Res<Quests>,
+	imps: Query<&Transform, With<Imp>>,
+	items: Query<&Item>,
+	mut meshes: ResMut<Assets<Mesh>>,
+	mut materials: ResMut<Assets<StandardMaterial>>,
+	asset_server: Res<AssetServer>,
+) {
+	let num_fetch_quests = quests
+		.0
+		.values()
+		.filter(|quest| matches!(quest.quest_type, QuestType::Fetch { .. }))
+		.count();
+	let mut num_items = items.iter().count();
+
+	for EntityKilled { entity } in ev_killed.read() {
+		if num_items >= num_fetch_quests {
+			break;
+		}
+
+		if let Ok(transform) = imps.get(*entity) {
+			if rand::random() {
+				continue;
+			}
+
+			commands.spawn((
+				BoxBundle::new(
+					transform.translation + Vec3::Y * 0.2,
+					meshes.add(Cuboid::from_size(Vec3::splat(0.2))),
+					gridbox_material("orange", &mut materials, &asset_server),
+				)
+				.with_collider_size(0.1),
+				Item {
+					icon: asset_server.load("item.png"),
+				},
+			));
+			num_items += 1;
+		}
+	}
+}
+
+fn consume_quest_drop(
+	mut ev_completed: EventReader<QuestCompleted>,
+	mut inventories: Query<&mut Inventory>,
+	mut commands: Commands,
+	quests: Res<Quests>,
+) {
+	for QuestCompleted(quest_id) in ev_completed.read() {
+		let quest = quests.0.get(quest_id).expect("Unknown quest");
+		if let QuestType::Fetch { .. } = &quest.quest_type {
+			if quest.quest_type.is_completed() {
+				let mut inventory = inventories.single_mut();
+				let item = inventory.items.pop().expect("No item to consume");
+				commands.entity(item).despawn_recursive();
 			}
 		}
 	}

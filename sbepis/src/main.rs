@@ -16,6 +16,7 @@ mod entity;
 mod fray;
 mod gravity;
 pub mod input;
+mod inventory;
 pub mod iter_system;
 mod main_bundles;
 pub mod menus;
@@ -63,6 +64,8 @@ fn main() {
 			bevy_inspector_egui::quick::WorldInspectorPlugin::new(),
 			#[cfg(feature = "overview_camera")]
 			overview_camera::OverviewCameraPlugin,
+		))
+		.add_plugins((
 			player_commands::PlayerCommandsPlugin,
 			camera::PlayerCameraPlugin,
 			skybox::SkyboxPlugin,
@@ -73,6 +76,7 @@ fn main() {
 			fray::FrayPlugin,
 			questing::QuestingPlugin,
 			menus::MenusPlugin,
+			inventory::InventoryPlugin,
 		))
 		.add_systems(Startup, (set_window_icon, setup))
 		.add_systems(

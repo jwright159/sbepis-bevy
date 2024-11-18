@@ -8,13 +8,14 @@ use leafwing_input_manager::prelude::*;
 use crate::camera::PlayerCamera;
 use crate::gridbox_material;
 use crate::input::*;
+use crate::inventory::Inventory;
 use crate::main_bundles::EntityBundle;
 use crate::menus::{
 	InputManagerMenuPlugin, Menu, MenuStack, MenuWithInputManager, MenuWithoutMouse,
 };
 
 use self::camera_controls::*;
-pub use self::camera_controls::{MouseSensitivity, PlayerBody};
+pub use self::camera_controls::{interact_with, MouseSensitivity, PlayerBody};
 use self::movement::*;
 use self::movement::{axes_to_ground_velocity, jump};
 use self::weapons::hammer::*;
@@ -106,6 +107,7 @@ fn setup(
 				Collider::capsule_y(0.5, 0.25),
 			),
 			PlayerBody,
+			Inventory::default(),
 		))
 		.id();
 

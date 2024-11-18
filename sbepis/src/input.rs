@@ -79,7 +79,7 @@ macro_rules! value_input {
 			action: Action,
 		) -> impl Fn(Query<&ActionState<Action>>) -> $default_value_type {
 			move |input: Query<&ActionState<Action>>| {
-				if let Some(input) = input.iter().filter(|input| !input.disabled()).next() {
+				if let Some(input) = input.iter().find(|input| !input.disabled()) {
 					input.$value_type(&action)
 				} else {
 					$default_value

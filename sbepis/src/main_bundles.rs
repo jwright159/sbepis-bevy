@@ -88,6 +88,13 @@ impl BoxBundle {
 			},
 		}
 	}
+
+	pub fn with_collider_size(self, half_size: f32) -> BoxBundle {
+		BoxBundle {
+			collider: Collider::cuboid(half_size, half_size, half_size),
+			..self
+		}
+	}
 }
 
 #[derive(Bundle)]

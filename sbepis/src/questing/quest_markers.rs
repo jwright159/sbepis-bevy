@@ -93,9 +93,7 @@ pub fn update_quest_markers(
 
 	for quest_giver in quest_givers.iter() {
 		let quest_marker = some_or_continue!(quest_giver.quest_marker);
-		let quest_marker = quest_markers
-			.get(quest_marker)
-			.expect("Quest marker not found");
+		let quest_marker = some_or_continue!(quest_markers.get(quest_marker).ok()); // might still be loading
 		let [mut new_visibility, mut updated_visibility] =
 			visibilities.many_mut([quest_marker.new_marker, quest_marker.updated_marker]);
 
