@@ -136,7 +136,7 @@ pub fn despawn_invalid_health_bars(
 			));
 
 			commands.entity(health_bar.root).despawn_recursive();
-		};
+		}
 	}
 }
 

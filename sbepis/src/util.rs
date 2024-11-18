@@ -135,6 +135,16 @@ macro_rules! some_or_return {
 }
 
 #[macro_export]
+macro_rules! some_or_continue {
+	($value:expr) => {
+		match $value {
+			Some(value) => value,
+			None => continue,
+		}
+	};
+}
+
+#[macro_export]
 macro_rules! ok_or_return {
 	($value:expr) => {
 		match $value {

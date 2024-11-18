@@ -5,6 +5,7 @@ use bevy::prelude::*;
 use bevy::utils::HashMap;
 use bevy_rapier3d::prelude::*;
 use leafwing_input_manager::prelude::*;
+use quest_markers::*;
 use rand::distributions::{Distribution, Standard};
 use rand::Rng;
 use uuid::Uuid;
@@ -18,6 +19,10 @@ use crate::menus::*;
 use crate::player_controller::PlayerAction;
 use crate::some_or_return;
 
+mod quest_markers;
+
+pub use quest_markers::SpawnQuestMarker;
+
 pub struct QuestingPlugin;
 impl Plugin for QuestingPlugin {
 	fn build(&self, app: &mut App) {
@@ -29,7 +34,7 @@ impl Plugin for QuestingPlugin {
 			.add_event::<QuestAccepted>()
 			.add_event::<QuestDeclined>()
 			.add_plugins(InputManagerMenuPlugin::<QuestProposalAction>::default())
-			.add_systems(Startup, spawn_quest_screen)
+			.add_systems(Startup, (spawn_quest_screen, load_quest_markers))
 			.add_systems(
 				Update,
 				(
@@ -62,6 +67,9 @@ impl Plugin for QuestingPlugin {
 					change_displayed_node,
 					show_menu::<QuestScreen>
 						.run_if(button_just_pressed(PlayerAction::OpenQuestScreen)),
+					spawn_quest_markers,
+					despawn_invalid_quest_markers,
+					update_quest_markers,
 				),
 			);
 
@@ -162,6 +170,7 @@ impl Distribution<Quest> for Standard {
 #[derive(Component, Default, Reflect)]
 pub struct QuestGiver {
 	pub given_quest: Option<QuestId>,
+	quest_marker: Option<Entity>,
 }
 
 #[derive(Component)]

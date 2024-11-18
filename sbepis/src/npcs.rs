@@ -7,7 +7,7 @@ use bevy_rapier3d::geometry::Collider;
 use crate::entity::spawner::{spawn_entities, SpawnEntityInformation, SpawnedEntity, Spawner};
 use crate::entity::{Healing, RandomInput, RotateTowardMovement, SpawnHealthBar, TargetPlayer};
 use crate::main_bundles::EntityBundle;
-use crate::questing::QuestGiver;
+use crate::questing::{QuestGiver, SpawnQuestMarker};
 use crate::{gridbox_material, some_or_return};
 
 pub struct NpcPlugin;
@@ -88,6 +88,7 @@ fn spawn_consort(
 		},
 		Consort,
 		QuestGiver::default(),
+		SpawnQuestMarker,
 	));
 }
 
