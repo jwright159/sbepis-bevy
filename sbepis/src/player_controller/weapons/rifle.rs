@@ -1,11 +1,9 @@
 use std::f32::consts::{PI, TAU};
 
+use avian3d::prelude::*;
 use bevy::ecs::entity::EntityHashSet;
 use bevy::prelude::*;
 use bevy::render::mesh::CapsuleUvProfile;
-use bevy_rapier3d::math::Real;
-use bevy_rapier3d::plugin::RapierContext;
-use bevy_rapier3d::prelude::QueryFilter;
 use interpolation::EaseFunction;
 
 use crate::camera::PlayerCamera;
@@ -102,8 +100,7 @@ pub fn animate_rifle(
 	fray: Query<&FrayMusic>,
 	mut ev_hit: EventWriter<EntityDamaged>,
 	asset_server: Res<AssetServer>,
-	rapier_context: Res<RapierContext>,
-	player_camera: Query<&GlobalTransform, With<PlayerCamera>>,
+	ray_hits: Query<&RayHits, With<PlayerCamera>>,
 ) {
 	let fray = fray.get_single().expect("Could not find fray");
 	for mut rifle_barrel in rifle_barrels.iter_mut() {
@@ -127,27 +124,26 @@ pub fn animate_rifle(
 				},
 			));
 
-			let player_camera = player_camera.get_single().expect("Player camera not found");
-			if let Some((hit_entity, _distance)) = rapier_context.cast_ray(
-				player_camera.translation(),
-				player_camera.forward().into(),
-				Real::MAX,
-				false,
-				QueryFilter::new().predicate(&|entity| !rifle_barrel.allies.contains(&entity)),
-			) {
-				let charge_multiplier = if rifle_barrel.charge >= rifle_barrel.max_charge {
-					rifle_barrel.full_charge_multiplier
-				} else {
-					1.0
-				};
-				rifle_barrel.charge = 0;
-				let damage = fray.modify_fray_damage(rifle_barrel.damage) * charge_multiplier;
-				let fray_modifier = fray.modify_fray_damage(1.0);
-				ev_hit.send(EntityDamaged {
-					victim: hit_entity,
-					damage,
-					fray_modifier,
-				});
+			let ray_hits = ray_hits.get_single().expect("Ray hits not found");
+			if let Some(RayHitData {
+				entity: hit_entity, ..
+			}) = ray_hits.iter().next()
+			{
+				if !rifle_barrel.allies.contains(hit_entity) {
+					let charge_multiplier = if rifle_barrel.charge >= rifle_barrel.max_charge {
+						rifle_barrel.full_charge_multiplier
+					} else {
+						1.0
+					};
+					rifle_barrel.charge = 0;
+					let damage = fray.modify_fray_damage(rifle_barrel.damage) * charge_multiplier;
+					let fray_modifier = fray.modify_fray_damage(1.0);
+					ev_hit.send(EntityDamaged {
+						victim: *hit_entity,
+						damage,
+						fray_modifier,
+					});
+				}
 			}
 		}
 		if (prev_time..curr_time).contains(&reload_time) {

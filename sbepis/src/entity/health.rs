@@ -1,5 +1,5 @@
+use avian3d::prelude::*;
 use bevy::prelude::*;
-use bevy_rapier3d::prelude::Velocity;
 
 use crate::gravity::GravityRigidbodyBundle;
 use crate::util::{Billboard, DespawnTimer};
@@ -125,11 +125,10 @@ pub fn despawn_invalid_health_bars(
 					.with_rotation(root_transform.rotation),
 				),
 				GravityRigidbodyBundle {
-					velocity: Velocity {
-						linvel: root_transform.right().as_vec3()
-							+ root_transform.up().as_vec3() * 2.0,
-						angvel: root_transform.forward().as_vec3() * 90.0,
-					},
+					linear_velocity: LinearVelocity(
+						root_transform.right().as_vec3() + root_transform.up().as_vec3() * 2.0,
+					),
+					angular_velocity: AngularVelocity(root_transform.forward().as_vec3() * 90.0),
 					..default()
 				},
 				DespawnTimer::new(1.0),

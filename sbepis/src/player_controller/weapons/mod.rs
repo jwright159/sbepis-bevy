@@ -1,9 +1,9 @@
 use std::time::Duration;
 
+use avian3d::prelude::*;
 use bevy::color::palettes::css;
 use bevy::ecs::entity::EntityHashSet;
 use bevy::prelude::*;
-use bevy_rapier3d::prelude::*;
 
 use crate::entity::{EntityKilled, GelViscosity};
 use crate::util::QuaternionEx;
@@ -89,7 +89,7 @@ pub fn sweep_dealers(
 		&GlobalTransform,
 	)>,
 	pivots: Query<(&SweepPivot, &GlobalTransform), Without<DamageSweep>>,
-	rapier_context: Res<RapierContext>,
+	spatial_query: SpatialQuery,
 	debug_collider_visualizers: Query<Entity, With<DebugColliderVisualizer>>,
 ) {
 	let debug_collider_visualizer = debug_collider_visualizers.single();
@@ -112,18 +112,12 @@ pub fn sweep_dealers(
 			pivot.sweep_height * 0.5,
 			delta.length() * 0.5,
 		);
-		rapier_context.intersections_with_shape(
-			position,
-			rotation,
-			&collider,
-			QueryFilter::new(),
-			|hit_entity| {
-				if !dealer.allies.contains(&hit_entity) {
-					dealer.hit_entities.insert(hit_entity);
-				}
-				true
-			},
-		);
+		let hits = spatial_query
+			.shape_intersections(&collider, position, rotation, SpatialQueryFilter::default())
+			.into_iter()
+			.filter(|hit_entity| !dealer.allies.contains(hit_entity))
+			.collect::<Vec<_>>();
+		dealer.hit_entities.extend(hits);
 		commands
 			.entity(debug_collider_visualizer)
 			.insert(collider)

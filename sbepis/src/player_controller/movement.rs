@@ -1,5 +1,5 @@
+use avian3d::prelude::*;
 use bevy::prelude::*;
-use bevy_rapier3d::prelude::*;
 use leafwing_input_manager::prelude::ActionState;
 
 use crate::entity::MovementInput;
@@ -33,9 +33,9 @@ pub fn axes_to_ground_velocity(
 }
 
 pub fn jump<Marker: Component>(
-	mut player_body: Query<(&mut Velocity, &Transform), With<Marker>>,
+	mut player_body: Query<(&mut LinearVelocity, &Transform), With<Marker>>,
 	speed: Res<PlayerSpeed>,
 ) {
 	let (mut velocity, transform) = player_body.single_mut();
-	velocity.linvel += transform.up() * speed.jump_speed;
+	velocity.0 += transform.up() * speed.jump_speed;
 }

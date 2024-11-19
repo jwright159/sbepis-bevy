@@ -1,8 +1,8 @@
 use std::f32::consts::PI;
 
+use avian3d::prelude::*;
 use bevy::prelude::*;
 use bevy::render::mesh::CapsuleUvProfile;
-use bevy_rapier3d::prelude::*;
 use leafwing_input_manager::prelude::*;
 
 use crate::camera::PlayerCamera;
@@ -105,7 +105,7 @@ fn setup(
 						.uv_profile(CapsuleUvProfile::Fixed),
 				),
 				gridbox_material("white", &mut materials, &asset_server),
-				Collider::capsule_y(0.5, 0.25),
+				Collider::capsule(0.5, 0.5),
 			),
 			PlayerBody,
 			Inventory::default(),
@@ -125,6 +125,9 @@ fn setup(
 			},
 			PlayerCamera,
 			Pitch(0.0),
+			RayCaster::new(Vec3::ZERO, Dir3::Z)
+				.with_max_hits(1)
+				.with_solidness(false),
 		))
 		.set_parent(body)
 		.id();
@@ -177,7 +180,6 @@ fn setup(
 		Name::new("Debug Collider Visualizer"),
 		DebugColliderVisualizer,
 		SpatialBundle::default(),
-		CollisionGroups::new(Group::NONE, Group::NONE),
 	));
 }
 

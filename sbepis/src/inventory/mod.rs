@@ -1,5 +1,5 @@
+use avian3d::prelude::*;
 use bevy::prelude::*;
-use bevy_rapier3d::prelude::*;
 use screen::*;
 
 use crate::input::button_just_pressed;
@@ -53,7 +53,6 @@ fn pick_up_items(
 	commands
 		.entity(item_entity)
 		.remove::<RigidBody>()
-		.insert(Visibility::Hidden)
-		.insert(ColliderDisabled);
+		.insert(Visibility::Hidden);
 	ev_picked_up.send(ItemPickedUp(item_entity));
 }

@@ -1,5 +1,5 @@
+use avian3d::prelude::*;
 use bevy::prelude::*;
-use bevy_rapier3d::prelude::*;
 use itertools::Itertools;
 
 use crate::util::{IterElements, TransformEx};
@@ -51,7 +51,8 @@ pub struct AffectedByGravity {
 pub struct GravityRigidbodyBundle {
 	pub gravity: AffectedByGravity,
 	pub rigidbody: RigidBody,
-	pub velocity: Velocity,
+	pub linear_velocity: LinearVelocity,
+	pub angular_velocity: AngularVelocity,
 }
 
 impl Default for GravityRigidbodyBundle {
@@ -59,7 +60,8 @@ impl Default for GravityRigidbodyBundle {
 		GravityRigidbodyBundle {
 			gravity: AffectedByGravity::default(),
 			rigidbody: RigidBody::Dynamic,
-			velocity: Velocity::default(),
+			linear_velocity: LinearVelocity::default(),
+			angular_velocity: AngularVelocity::default(),
 		}
 	}
 }
@@ -122,8 +124,11 @@ pub fn calculate_gravity(
 	}
 }
 
-pub fn apply_gravity(mut rigidbodies: Query<(&mut Velocity, &AffectedByGravity)>, time: Res<Time>) {
+pub fn apply_gravity(
+	mut rigidbodies: Query<(&mut LinearVelocity, &AffectedByGravity)>,
+	time: Res<Time>,
+) {
 	for (mut velocity, gravity) in rigidbodies.iter_mut() {
-		velocity.linvel += gravity.acceleration * time.delta_seconds();
+		velocity.0 += gravity.acceleration * time.delta_seconds();
 	}
 }

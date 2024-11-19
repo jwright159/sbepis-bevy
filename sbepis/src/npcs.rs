@@ -1,8 +1,8 @@
 use std::time::Duration;
 
+use avian3d::prelude::*;
 use bevy::prelude::*;
 use bevy::render::mesh::CapsuleUvProfile;
-use bevy_rapier3d::geometry::Collider;
 
 use crate::entity::spawner::{spawn_entities, SpawnEntityInformation, SpawnedEntity, Spawner};
 use crate::entity::{Healing, RandomInput, RotateTowardMovement, SpawnHealthBar, TargetPlayer};
@@ -77,7 +77,7 @@ fn spawn_consort(
 					.uv_profile(CapsuleUvProfile::Fixed),
 			),
 			gridbox_material("magenta", &mut materials, &asset_server),
-			Collider::capsule_y(0.25, 0.25),
+			Collider::capsule(0.25, 0.5),
 		),
 		SpawnHealthBar,
 		RandomInput::default(),
@@ -113,7 +113,7 @@ fn spawn_imp(
 					.uv_profile(CapsuleUvProfile::Fixed),
 			),
 			gridbox_material("brown", &mut materials, &asset_server),
-			Collider::capsule_y(0.25, 0.25),
+			Collider::capsule(0.25, 0.5),
 		),
 		SpawnHealthBar,
 		TargetPlayer,

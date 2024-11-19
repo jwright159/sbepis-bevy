@@ -2,11 +2,11 @@
 
 use std::io::Cursor;
 
+use avian3d::prelude::*;
 use bevy::input::common_conditions::input_just_pressed;
 use bevy::log::LogPlugin;
 use bevy::prelude::*;
 use bevy::winit::WinitWindows;
-use bevy_rapier3d::prelude::*;
 use winit::window::Icon;
 
 use self::main_bundles::*;
@@ -30,12 +30,8 @@ mod skybox;
 pub mod util;
 
 fn main() {
-	let mut rapier_config = RapierConfiguration::new(1.);
-	rapier_config.gravity = Vec3::ZERO;
-	let rapier_config = rapier_config;
-
 	App::new()
-		.insert_resource(rapier_config)
+		.insert_resource(Gravity(Vec3::ZERO))
 		.add_plugins((
 			DefaultPlugins
 				.set(WindowPlugin {
@@ -57,9 +53,9 @@ fn main() {
 					filter: "info,sbepis=debug,avian3d=debug,wgpu=error,naga=warn,calloop=error,symphonia_core=warn,symphonia_bundle_mp3=warn".into(),
 					..default()
 				}),
-			RapierPhysicsPlugin::<NoUserData>::default(),
-			#[cfg(feature = "rapier_debug")]
-			RapierDebugRenderPlugin::default(),
+			PhysicsPlugins::default(),
+			#[cfg(feature = "avian3d_debug")]
+			PhysicsDebugPlugin::default(),
 			#[cfg(feature = "inspector")]
 			bevy_inspector_egui::quick::WorldInspectorPlugin::new(),
 			#[cfg(feature = "overview_camera")]

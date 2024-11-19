@@ -1,6 +1,6 @@
+use avian3d::math::Scalar;
 use bevy::ecs::schedule::SystemConfigs;
 use bevy::prelude::*;
-use bevy_rapier3d::math::Real;
 use interpolation::{Ease, EaseFunction};
 use std::array::IntoIter;
 use std::ops::Range;
@@ -15,25 +15,25 @@ pub trait MapRange<T> {
 	fn map_from_01(self, range_out: Range<T>) -> T;
 	fn map_range_ease(self, range_in: Range<T>, range_out: Range<T>, ease: EaseFunction) -> T;
 }
-impl MapRange<Real> for Real {
-	fn map_range(self, range_in: Range<Real>, range_out: Range<Real>) -> Real {
+impl MapRange<Scalar> for Scalar {
+	fn map_range(self, range_in: Range<Scalar>, range_out: Range<Scalar>) -> Scalar {
 		self.map_to_01(range_in).map_from_01(range_out)
 	}
 
-	fn map_to_01(self, range_in: Range<Real>) -> Real {
+	fn map_to_01(self, range_in: Range<Scalar>) -> Scalar {
 		(self - range_in.start) / (range_in.end - range_in.start)
 	}
 
-	fn map_from_01(self, range_out: Range<Real>) -> Real {
+	fn map_from_01(self, range_out: Range<Scalar>) -> Scalar {
 		self * (range_out.end - range_out.start) + range_out.start
 	}
 
 	fn map_range_ease(
 		self,
-		range_in: Range<Real>,
-		range_out: Range<Real>,
+		range_in: Range<Scalar>,
+		range_out: Range<Scalar>,
 		ease: EaseFunction,
-	) -> Real {
+	) -> Scalar {
 		self.map_to_01(range_in).calc(ease).map_from_01(range_out)
 	}
 }

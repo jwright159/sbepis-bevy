@@ -1,7 +1,7 @@
 use std::f32::consts::PI;
 
+use avian3d::prelude::*;
 use bevy::prelude::*;
-use bevy_rapier3d::prelude::*;
 use leafwing_input_manager::prelude::*;
 
 use crate::camera::PlayerCamera;
@@ -25,7 +25,7 @@ pub fn rotate_camera_and_body(
 		(With<PlayerCamera>, Without<PlayerBody>),
 	>,
 	mut player_body: Query<
-		(&mut Transform, &mut Velocity),
+		(&mut Transform, &mut AngularVelocity),
 		(Without<PlayerCamera>, With<PlayerBody>),
 	>,
 ) {
@@ -41,22 +41,21 @@ pub fn rotate_camera_and_body(
 	}
 
 	{
-		let (mut body_transform, mut body_velocity) = player_body.single_mut();
+		let (mut body_transform, mut body_angular_velocity) = player_body.single_mut();
 
 		body_transform.rotation *= Quat::from_rotation_y(-delta.x * sensitivity.0);
 
 		// Football imparts torque on body and LockedAxes doesn't work
 		// reject_from is projection on the plane normal to the vec
-		body_velocity.angvel = body_velocity
-			.angvel
+		body_angular_velocity.0 = body_angular_velocity
+			.0
 			.reject_from(body_transform.rotation * Vec3::Z);
 	}
 }
 
 pub fn interact_with<T: Component>(
-	rapier_context: Res<RapierContext>,
-	player_camera: Query<&GlobalTransform, With<PlayerCamera>>,
-	entities: Query<Entity, With<T>>,
+	ray_hits: Query<&RayHits, With<PlayerCamera>>,
+	entities: Query<(), With<T>>,
 	input: Query<&ActionState<PlayerAction>>,
 ) -> Vec<Option<Entity>> {
 	if !match input.iter().find(|input| !input.disabled()) {
@@ -66,22 +65,10 @@ pub fn interact_with<T: Component>(
 		return vec![];
 	}
 
-	let player_camera = player_camera.get_single().expect("Player camera missing");
-	let mut hit_entity = None;
-	rapier_context.intersections_with_ray(
-		player_camera.translation(),
-		player_camera.forward().into(),
-		3.0,
-		false,
-		QueryFilter::default(),
-		|entity, _intersection| {
-			if entities.get(entity).is_ok() {
-				hit_entity = Some(entity);
-				false
-			} else {
-				true
-			}
-		},
-	);
-	vec![hit_entity]
+	let ray_hits = ray_hits.get_single().expect("Ray hits missing");
+	vec![ray_hits
+		.iter()
+		.next()
+		.map(|hit| hit.entity)
+		.filter(|entity| entities.get(*entity).is_ok())]
 }

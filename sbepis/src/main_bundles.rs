@@ -1,7 +1,7 @@
 use std::f32::consts::{PI, TAU};
 
+use avian3d::prelude::*;
 use bevy::prelude::*;
-use bevy_rapier3d::prelude::*;
 
 use crate::entity::{GelViscosity, GravityOrientation, MovementInput};
 use crate::gravity::{GravityPoint, GravityPriority, GravityRigidbodyBundle};
@@ -35,8 +35,7 @@ impl PlanetBundle {
 			_ => panic!("Got a UV that wasn't a Float32x2"),
 		}
 
-		let collider = Collider::from_bevy_mesh(&mesh, &ComputedColliderShape::TriMesh)
-			.expect("Couldn't make a planet collider");
+		let collider = Collider::trimesh_from_mesh(&mesh).expect("Couldn't make a planet collider");
 
 		PlanetBundle {
 			pbr: PbrBundle {
@@ -46,7 +45,7 @@ impl PlanetBundle {
 				material,
 				..default()
 			},
-			rigidbody: RigidBody::Fixed,
+			rigidbody: RigidBody::Static,
 			collider,
 			gravity: GravityPoint {
 				standard_radius: radius,
@@ -75,10 +74,7 @@ impl BoxBundle {
 				..default()
 			},
 			gravity_rigidbody_bundle: GravityRigidbodyBundle {
-				velocity: Velocity {
-					linvel: Vec3::ZERO,
-					angvel: Vec3::new(2.5, 3.4, 1.6),
-				},
+				angular_velocity: AngularVelocity(Vec3::new(2.5, 3.4, 1.6)),
 				..default()
 			},
 			collider: Collider::cuboid(0.5, 0.5, 0.5),

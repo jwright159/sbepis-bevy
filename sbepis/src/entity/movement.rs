@@ -1,16 +1,16 @@
 use std::time::Duration;
 
+use avian3d::prelude::*;
 use bevy::prelude::*;
-use bevy_rapier3d::prelude::*;
 
 use crate::player_controller::PlayerBody;
 
 #[derive(Component, Deref, DerefMut, Default)]
 pub struct MovementInput(pub Vec3);
 
-pub fn strafe(mut bodies: Query<(&mut Velocity, &Transform, &MovementInput)>) {
+pub fn strafe(mut bodies: Query<(&mut LinearVelocity, &Transform, &MovementInput)>) {
 	for (mut velocity, transform, input) in bodies.iter_mut() {
-		velocity.linvel = velocity.linvel.project_onto(transform.up().into())
+		velocity.0 = velocity.0.project_onto(transform.up().into())
 			+ input.reject_from(transform.up().into());
 	}
 }
