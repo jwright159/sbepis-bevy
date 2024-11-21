@@ -74,11 +74,10 @@ pub fn spawn_sword(
 	let sword_pivot = commands
 		.spawn((
 			Name::new("Sword Pivot"),
-			TransformBundle::from_transform(
+			SpatialBundle::from_transform(
 				Transform::from_translation(Vec3::ZERO)
 					.with_rotation(Quat::from_rotation_y(-PI * 0.5)),
 			),
-			VisibilityBundle::default(),
 			SwordPivot,
 			SweepPivot {
 				sweeper_length: 0.2,

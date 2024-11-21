@@ -118,7 +118,7 @@ pub fn despawn_invalid_health_bars(
 				.expect("Gel vial root not found");
 
 			commands.entity(health_bar.glass).remove_parent().insert((
-				TransformBundle::from_transform(
+				SpatialBundle::from_transform(
 					Transform::from_translation(
 						root_transform.transform_point(Vec3::X * health_bar.length),
 					)

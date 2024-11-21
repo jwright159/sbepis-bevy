@@ -51,10 +51,7 @@ pub fn spawn_rifle(
 	let rifle_pivot = commands
 		.spawn((
 			Name::new("Rifle Pivot"),
-			TransformBundle::from_transform(Transform::from_translation(Vec3::new(
-				0.25, 0.0, -0.5,
-			))),
-			VisibilityBundle::default(),
+			SpatialBundle::from_transform(Transform::from_translation(Vec3::new(0.25, 0.0, -0.5))),
 			RiflePivot,
 		))
 		.set_parent(body)

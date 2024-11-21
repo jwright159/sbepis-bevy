@@ -43,7 +43,7 @@ fn setup(mut commands: Commands) {
 			spawn_delay: Duration::from_secs_f32(5.),
 			spawn_timer: Duration::ZERO,
 		},
-		TransformBundle::from_transform(Transform::from_translation(Vec3::new(-20., 1., 0.))),
+		SpatialBundle::from_transform(Transform::from_translation(Vec3::new(-20., 1., 0.))),
 	));
 	commands.spawn((
 		ImpSpawner,
@@ -52,7 +52,7 @@ fn setup(mut commands: Commands) {
 			spawn_delay: Duration::from_secs_f32(5.),
 			spawn_timer: Duration::ZERO,
 		},
-		TransformBundle::from_transform(Transform::from_translation(Vec3::new(20., 1., 0.))),
+		SpatialBundle::from_transform(Transform::from_translation(Vec3::new(20., 1., 0.))),
 	));
 }
 

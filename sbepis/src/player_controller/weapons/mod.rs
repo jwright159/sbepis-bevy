@@ -73,10 +73,10 @@ pub struct DebugColliderVisualizer;
 
 pub fn attack(
 	mut commands: Commands,
-	swords: Query<Entity, (Without<InAnimation>, With<ActiveWeapon>)>,
+	weapons: Query<Entity, (Without<InAnimation>, With<ActiveWeapon>)>,
 ) {
-	for hammer in swords.iter() {
-		commands.entity(hammer).insert(InAnimation::default());
+	for weapon in weapons.iter() {
+		commands.entity(weapon).insert(InAnimation::default());
 	}
 }
 

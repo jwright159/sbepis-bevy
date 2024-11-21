@@ -33,8 +33,7 @@ pub fn spawn_hammer(
 	let hammer_pivot = commands
 		.spawn((
 			Name::new("Hammer Pivot"),
-			TransformBundle::from_transform(Transform::from_translation(Vec3::ZERO)),
-			VisibilityBundle::default(),
+			SpatialBundle::default(),
 			HammerPivot,
 			SweepPivot {
 				sweeper_length: 0.2,
