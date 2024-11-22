@@ -28,6 +28,10 @@ winit = "0.30.4"
 rand = "0.8.5"
 interpolation = "0.3.0"
 uuid = "1.10.0"
+serde = "1.0.215"
+bevy_common_assets = { version = "0.11.0", features = ["ron"] }
+faker_rand = "0.1.1"
+meshtext = "0.3.1"
 
 [build-dependencies]
 winres = "0.1"
