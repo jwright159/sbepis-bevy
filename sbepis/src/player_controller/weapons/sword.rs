@@ -148,7 +148,7 @@ pub fn animate_sword(
 			commands.spawn((
 				Name::new("Sword Swing SFX"),
 				AudioBundle {
-					source: asset_server.load("woosh.mp3"),
+					source: asset_server.load("whoosh.mp3"),
 					settings: PlaybackSettings::DESPAWN,
 				},
 			));

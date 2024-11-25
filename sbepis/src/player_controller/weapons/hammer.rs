@@ -109,7 +109,7 @@ pub fn animate_hammer(
 			commands.spawn((
 				Name::new("Hammer Swing SFX"),
 				AudioBundle {
-					source: asset_server.load("woosh.mp3"),
+					source: asset_server.load("whoosh.mp3"),
 					settings: PlaybackSettings::DESPAWN,
 				},
 			));
