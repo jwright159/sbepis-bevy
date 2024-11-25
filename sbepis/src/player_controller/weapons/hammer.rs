@@ -6,8 +6,8 @@ use bevy::render::mesh::CapsuleUvProfile;
 use interpolation::EaseFunction;
 
 use crate::fray::FrayMusic;
-use crate::gridbox_material;
 use crate::util::MapRange;
+use crate::{gridbox_material, ok_or_continue};
 
 use super::{DamageSweep, EndDamageSweep, EntityDamaged, InAnimation, SweepPivot};
 
@@ -89,11 +89,9 @@ pub fn animate_hammer(
 	for (hammer_head_entity, hammer_head, hammer_head_global_transform, dealer) in
 		hammer_heads.iter_mut()
 	{
-		let Ok((hammer_pivot_entity, mut transform, mut animation)) =
-			hammer_pivots.get_mut(hammer_head.pivot)
-		else {
-			continue;
-		};
+		let (hammer_pivot_entity, mut transform, mut animation) =
+			ok_or_continue!(hammer_pivots.get_mut(hammer_head.pivot));
+
 		let prev_time = fray.time_to_bpm_beat(animation.time);
 		animation.time += time.delta();
 		let curr_time = fray.time_to_bpm_beat(animation.time);

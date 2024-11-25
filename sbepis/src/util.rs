@@ -170,3 +170,13 @@ macro_rules! ok_or_return {
 		}
 	};
 }
+
+#[macro_export]
+macro_rules! ok_or_continue {
+	($value:expr) => {
+		match $value {
+			Ok(value) => value,
+			Err(_) => continue,
+		}
+	};
+}

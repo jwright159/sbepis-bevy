@@ -10,8 +10,8 @@ use interpolation::EaseFunction;
 
 use crate::camera::PlayerCamera;
 use crate::fray::FrayMusic;
-use crate::gridbox_material;
 use crate::util::MapRange;
+use crate::{gridbox_material, ok_or_continue};
 
 use super::{EntityDamaged, InAnimation};
 
@@ -104,11 +104,9 @@ pub fn animate_rifle(
 ) {
 	let fray = fray.get_single().expect("Could not find fray");
 	for mut rifle_barrel in rifle_barrels.iter_mut() {
-		let Ok((rifle_barrel_entity, mut transform, mut animation)) =
-			rifle_pivots.get_mut(rifle_barrel.pivot)
-		else {
-			continue;
-		};
+		let (rifle_barrel_entity, mut transform, mut animation) =
+			ok_or_continue!(rifle_pivots.get_mut(rifle_barrel.pivot));
+
 		let prev_time = fray.time_to_bpm_beat(animation.time);
 		animation.time += time.delta();
 		let curr_time = fray.time_to_bpm_beat(animation.time);

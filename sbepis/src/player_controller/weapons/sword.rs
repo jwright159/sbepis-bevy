@@ -7,8 +7,8 @@ use bevy::render::mesh::CapsuleUvProfile;
 use interpolation::EaseFunction;
 
 use crate::fray::FrayMusic;
-use crate::gridbox_material;
 use crate::util::MapRange;
+use crate::{gridbox_material, ok_or_continue};
 
 use super::{DamageSweep, EndDamageSweep, EntityDamaged, InAnimation, SweepPivot};
 
@@ -127,11 +127,9 @@ pub fn animate_sword(
 	for (sword_blade_entity, mut sword_blade, sword_blade_global_transform, dealer) in
 		sword_blades.iter_mut()
 	{
-		let Ok((sword_pivot_entity, mut transform, mut animation)) =
-			sword_pivots.get_mut(sword_blade.pivot)
-		else {
-			continue;
-		};
+		let (sword_pivot_entity, mut transform, mut animation) =
+			ok_or_continue!(sword_pivots.get_mut(sword_blade.pivot));
+
 		let prev_time = fray.time_to_bpm_beat(animation.time);
 		animation.time += time.delta();
 		let curr_time = fray.time_to_bpm_beat(animation.time);
