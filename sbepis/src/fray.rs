@@ -35,21 +35,6 @@ fn play_background_music(mut commands: Commands, asset_server: Res<AssetServer>)
 	let midi_bytes = include_bytes!("../assets/fray.mid");
 	let (_, midi_file) =
 		parse_midi_file::<String, Vec<u8>>(midi_bytes).expect("Failed to parse MIDI file");
-	for event in midi_file.chunks.iter() {
-		match event {
-			MIDIFileChunk::Header(header) => {
-				println!("{:?}", header);
-			}
-			MIDIFileChunk::Track { events } => {
-				for event in events {
-					println!("{:?}", event);
-				}
-			}
-			MIDIFileChunk::Unknown { name, body } => {
-				println!("{:?}: {:?}", name, body);
-			}
-		}
-	}
 
 	let midi_file = MidiFile::new(midi_file);
 	let midi_audio = MidiAudio::new(midi_file);
@@ -94,18 +79,19 @@ impl FrayMusic {
 	}
 
 	pub fn tick(&mut self, time: &Time) {
-		if self.bpm == 0.0 {
-			self.tx
-				.try_send(FrayToMidiEvent::SetSpeed(1.0))
-				.expect("Failed to set speed");
-		}
-
 		while let Ok(event) = self.rx.try_recv() {
 			match event {
 				MidiToFrayEvent::SetTempo(bpm) => {
 					self.bpm = bpm * 0.5;
 				}
 			}
+		}
+
+		// This is mostly here for dead_code reasons
+		if self.bpm == 0.0 {
+			self.tx
+				.try_send(FrayToMidiEvent::SetSpeed(1.0))
+				.expect("Failed to set speed");
 		}
 
 		let delta_beat = self.time_to_bpm_beat(time.delta());
