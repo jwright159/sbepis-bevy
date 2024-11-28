@@ -1,5 +1,4 @@
 use std::f32::consts::PI;
-use std::time::Duration;
 
 use bevy::ecs::entity::EntityHashSet;
 use bevy::prelude::*;
@@ -20,7 +19,8 @@ pub struct Sword {
 	pub damage: f32,
 	pub pivot: Entity,
 	pub allies: EntityHashSet,
-	pub start_slash_time: Duration,
+	pub current_slash_damage: f32,
+	pub current_slash_modifier: f32,
 	side: SwordSide,
 	pub follow_through_time: f32,
 }
@@ -36,7 +36,8 @@ impl Sword {
 			damage,
 			pivot,
 			allies,
-			start_slash_time: Duration::ZERO,
+			current_slash_damage: 0.0,
+			current_slash_modifier: 0.0,
 			side: SwordSide::Left,
 			follow_through_time,
 		}
@@ -137,7 +138,8 @@ pub fn animate_sword(
 		let follow_through_time = sword_blade.follow_through_time;
 
 		if (prev_time..curr_time).contains(&0.0) {
-			sword_blade.start_slash_time = fray.time;
+			sword_blade.current_slash_damage = fray.modify_fray_damage(sword_blade.damage);
+			sword_blade.current_slash_modifier = fray.modify_fray_damage(1.0);
 
 			commands.entity(sword_blade_entity).insert(DamageSweep::new(
 				*sword_blade_global_transform,
@@ -158,15 +160,10 @@ pub fn animate_sword(
 
 			if let Some(dealer) = dealer {
 				for entity in dealer.hit_entities.iter() {
-					let mut fray = fray.clone();
-					fray.time = sword_blade.start_slash_time;
-
-					let damage = fray.modify_fray_damage(sword_blade.damage);
-					let fray_modifier = fray.modify_fray_damage(1.0);
 					ev_hit.send(EntityDamaged {
 						victim: *entity,
-						damage,
-						fray_modifier,
+						damage: sword_blade.current_slash_damage,
+						fray_modifier: sword_blade.current_slash_modifier,
 					});
 				}
 			}
