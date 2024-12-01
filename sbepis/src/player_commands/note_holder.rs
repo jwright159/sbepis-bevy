@@ -1,11 +1,9 @@
 use bevy::prelude::*;
+use soundyrust::Note;
 
 use crate::util::MapRange;
 
-use super::{
-	notes::{Note, NotePlayedEvent},
-	staff::*,
-};
+use super::{notes::NotePlayedEvent, staff::*};
 
 #[derive(Component, Default)]
 pub struct NoteNodeHolder {

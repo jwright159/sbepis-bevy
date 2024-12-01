@@ -1,9 +1,10 @@
 use bevy::audio::PlaybackMode;
 use bevy::prelude::*;
+use soundyrust::Note;
 
 use crate::some_or_return;
 
-use super::notes::{Note, NotePlayedEvent};
+use super::notes::NotePlayedEvent;
 
 pub fn check_note_patterns<T: Event + NotePatternEvent>(
 	note_holder: Res<NotePatternPlayer>,
