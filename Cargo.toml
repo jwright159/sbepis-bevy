@@ -3,6 +3,49 @@ members = ["sbepis", "marching_cubes", "jack_noir"]
 default-members = ["sbepis"]
 resolver = "2"
 
+[patch.crates-io]
+bevy = { git = "https://github.com/jwright159/bevy.git", branch = "jadys-awesome-hax" }
+bevy_a11y = { git = "https://github.com/jwright159/bevy.git", branch = "jadys-awesome-hax", package = "bevy_a11y" }
+bevy_animation = { git = "https://github.com/jwright159/bevy.git", branch = "jadys-awesome-hax", package = "bevy_animation" }
+bevy_app = { git = "https://github.com/jwright159/bevy.git", branch = "jadys-awesome-hax", package = "bevy_app" }
+bevy_asset = { git = "https://github.com/jwright159/bevy.git", branch = "jadys-awesome-hax", package = "bevy_asset" }
+bevy_audio = { git = "https://github.com/jwright159/bevy.git", branch = "jadys-awesome-hax", package = "bevy_audio" }
+bevy_color = { git = "https://github.com/jwright159/bevy.git", branch = "jadys-awesome-hax", package = "bevy_color" }
+bevy_core = { git = "https://github.com/jwright159/bevy.git", branch = "jadys-awesome-hax", package = "bevy_core" }
+bevy_core_pipeline = { git = "https://github.com/jwright159/bevy.git", branch = "jadys-awesome-hax", package = "bevy_core_pipeline" }
+bevy_derive = { git = "https://github.com/jwright159/bevy.git", branch = "jadys-awesome-hax", package = "bevy_derive" }
+# bevy_dev_tools = { git = "https://github.com/jwright159/bevy.git", branch = "jadys-awesome-hax", package = "bevy_dev_tools" }
+bevy_diagnostic = { git = "https://github.com/jwright159/bevy.git", branch = "jadys-awesome-hax", package = "bevy_diagnostic" }
+# bevy_dylib = { git = "https://github.com/jwright159/bevy.git", branch = "jadys-awesome-hax", package = "bevy_dylib" }
+# bevy_dynamic_plugin = { git = "https://github.com/jwright159/bevy.git", branch = "jadys-awesome-hax", package = "bevy_dynamic_plugin" }
+bevy_ecs = { git = "https://github.com/jwright159/bevy.git", branch = "jadys-awesome-hax", package = "bevy_ecs" }
+bevy_encase_derive = { git = "https://github.com/jwright159/bevy.git", branch = "jadys-awesome-hax", package = "bevy_encase_derive" }
+bevy_gilrs = { git = "https://github.com/jwright159/bevy.git", branch = "jadys-awesome-hax", package = "bevy_gilrs" }
+bevy_gizmos = { git = "https://github.com/jwright159/bevy.git", branch = "jadys-awesome-hax", package = "bevy_gizmos" }
+bevy_gltf = { git = "https://github.com/jwright159/bevy.git", branch = "jadys-awesome-hax", package = "bevy_gltf" }
+bevy_hierarchy = { git = "https://github.com/jwright159/bevy.git", branch = "jadys-awesome-hax", package = "bevy_hierarchy" }
+bevy_input = { git = "https://github.com/jwright159/bevy.git", branch = "jadys-awesome-hax", package = "bevy_input" }
+bevy_internal = { git = "https://github.com/jwright159/bevy.git", branch = "jadys-awesome-hax", package = "bevy_internal" }
+bevy_log = { git = "https://github.com/jwright159/bevy.git", branch = "jadys-awesome-hax", package = "bevy_log" }
+bevy_macro_utils = { git = "https://github.com/jwright159/bevy.git", branch = "jadys-awesome-hax", package = "bevy_macro_utils" }
+bevy_math = { git = "https://github.com/jwright159/bevy.git", branch = "jadys-awesome-hax", package = "bevy_math" }
+bevy_mikktspace = { git = "https://github.com/jwright159/bevy.git", branch = "jadys-awesome-hax", package = "bevy_mikktspace" }
+bevy_pbr = { git = "https://github.com/jwright159/bevy.git", branch = "jadys-awesome-hax", package = "bevy_pbr" }
+bevy_ptr = { git = "https://github.com/jwright159/bevy.git", branch = "jadys-awesome-hax", package = "bevy_ptr" }
+bevy_reflect = { git = "https://github.com/jwright159/bevy.git", branch = "jadys-awesome-hax", package = "bevy_reflect" }
+bevy_render = { git = "https://github.com/jwright159/bevy.git", branch = "jadys-awesome-hax", package = "bevy_render" }
+bevy_scene = { git = "https://github.com/jwright159/bevy.git", branch = "jadys-awesome-hax", package = "bevy_scene" }
+bevy_sprite = { git = "https://github.com/jwright159/bevy.git", branch = "jadys-awesome-hax", package = "bevy_sprite" }
+bevy_state = { git = "https://github.com/jwright159/bevy.git", branch = "jadys-awesome-hax", package = "bevy_state" }
+bevy_tasks = { git = "https://github.com/jwright159/bevy.git", branch = "jadys-awesome-hax", package = "bevy_tasks" }
+bevy_text = { git = "https://github.com/jwright159/bevy.git", branch = "jadys-awesome-hax", package = "bevy_text" }
+bevy_time = { git = "https://github.com/jwright159/bevy.git", branch = "jadys-awesome-hax", package = "bevy_time" }
+bevy_transform = { git = "https://github.com/jwright159/bevy.git", branch = "jadys-awesome-hax", package = "bevy_transform" }
+bevy_ui = { git = "https://github.com/jwright159/bevy.git", branch = "jadys-awesome-hax", package = "bevy_ui" }
+bevy_utils = { git = "https://github.com/jwright159/bevy.git", branch = "jadys-awesome-hax", package = "bevy_utils" }
+bevy_window = { git = "https://github.com/jwright159/bevy.git", branch = "jadys-awesome-hax", package = "bevy_window" }
+bevy_winit = { git = "https://github.com/jwright159/bevy.git", branch = "jadys-awesome-hax", package = "bevy_winit" }
+
 # Enable max optimizations for dependencies, but not for our code:
 [profile.dev.package."*"]
 opt-level = 3

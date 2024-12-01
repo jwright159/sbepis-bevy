@@ -3,6 +3,7 @@ use std::io::Cursor;
 use std::sync::Arc;
 use std::time::Duration;
 
+use bevy::audio::Volume;
 use bevy::prelude::*;
 use soundyrust::*;
 
@@ -13,9 +14,11 @@ pub struct FrayPlugin;
 
 impl Plugin for FrayPlugin {
 	fn build(&self, app: &mut App) {
-		app.add_plugins((SoundyPlugin,))
+		app.add_plugins((SoundyPlugin {
+			buffer_size: Some(512),
+		},))
 			.add_systems(Startup, play_background_music)
-			.add_systems(FixedUpdate, tick_fray_music);
+			.add_systems(Update, tick_fray_music);
 	}
 }
 
@@ -29,7 +32,7 @@ fn play_background_music(mut commands: Commands, mut assets: ResMut<Assets<MidiA
 						.unwrap(),
 				),
 			)),
-			settings: PlaybackSettings::LOOP,
+			settings: PlaybackSettings::LOOP.with_volume(Volume::new(0.2)),
 		},
 		Name::new("Background Music"),
 		FrayMusic::default(),
@@ -66,6 +69,7 @@ impl FrayMusic {
 
 	pub fn tick(&mut self, midi_audio: &MidiAudio) {
 		let synced_info = midi_audio.synced_info.lock().unwrap();
+		println!("{}", synced_info.beat);
 		self.beat = synced_info.beat as f32 / 2.0;
 		self.bpm = synced_info.beats_per_second as f32 * 60.0 / 2.0;
 	}
@@ -107,7 +111,7 @@ pub struct BeatCounter {
 fn tick_fray_music(
 	#[cfg(feature = "metronome")] mut commands: Commands,
 	#[cfg(feature = "metronome")] asset_server: Res<AssetServer>,
-	time: Res<Time<Fixed>>,
+	time: Res<Time>,
 	mut fray_musics: Query<(&mut FrayMusic, &AudioSink, &Handle<MidiAudio>)>,
 	mut beat_counters: Query<(&mut BeatCounter, &mut Text)>,
 	assets: Res<Assets<MidiAudio>>,
