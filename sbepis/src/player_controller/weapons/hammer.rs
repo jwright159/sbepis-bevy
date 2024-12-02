@@ -92,9 +92,9 @@ pub fn animate_hammer(
 		let (hammer_pivot_entity, mut transform, mut animation) =
 			ok_or_continue!(hammer_pivots.get_mut(hammer_head.pivot));
 
-		let prev_time = fray.time_to_bpm_beat(animation.time);
+		let prev_time = fray.time_to_bpm_beat(animation.time) as f32;
 		animation.time += time.delta();
-		let curr_time = fray.time_to_bpm_beat(animation.time);
+		let curr_time = fray.time_to_bpm_beat(animation.time) as f32;
 
 		let lead_in_time = hammer_head.lead_in_time;
 		let follow_through_time = lead_in_time + hammer_head.follow_through_time;

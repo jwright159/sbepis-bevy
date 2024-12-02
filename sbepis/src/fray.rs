@@ -53,8 +53,8 @@ fn play_background_music(mut commands: Commands, mut assets: ResMut<Assets<MidiA
 
 #[derive(Component)]
 pub struct FrayMusic {
-	beat: f32,
-	bpm: f32,
+	beat: f64,
+	beats_per_second: f64,
 	delay: Option<Duration>,
 }
 
@@ -62,24 +62,22 @@ impl FrayMusic {
 	fn default() -> Self {
 		Self {
 			beat: 0.0,
-			bpm: 0.0,
+			beats_per_second: 0.0,
 			delay: Some(Duration::from_secs_f32(1.0)),
 		}
 	}
 
-	pub fn tick(&mut self, midi_audio: &MidiAudio) {
-		// let synced_info = midi_audio.synced_info.lock().unwrap();
-		// println!("{}", synced_info.beat);
-		// self.beat = synced_info.beat as f32 / 2.0;
-		// self.bpm = synced_info.beats_per_second as f32 * 60.0 / 2.0;
+	pub fn tick(&mut self, delta: Duration, midi_audio: &MidiAudio) {
+		self.beats_per_second = midi_audio.beats_per_second() / 2.0;
+		self.beat += self.time_to_bpm_beat(delta);
 	}
 
 	pub fn subbeats(&self, divisions: u32) -> u32 {
-		(self.beat * divisions as f32).floor() as u32
+		(self.beat * divisions as f64).floor() as u32
 	}
 
 	pub fn beat_progress(&self) -> f32 {
-		self.beat.fract()
+		self.beat.fract() as f32
 	}
 
 	pub fn modify_fray_damage(&self, damage: f32) -> f32 {
@@ -98,8 +96,8 @@ impl FrayMusic {
 			/ factor
 	}
 
-	pub fn time_to_bpm_beat(&self, time: Duration) -> f32 {
-		time.as_secs_f32() * self.bpm / 60.0
+	pub fn time_to_bpm_beat(&self, time: Duration) -> f64 {
+		time.as_secs_f64() * self.beats_per_second
 	}
 }
 
@@ -139,7 +137,7 @@ fn tick_fray_music(
 
 		let midi_audio = assets.get(midi_audio).expect("Couldn't find midi audio");
 		audio_sink.play(); // this should really be phased out or smth
-		fray_music.tick(midi_audio);
+		fray_music.tick(time.delta(), midi_audio);
 		let beat = fray_music.subbeats(1);
 		let beat_progress = fray_music.beat_progress();
 

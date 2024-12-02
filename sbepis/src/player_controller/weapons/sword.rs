@@ -131,9 +131,9 @@ pub fn animate_sword(
 		let (sword_pivot_entity, mut transform, mut animation) =
 			ok_or_continue!(sword_pivots.get_mut(sword_blade.pivot));
 
-		let prev_time = fray.time_to_bpm_beat(animation.time);
+		let prev_time = fray.time_to_bpm_beat(animation.time) as f32;
 		animation.time += time.delta();
-		let curr_time = fray.time_to_bpm_beat(animation.time);
+		let curr_time = fray.time_to_bpm_beat(animation.time) as f32;
 
 		let follow_through_time = sword_blade.follow_through_time;
 

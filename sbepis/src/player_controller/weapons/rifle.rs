@@ -107,9 +107,9 @@ pub fn animate_rifle(
 		let (rifle_barrel_entity, mut transform, mut animation) =
 			ok_or_continue!(rifle_pivots.get_mut(rifle_barrel.pivot));
 
-		let prev_time = fray.time_to_bpm_beat(animation.time);
+		let prev_time = fray.time_to_bpm_beat(animation.time) as f32;
 		animation.time += time.delta();
-		let curr_time = fray.time_to_bpm_beat(animation.time);
+		let curr_time = fray.time_to_bpm_beat(animation.time) as f32;
 
 		let reload_time = rifle_barrel.reload_time;
 
