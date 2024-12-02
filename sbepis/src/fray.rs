@@ -14,9 +14,7 @@ pub struct FrayPlugin;
 
 impl Plugin for FrayPlugin {
 	fn build(&self, app: &mut App) {
-		app.add_plugins((SoundyPlugin {
-			buffer_size: Some(512),
-		},))
+		app.add_plugins(SoundyPlugin)
 			.add_systems(Startup, play_background_music)
 			.add_systems(Update, tick_fray_music);
 	}
@@ -32,7 +30,9 @@ fn play_background_music(mut commands: Commands, mut assets: ResMut<Assets<MidiA
 						.unwrap(),
 				),
 			)),
-			settings: PlaybackSettings::LOOP.with_volume(Volume::new(0.2)),
+			settings: PlaybackSettings::LOOP
+				.with_volume(Volume::new(0.2))
+				.paused(),
 		},
 		Name::new("Background Music"),
 		FrayMusic::default(),
@@ -68,10 +68,10 @@ impl FrayMusic {
 	}
 
 	pub fn tick(&mut self, midi_audio: &MidiAudio) {
-		let synced_info = midi_audio.synced_info.lock().unwrap();
-		println!("{}", synced_info.beat);
-		self.beat = synced_info.beat as f32 / 2.0;
-		self.bpm = synced_info.beats_per_second as f32 * 60.0 / 2.0;
+		// let synced_info = midi_audio.synced_info.lock().unwrap();
+		// println!("{}", synced_info.beat);
+		// self.beat = synced_info.beat as f32 / 2.0;
+		// self.bpm = synced_info.beats_per_second as f32 * 60.0 / 2.0;
 	}
 
 	pub fn subbeats(&self, divisions: u32) -> u32 {
@@ -138,7 +138,7 @@ fn tick_fray_music(
 		}
 
 		let midi_audio = assets.get(midi_audio).expect("Couldn't find midi audio");
-		audio_sink.play();
+		audio_sink.play(); // this should really be phased out or smth
 		fray_music.tick(midi_audio);
 		let beat = fray_music.subbeats(1);
 		let beat_progress = fray_music.beat_progress();
