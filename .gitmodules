@@ -1,0 +1,3 @@
+[submodule "soundyrust"]
+	path = soundyrust
+	url = https://github.com/Dragon-Fox-Collective/soundyrust.git

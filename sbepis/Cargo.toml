@@ -39,7 +39,7 @@ serde = "1.0.215"
 bevy_common_assets = { version = "0.11.0", features = ["ron"] }
 faker_rand = "0.1.1"
 meshtext = "0.3.1"
-soundyrust = { path = "../../soundyrust" }
+soundyrust = { path = "../soundyrust" }
 
 [build-dependencies]
 winres = "0.1"
