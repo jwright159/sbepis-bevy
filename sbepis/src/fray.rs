@@ -1,6 +1,4 @@
 use std::f32::consts::TAU;
-use std::io::Cursor;
-use std::sync::Arc;
 use std::time::Duration;
 
 use bevy::audio::Volume;
@@ -23,13 +21,16 @@ impl Plugin for FrayPlugin {
 fn play_background_music(mut commands: Commands, mut assets: ResMut<Assets<MidiAudio>>) {
 	commands.spawn((
 		AudioSourceBundle {
-			source: assets.add(MidiAudio::new(
-				MidiTrack::from_bytes(include_bytes!("../assets/fray.mid")),
-				Arc::new(
-					SoundFont::new(&mut Cursor::new(include_bytes!("../assets/hl4mgm.sf2")))
-						.unwrap(),
-				),
-			)),
+			source: assets.add(
+				MidiAudio::from_bytes(
+					include_bytes!("../assets/fray.mid"),
+					include_bytes!("../assets/hl4mgm.sf2"),
+				)
+				.with_channel_patch(0, 0, 46)
+				.with_channel_patch(1, 0, 3)
+				.with_channel_patch(2, 128, 0)
+				.with_channel_patch(3, 0, 0),
+			),
 			settings: PlaybackSettings::LOOP
 				.with_volume(Volume::new(0.2))
 				.paused(),
