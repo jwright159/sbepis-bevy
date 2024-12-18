@@ -1,0 +1,9 @@
+(
+  assets:
+   [ 
+    ("House", File ( path: "blueprints/House.glb" )),
+    ("Door", File ( path: "materials/Door.glb" )),
+    ("Roof", File ( path: "materials/Roof.glb" )),
+    ("Building", File ( path: "materials/Building.glb" )),
+   ]
+)

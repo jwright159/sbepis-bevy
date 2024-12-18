@@ -18,7 +18,7 @@ impl Plugin for SkyboxPlugin {
 			.add_systems(
 				Update,
 				(
-					stitch_skybox.run_if(not(is_skybox_loaded).and_then(is_skybox_parts_loaded)),
+					stitch_skybox.run_if(not(is_skybox_loaded).and(is_skybox_parts_loaded)),
 					add_skybox.run_if(is_skybox_loaded),
 				),
 			);
@@ -120,6 +120,7 @@ fn add_skybox(
 		commands.entity(camera).insert(Skybox {
 			image: current_skybox.skybox.clone().unwrap(),
 			brightness: 1000.0,
+			..default()
 		});
 	}
 }

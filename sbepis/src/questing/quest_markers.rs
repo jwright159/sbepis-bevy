@@ -36,25 +36,24 @@ pub fn spawn_quest_markers(
 			.remove::<SpawnQuestMarker>();
 
 		let new_marker = commands
-			.spawn(SceneBundle {
-				scene: asset.named_scenes["New"].clone(),
-				visibility: Visibility::Visible,
-				..default()
-			})
+			.spawn((
+				SceneRoot(asset.named_scenes["New"].clone()),
+				Visibility::Visible,
+			))
 			.id();
 
 		let updated_marker = commands
-			.spawn(SceneBundle {
-				scene: asset.named_scenes["Updated"].clone(),
-				visibility: Visibility::Hidden,
-				..default()
-			})
+			.spawn((
+				SceneRoot(asset.named_scenes["Updated"].clone()),
+				Visibility::Hidden,
+			))
 			.id();
 
 		let marker = commands
 			.spawn((
 				Name::new("Quest Marker"),
-				SpatialBundle::from_transform(Transform::from_xyz(0.0, 0.6, 0.0)),
+				Transform::from_xyz(0.0, 0.6, 0.0),
+				Visibility::Inherited,
 				QuestMarker {
 					entity: quest_giver_entity,
 					new_marker,
@@ -62,7 +61,7 @@ pub fn spawn_quest_markers(
 				},
 			))
 			.set_parent(quest_giver_entity)
-			.push_children(&[new_marker, updated_marker])
+			.add_children(&[new_marker, updated_marker])
 			.id();
 
 		quest_giver.quest_marker = Some(marker);

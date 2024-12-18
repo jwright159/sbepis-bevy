@@ -1,4 +1,3 @@
-use bevy::audio::PlaybackMode;
 use bevy::prelude::*;
 use leafwing_input_manager::prelude::*;
 use soundyrust::Note;
@@ -252,14 +251,10 @@ pub fn spawn_note_audio(
 	for ev in ev_note_played.read() {
 		let note = ev.note;
 
-		commands.spawn(AudioBundle {
-			source: asset_server.load("flute.wav"),
-			settings: PlaybackSettings {
-				mode: PlaybackMode::Despawn,
-				speed: note.frequency / Note::C4.frequency,
-				..default()
-			},
-		});
+		commands.spawn((
+			AudioPlayer::new(asset_server.load("flute.wav")),
+			PlaybackSettings::DESPAWN.with_speed(note.frequency / Note::C4.frequency),
+		));
 	}
 }
 

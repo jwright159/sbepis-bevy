@@ -7,18 +7,19 @@ use bevy::ecs::schedule::InternedSystemSet;
 use bevy::ecs::world::unsafe_world_cell::UnsafeWorldCell;
 use bevy::prelude::*;
 
-pub trait IntoDoneSystemTrait<In: SystemInput, Out, Marker>: IntoSystem<In, Out, Marker>
+pub trait IntoFlattenSystemTrait<In: SystemInput, Out, Marker>:
+	IntoSystem<In, Out, Marker>
 where
 	Out: IntoIterator,
 {
-	fn iter_done(self) -> IntoDoneSystem<Self>
+	fn iter_flatten(self) -> IntoFlattenSystem<Self>
 	where
 		Out: 'static,
 	{
-		IntoDoneSystem::new(self)
+		IntoFlattenSystem::new(self)
 	}
 }
-impl<T, In, Out, Marker> IntoDoneSystemTrait<In, Out, Marker> for T
+impl<T, In, Out, Marker> IntoFlattenSystemTrait<In, Out, Marker> for T
 where
 	T: IntoSystem<In, Out, Marker>,
 	In: SystemInput,
@@ -26,42 +27,48 @@ where
 {
 }
 
-pub struct IntoDoneSystem<A> {
+pub struct IntoFlattenSystem<A> {
 	a: A,
 }
 
-impl<A> IntoDoneSystem<A> {
+impl<A> IntoFlattenSystem<A> {
 	pub const fn new(a: A) -> Self {
 		Self { a }
 	}
 }
 
 #[doc(hidden)]
-pub struct IsDoneSystemMarker;
+pub struct IsFlattenSystemMarker;
 
-impl<A, IA, OA, MA> IntoSystem<IA, (), (IsDoneSystemMarker, OA, MA)> for IntoDoneSystem<A>
+impl<A, IA, OA, MA>
+	IntoSystem<
+		IA,
+		Vec<<<OA as IntoIterator>::Item as IntoIterator>::Item>,
+		(IsFlattenSystemMarker, OA, MA),
+	> for IntoFlattenSystem<A>
 where
 	IA: SystemInput,
 	OA: IntoIterator,
+	<OA as IntoIterator>::Item: IntoIterator,
 	A: IntoSystem<IA, OA, MA>,
 {
-	type System = DoneSystem<A::System>;
+	type System = FlattenSystem<A::System>;
 
 	fn into_system(this: Self) -> Self::System {
 		let system_a = IntoSystem::into_system(this.a);
-		let name = format!("Done({})", system_a.name());
-		DoneSystem::new(system_a, Cow::Owned(name))
+		let name = format!("Flatten({})", system_a.name());
+		FlattenSystem::new(system_a, Cow::Owned(name))
 	}
 }
 
-pub struct DoneSystem<A> {
+pub struct FlattenSystem<A> {
 	a: A,
 	name: Cow<'static, str>,
 	component_access: Access<ComponentId>,
 	archetype_component_access: Access<ArchetypeComponentId>,
 }
 
-impl<A> DoneSystem<A> {
+impl<A> FlattenSystem<A> {
 	pub const fn new(a: A, name: Cow<'static, str>) -> Self {
 		Self {
 			a,
@@ -72,12 +79,14 @@ impl<A> DoneSystem<A> {
 	}
 }
 
-impl<A> System for DoneSystem<A>
+impl<A> System for FlattenSystem<A>
 where
 	A: System,
+	<A as System>::Out: IntoIterator,
+	<A::Out as IntoIterator>::Item: IntoIterator,
 {
 	type In = A::In;
-	type Out = ();
+	type Out = Vec<<<A::Out as IntoIterator>::Item as IntoIterator>::Item>;
 
 	fn name(&self) -> Cow<'static, str> {
 		self.name.clone()
@@ -108,11 +117,13 @@ where
 		input: SystemIn<'_, Self>,
 		world: UnsafeWorldCell,
 	) -> Self::Out {
-		self.a.run_unsafe(input, world);
+		let value = self.a.run_unsafe(input, world);
+		value.into_iter().flatten().collect()
 	}
 
 	fn run(&mut self, input: SystemIn<'_, Self>, world: &mut World) -> Self::Out {
-		self.a.run(input, world);
+		let value = self.a.run(input, world);
+		value.into_iter().flatten().collect()
 	}
 
 	#[inline]
@@ -159,13 +170,19 @@ where
 	}
 }
 
-unsafe impl<A> ReadOnlySystem for DoneSystem<A> where A: ReadOnlySystem {}
+unsafe impl<A> ReadOnlySystem for FlattenSystem<A>
+where
+	A: ReadOnlySystem,
+	<A as System>::Out: IntoIterator,
+	<A::Out as IntoIterator>::Item: IntoIterator,
+{
+}
 
-impl<A> Clone for DoneSystem<A>
+impl<A> Clone for FlattenSystem<A>
 where
 	A: Clone,
 {
 	fn clone(&self) -> Self {
-		DoneSystem::new(self.a.clone(), self.name.clone())
+		FlattenSystem::new(self.a.clone(), self.name.clone())
 	}
 }

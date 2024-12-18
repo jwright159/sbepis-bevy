@@ -59,18 +59,15 @@ pub fn propose_quest_if_none(
 
 	let proposal = commands
 		.spawn((
-			NodeBundle {
-				style: Style {
-					margin: UiRect::all(Val::Auto),
-					width: Val::Percent(100.0),
-					max_width: Val::Px(600.0),
-					padding: UiRect::all(Val::Px(10.0)),
-					flex_direction: FlexDirection::Column,
-					..default()
-				},
-				background_color: css::GRAY.into(),
+			Node {
+				margin: UiRect::all(Val::Auto),
+				width: Val::Percent(100.0),
+				max_width: Val::Px(600.0),
+				padding: UiRect::all(Val::Px(10.0)),
+				flex_direction: FlexDirection::Column,
 				..default()
 			},
+			BackgroundColor(css::GRAY.into()),
 			PlayerCameraNode,
 			input_manager_bundle(
 				InputMap::default()
@@ -88,86 +85,70 @@ pub fn propose_quest_if_none(
 		.with_children(|parent| {
 			let proposal = parent.parent_entity();
 
-			parent.spawn(TextBundle {
-				text: Text::from_section(
-					format!("{}\n\n{}", quest.name, quest.description),
-					TextStyle {
-						font_size: 20.0,
-						color: Color::WHITE,
-						..default()
-					},
-				),
-				style: Style {
+			parent.spawn((
+				Text(format!("{}\n\n{}", quest.name, quest.description)),
+				TextColor(Color::WHITE),
+				TextFont {
+					font_size: 20.0,
+					..default()
+				},
+				Node {
 					margin: UiRect::bottom(Val::Px(10.0)),
 					..default()
 				},
-				..default()
-			});
+			));
 			parent
-				.spawn(NodeBundle {
-					style: Style {
-						flex_direction: FlexDirection::Row,
-						column_gap: Val::Px(10.0),
-						..default()
-					},
+				.spawn(Node {
+					flex_direction: FlexDirection::Row,
+					column_gap: Val::Px(10.0),
 					..default()
 				})
 				.with_children(|parent| {
 					parent
 						.spawn((
-							ButtonBundle {
-								style: Style {
-									padding: UiRect::all(Val::Px(10.0)),
-									flex_grow: 1.0,
-									..default()
-								},
-								background_color: css::DARK_GRAY.into(),
+							Button,
+							Node {
+								padding: UiRect::all(Val::Px(10.0)),
+								flex_grow: 1.0,
 								..default()
 							},
+							BackgroundColor(css::DARK_GRAY.into()),
 							QuestProposalAccept {
 								quest_proposal: proposal,
 							},
 						))
 						.with_children(|parent| {
-							parent.spawn(TextBundle {
-								text: Text::from_section(
-									"Accept [E]",
-									TextStyle {
-										font_size: 20.0,
-										color: Color::WHITE,
-										..default()
-									},
-								),
-								..default()
-							});
+							parent.spawn((
+								Text("Accept [E]".to_owned()),
+								TextColor(Color::WHITE),
+								TextFont {
+									font_size: 20.0,
+									..default()
+								},
+							));
 						});
 					parent
 						.spawn((
-							ButtonBundle {
-								style: Style {
-									padding: UiRect::all(Val::Px(10.0)),
-									flex_grow: 1.0,
-									..default()
-								},
-								background_color: css::DARK_GRAY.into(),
+							Button,
+							Node {
+								padding: UiRect::all(Val::Px(10.0)),
+								flex_grow: 1.0,
 								..default()
 							},
+							BackgroundColor(css::DARK_GRAY.into()),
 							QuestProposalDecline {
 								quest_proposal: proposal,
 							},
 						))
 						.with_children(|parent| {
-							parent.spawn(TextBundle {
-								text: Text::from_section(
-									"Decline [Space]",
-									TextStyle {
-										font_size: 20.0,
-										color: Color::WHITE,
-										..default()
-									},
-								),
-								..default()
-							});
+							parent.spawn((
+								Text("Decline [Space]".to_owned()),
+								TextColor(Color::WHITE),
+								TextFont {
+									font_size: 20.0,
+									..default()
+								},
+							));
 						});
 				});
 		})

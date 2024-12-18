@@ -72,7 +72,7 @@ fn setup(
 		.spawn((
 			input_manager_bundle(
 				InputMap::default()
-					.with_dual_axis(PlayerAction::Move, KeyboardVirtualDPad::WASD)
+					.with_dual_axis(PlayerAction::Move, VirtualDPad::wasd())
 					.with(PlayerAction::Jump, KeyCode::Space)
 					.with_dual_axis(PlayerAction::Look, MouseMove::default())
 					.with(PlayerAction::Sprint, KeyCode::ShiftLeft)
@@ -115,14 +115,12 @@ fn setup(
 	let camera = commands
 		.spawn((
 			Name::new("Player Camera"),
-			Camera3dBundle {
-				transform: Transform::from_translation(Vec3::Y * 0.5),
-				projection: Projection::Perspective(PerspectiveProjection {
-					fov: 70.0 / 180. * PI,
-					..default()
-				}),
+			Camera3d::default(),
+			Transform::from_translation(Vec3::Y * 0.5),
+			Projection::Perspective(PerspectiveProjection {
+				fov: 70.0 / 180. * PI,
 				..default()
-			},
+			}),
 			PlayerCamera,
 			Pitch(0.0),
 		))
@@ -163,12 +161,13 @@ fn setup(
 
 	commands.spawn((
 		Name::new("Damage Numbers"),
-		TextBundle::from_section("Damage", TextStyle::default()).with_style(Style {
+		Text("Damage".to_owned()),
+		Node {
 			position_type: PositionType::Absolute,
 			bottom: Val::Px(5.0),
 			right: Val::Px(5.0),
 			..default()
-		}),
+		},
 		DamageNumbers,
 		TargetCamera(camera),
 	));
@@ -176,7 +175,6 @@ fn setup(
 	commands.spawn((
 		Name::new("Debug Collider Visualizer"),
 		DebugColliderVisualizer,
-		SpatialBundle::default(),
 		CollisionGroups::new(Group::NONE, Group::NONE),
 	));
 }

@@ -33,7 +33,6 @@ pub fn spawn_hammer(
 	let hammer_pivot = commands
 		.spawn((
 			Name::new("Hammer Pivot"),
-			SpatialBundle::default(),
 			HammerPivot,
 			SweepPivot {
 				sweeper_length: 0.2,
@@ -47,11 +46,11 @@ pub fn spawn_hammer(
 	let hammer_head = commands
 		.spawn((
 			Name::new("Hammer Head"),
-			PbrBundle {
-				transform: Transform::default()
-					.with_translation(Vec3::Y * 1.)
-					.with_rotation(Quat::from_rotation_x(PI / 2.)),
-				mesh: meshes.add(
+			Transform::default()
+				.with_translation(Vec3::Y * 1.)
+				.with_rotation(Quat::from_rotation_x(PI / 2.)),
+			Mesh3d(
+				meshes.add(
 					Capsule3d::new(0.1, 0.5)
 						.mesh()
 						.rings(1)
@@ -59,9 +58,8 @@ pub fn spawn_hammer(
 						.longitudes(16)
 						.uv_profile(CapsuleUvProfile::Fixed),
 				),
-				material: gridbox_material("red", materials, asset_server),
-				..default()
-			},
+			),
+			MeshMaterial3d(gridbox_material("red", materials, asset_server)),
 			Hammer {
 				damage: 1.0,
 				pivot: hammer_pivot,
@@ -108,10 +106,8 @@ pub fn animate_hammer(
 
 			commands.spawn((
 				Name::new("Hammer Swing SFX"),
-				AudioBundle {
-					source: asset_server.load("whoosh.mp3"),
-					settings: PlaybackSettings::DESPAWN,
-				},
+				AudioPlayer::new(asset_server.load("whoosh.mp3")),
+				PlaybackSettings::DESPAWN,
 			));
 		}
 		if (prev_time..curr_time).contains(&lead_in_time) {
@@ -119,10 +115,8 @@ pub fn animate_hammer(
 
 			commands.spawn((
 				Name::new("Hammer Smash SFX"),
-				AudioBundle {
-					source: asset_server.load("concrete_break3.wav"),
-					settings: PlaybackSettings::DESPAWN,
-				},
+				AudioPlayer::new(asset_server.load("concrete_break3.wav")),
+				PlaybackSettings::DESPAWN,
 			));
 
 			if let Some(dealer) = dealer {

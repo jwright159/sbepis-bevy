@@ -20,8 +20,8 @@ impl Plugin for FrayPlugin {
 
 fn play_background_music(mut commands: Commands, mut assets: ResMut<Assets<MidiAudio>>) {
 	commands.spawn((
-		AudioSourceBundle {
-			source: assets.add(
+		AudioPlayer(
+			assets.add(
 				MidiAudio::from_bytes(
 					include_bytes!("../assets/fray.mid"),
 					include_bytes!("../assets/hl4mgm.sf2"),
@@ -31,10 +31,10 @@ fn play_background_music(mut commands: Commands, mut assets: ResMut<Assets<MidiA
 				.with_channel_patch(2, 128, 0)
 				.with_channel_patch(3, 0, 0),
 			),
-			settings: PlaybackSettings::LOOP
-				.with_volume(Volume::new(0.2))
-				.paused(),
-		},
+		),
+		PlaybackSettings::LOOP
+			.with_volume(Volume::new(0.2))
+			.paused(),
 		Name::new("Background Music"),
 		FrayMusic::default(),
 	));
@@ -42,12 +42,13 @@ fn play_background_music(mut commands: Commands, mut assets: ResMut<Assets<MidiA
 	commands.spawn((
 		Name::new("Beat Counter"),
 		BeatCounter::default(),
-		TextBundle::from_section("", TextStyle::default()).with_style(Style {
+		Text("".to_owned()),
+		Node {
 			position_type: PositionType::Absolute,
 			bottom: Val::Px(5.0),
 			left: Val::Px(5.0),
 			..default()
-		}),
+		},
 		PlayerCameraNode,
 	));
 }
@@ -111,7 +112,7 @@ fn tick_fray_music(
 	#[cfg(feature = "metronome")] mut commands: Commands,
 	#[cfg(feature = "metronome")] asset_server: Res<AssetServer>,
 	time: Res<Time>,
-	mut fray_musics: Query<(&mut FrayMusic, &AudioSink, &Handle<MidiAudio>)>,
+	mut fray_musics: Query<(&mut FrayMusic, &AudioSink, &AudioPlayer<MidiAudio>)>,
 	mut beat_counters: Query<(&mut BeatCounter, &mut Text)>,
 	assets: Res<Assets<MidiAudio>>,
 ) {
@@ -126,36 +127,28 @@ fn tick_fray_music(
 			if fray_music.delay.is_none() {
 				commands.spawn((
 					Name::new("Beat"),
-					AudioBundle {
-						source: asset_server.load("metronome.mp3"),
-						settings: PlaybackSettings::DESPAWN,
-					},
+					AudioPlayer::new(asset_server.load("metronome.mp3")),
+					PlaybackSettings::DESPAWN,
 				));
 			}
 
 			continue;
 		}
 
-		let midi_audio = assets.get(midi_audio).expect("Couldn't find midi audio");
+		let midi_audio = assets.get(&midi_audio.0).expect("Couldn't find midi audio");
 		audio_sink.play(); // this should really be phased out or smth
 		fray_music.tick(time.delta(), midi_audio);
 		let beat = fray_music.subbeats(1);
 		let beat_progress = fray_music.beat_progress();
 
-		beat_counter_text.sections[0].value = format!("{} {:.2}", beat, beat_progress);
+		beat_counter_text.0 = format!("{} {:.2}", beat, beat_progress);
 
 		#[cfg(feature = "metronome")]
 		if beat_counter.beat != beat {
 			commands.spawn((
 				Name::new("Beat"),
-				AudioBundle {
-					source: asset_server.load("metronome.mp3"),
-					settings: PlaybackSettings::DESPAWN.with_speed(if beat % 4 == 0 {
-						1.0
-					} else {
-						0.5
-					}),
-				},
+				AudioPlayer::new(asset_server.load("metronome.mp3")),
+				PlaybackSettings::DESPAWN.with_speed(if beat % 4 == 0 { 1.0 } else { 0.5 }),
 			));
 		}
 

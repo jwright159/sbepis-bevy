@@ -7,21 +7,21 @@ use bevy::ecs::schedule::InternedSystemSet;
 use bevy::ecs::world::unsafe_world_cell::UnsafeWorldCell;
 use bevy::prelude::*;
 
-pub trait IntoIteratorSystemTrait<In: SystemInput, Out, Marker>:
+pub trait IntoInspectSystemTrait<In: SystemInput, Out, Marker>:
 	IntoSystem<In, Out, Marker>
 where
 	Out: IntoIterator,
 {
-	fn iter_map<B, BIn, BOut, MarkerB>(self, system: B) -> IntoIteratorSystem<Self, B>
+	fn iter_inspect<B, BIn, BOut, MarkerB>(self, system: B) -> IntoInspectSystem<Self, B>
 	where
 		Out: 'static,
 		B: IntoSystem<BIn, BOut, MarkerB>,
 		for<'a> BIn: SystemInput<Inner<'a> = <Out as IntoIterator>::Item>,
 	{
-		IntoIteratorSystem::new(self, system)
+		IntoInspectSystem::new(self, system)
 	}
 }
-impl<T, In, Out, Marker> IntoIteratorSystemTrait<In, Out, Marker> for T
+impl<T, In, Out, Marker> IntoInspectSystemTrait<In, Out, Marker> for T
 where
 	T: IntoSystem<In, Out, Marker>,
 	In: SystemInput,
@@ -29,40 +29,42 @@ where
 {
 }
 
-pub struct IntoIteratorSystem<A, B> {
+pub struct IntoInspectSystem<A, B> {
 	a: A,
 	b: B,
 }
 
-impl<A, B> IntoIteratorSystem<A, B> {
+impl<A, B> IntoInspectSystem<A, B> {
 	pub const fn new(a: A, b: B) -> Self {
 		Self { a, b }
 	}
 }
 
 #[doc(hidden)]
-pub struct IsIteratorSystemMarker;
+pub struct IsInspectSystemMarker;
 
-impl<A, B, IA, OA, IB, OB, MA, MB> IntoSystem<IA, Vec<OB>, (IsIteratorSystemMarker, OA, IB, MA, MB)>
-	for IntoIteratorSystem<A, B>
+impl<A, B, IA, OA, IB, OB, MA, MB>
+	IntoSystem<IA, Vec<OA::Item>, (IsInspectSystemMarker, OA, OB, IB, MA, MB)>
+	for IntoInspectSystem<A, B>
 where
 	IA: SystemInput,
 	OA: IntoIterator,
+	<OA as IntoIterator>::Item: Clone,
 	A: IntoSystem<IA, OA, MA>,
 	B: IntoSystem<IB, OB, MB>,
 	for<'a> IB: SystemInput<Inner<'a> = <OA as IntoIterator>::Item>,
 {
-	type System = IteratorSystem<A::System, B::System>;
+	type System = InspectSystem<A::System, B::System>;
 
 	fn into_system(this: Self) -> Self::System {
 		let system_a = IntoSystem::into_system(this.a);
 		let system_b = IntoSystem::into_system(this.b);
-		let name = format!("Iter({}, {})", system_a.name(), system_b.name());
-		IteratorSystem::new(system_a, system_b, Cow::Owned(name))
+		let name = format!("Inspect({}, {})", system_a.name(), system_b.name());
+		InspectSystem::new(system_a, system_b, Cow::Owned(name))
 	}
 }
 
-pub struct IteratorSystem<A, B> {
+pub struct InspectSystem<A, B> {
 	a: A,
 	b: B,
 	name: Cow<'static, str>,
@@ -70,7 +72,7 @@ pub struct IteratorSystem<A, B> {
 	archetype_component_access: Access<ArchetypeComponentId>,
 }
 
-impl<A, B> IteratorSystem<A, B> {
+impl<A, B> InspectSystem<A, B> {
 	pub const fn new(a: A, b: B, name: Cow<'static, str>) -> Self {
 		Self {
 			a,
@@ -82,15 +84,18 @@ impl<A, B> IteratorSystem<A, B> {
 	}
 }
 
-impl<A, B> System for IteratorSystem<A, B>
+impl<A, B> System for InspectSystem<A, B>
 where
 	A: System,
 	<A as System>::Out: IntoIterator,
+	// TODO: Now that InRef exists, we don't need Clone.
+	// However, I can't figure out how to constrain it, what with lifetimes and all...
+	<A::Out as IntoIterator>::Item: Clone,
 	B: System,
 	for<'a> B::In: SystemInput<Inner<'a> = <A::Out as IntoIterator>::Item>,
 {
 	type In = A::In;
-	type Out = Vec<B::Out>;
+	type Out = Vec<<A::Out as IntoIterator>::Item>;
 
 	fn name(&self) -> Cow<'static, str> {
 		self.name.clone()
@@ -124,13 +129,20 @@ where
 		let value = self.a.run_unsafe(input, world);
 		value
 			.into_iter()
-			.map(|v| self.b.run_unsafe(v, world))
+			.inspect(|x| {
+				self.b.run_unsafe(x.clone(), world);
+			})
 			.collect()
 	}
 
 	fn run(&mut self, input: SystemIn<'_, Self>, world: &mut World) -> Self::Out {
 		let value = self.a.run(input, world);
-		value.into_iter().map(|v| self.b.run(v, world)).collect()
+		value
+			.into_iter()
+			.inspect(|x| {
+				self.b.run(x.clone(), world);
+			})
+			.collect()
 	}
 
 	#[inline]
@@ -188,21 +200,22 @@ where
 	}
 }
 
-unsafe impl<A, B> ReadOnlySystem for IteratorSystem<A, B>
+unsafe impl<A, B> ReadOnlySystem for InspectSystem<A, B>
 where
 	A: ReadOnlySystem,
 	<A as System>::Out: IntoIterator,
+	<A::Out as IntoIterator>::Item: Clone,
 	B: ReadOnlySystem,
 	for<'a> B::In: SystemInput<Inner<'a> = <A::Out as IntoIterator>::Item>,
 {
 }
 
-impl<A, B> Clone for IteratorSystem<A, B>
+impl<A, B> Clone for InspectSystem<A, B>
 where
 	A: Clone,
 	B: Clone,
 {
 	fn clone(&self) -> Self {
-		IteratorSystem::new(self.a.clone(), self.b.clone(), self.name.clone())
+		InspectSystem::new(self.a.clone(), self.b.clone(), self.name.clone())
 	}
 }

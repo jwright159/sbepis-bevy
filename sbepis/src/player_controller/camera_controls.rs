@@ -54,7 +54,7 @@ pub fn rotate_camera_and_body(
 }
 
 pub fn interact_with<T: Component>(
-	rapier_context: Res<RapierContext>,
+	rapier_context: Query<&RapierContext>,
 	player_camera: Query<&GlobalTransform, With<PlayerCamera>>,
 	entities: Query<Entity, With<T>>,
 	input: Query<&ActionState<PlayerAction>>,
@@ -68,7 +68,7 @@ pub fn interact_with<T: Component>(
 
 	let player_camera = player_camera.get_single().expect("Player camera missing");
 	let mut hit_entity = None;
-	rapier_context.intersections_with_ray(
+	rapier_context.single().intersections_with_ray(
 		player_camera.translation(),
 		player_camera.forward().into(),
 		3.0,

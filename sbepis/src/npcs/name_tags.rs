@@ -93,14 +93,13 @@ pub fn spawn_name_tags(
 		let scale = 0.2;
 
 		commands
-			.spawn(PbrBundle {
-				mesh: meshes.add(mesh),
-				material: materials.add(Color::srgb(1.0, 1.0, 1.0)),
-				transform: Transform::from_xyz(mesh_text.bbox.size().x * scale * 0.5, 0.6, 0.0)
+			.spawn((
+				Mesh3d(meshes.add(mesh)),
+				MeshMaterial3d(materials.add(Color::WHITE)),
+				Transform::from_xyz(mesh_text.bbox.size().x * scale * 0.5, 0.6, 0.0)
 					.with_rotation(Quat::from_rotation_y(PI))
 					.with_scale(Vec3::splat(scale)),
-				..default()
-			})
+			))
 			.set_parent(entity);
 	}
 }

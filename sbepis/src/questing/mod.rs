@@ -43,9 +43,9 @@ impl Plugin for QuestingPlugin {
 				Update,
 				(
 					interact_with::<QuestGiver>
-						.iter_filter_some()
-						.iter_do(propose_quest_if_none)
-						.iter_do(complete_quest_if_done)
+						.iter_flatten()
+						.iter_inspect(propose_quest_if_none)
+						.iter_inspect(complete_quest_if_done)
 						.iter_done(),
 					fire_input_and_button_events::<
 						QuestProposalAction,
@@ -58,17 +58,17 @@ impl Plugin for QuestingPlugin {
 						QuestDeclined,
 					>(QuestProposalAction::Decline, QuestDeclined::new),
 					input_managers_where_action_fired::<QuestAccepted>()
-						.iter_do(close_menu)
+						.iter_inspect(close_menu)
 						.iter_map(get_proposed_quest)
-						.iter_filter_some()
-						.iter_do(add_quest_nodes)
+						.iter_flatten()
+						.iter_inspect(add_quest_nodes)
 						.iter_done(),
 					input_managers_where_action_fired::<QuestDeclined>()
-						.iter_do(close_menu)
+						.iter_inspect(close_menu)
 						.iter_done(),
 					get_ended_quests
-						.iter_do(remove_quest)
-						.iter_do(remove_quest_nodes)
+						.iter_inspect(remove_quest)
+						.iter_inspect(remove_quest_nodes)
 						.iter_done(),
 					change_displayed_node,
 					show_menu::<QuestScreen>

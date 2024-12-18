@@ -75,10 +75,7 @@ pub fn spawn_sword(
 	let sword_pivot = commands
 		.spawn((
 			Name::new("Sword Pivot"),
-			SpatialBundle::from_transform(
-				Transform::from_translation(Vec3::ZERO)
-					.with_rotation(Quat::from_rotation_y(-PI * 0.5)),
-			),
+			Transform::from_rotation(Quat::from_rotation_y(-PI * 0.5)),
 			SwordPivot,
 			SweepPivot {
 				sweeper_length: 0.2,
@@ -92,11 +89,10 @@ pub fn spawn_sword(
 	let sword_blade = commands
 		.spawn((
 			Name::new("Sword Blade"),
-			PbrBundle {
-				transform: Transform::default()
-					.with_translation(Vec3::NEG_Z * 1.)
-					.with_rotation(Quat::from_rotation_x(PI / 2.)),
-				mesh: meshes.add(
+			Transform::from_translation(Vec3::NEG_Z * 1.)
+				.with_rotation(Quat::from_rotation_x(PI / 2.)),
+			Mesh3d(
+				meshes.add(
 					Capsule3d::new(0.1, 0.5)
 						.mesh()
 						.rings(1)
@@ -104,9 +100,8 @@ pub fn spawn_sword(
 						.longitudes(16)
 						.uv_profile(CapsuleUvProfile::Fixed),
 				),
-				material: gridbox_material("red", materials, asset_server),
-				..default()
-			},
+			),
+			MeshMaterial3d(gridbox_material("red", materials, asset_server)),
 			Sword::new(0.25, sword_pivot, EntityHashSet::from_iter(vec![body]), 0.8),
 		))
 		.set_parent(sword_pivot)
@@ -149,10 +144,8 @@ pub fn animate_sword(
 
 			commands.spawn((
 				Name::new("Sword Swing SFX"),
-				AudioBundle {
-					source: asset_server.load("whoosh.mp3"),
-					settings: PlaybackSettings::DESPAWN,
-				},
+				AudioPlayer::new(asset_server.load("whoosh.mp3")),
+				PlaybackSettings::DESPAWN,
 			));
 		}
 		if (prev_time..curr_time).contains(&follow_through_time) {

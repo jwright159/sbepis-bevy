@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::Velocity;
 
-use crate::gravity::GravityRigidbodyBundle;
+use crate::gravity::AffectedByGravity;
 use crate::util::{Billboard, DespawnTimer};
 use crate::{gridbox_material, gridbox_material_extra, util::MapRange};
 
@@ -41,44 +41,32 @@ pub fn spawn_health_bars(
 		let outline = 0.05;
 		let height = 1.5;
 
-		let root = commands
-			.spawn((
-				Name::new("Gel Vial Root"),
-				SpatialBundle::default(),
-				Billboard,
-			))
-			.id();
+		let root = commands.spawn((Name::new("Gel Vial Root"), Billboard)).id();
 
 		commands
 			.spawn((
 				Name::new("Gel Vial Outline"),
-				PbrBundle {
-					transform: Transform::from_scale(Vec3::NEG_ONE),
-					mesh: meshes.add(Cuboid::from_size(size + Vec3::splat(outline))),
-					material: gridbox_material("grey1", &mut materials, &asset_server),
-					..default()
-				},
+				Transform::from_scale(Vec3::NEG_ONE),
+				Mesh3d(meshes.add(Cuboid::from_size(size + Vec3::splat(outline)))),
+				MeshMaterial3d(gridbox_material("grey1", &mut materials, &asset_server)),
 			))
 			.set_parent(root);
 
 		let glass = commands
 			.spawn((
 				Name::new("Gel Vial Glass"),
-				PbrBundle {
-					mesh: meshes.add(Cuboid::from_size(size + Vec3::splat(glass_outline))),
-					material: gridbox_material_extra(
-						"clear",
-						&mut materials,
-						&asset_server,
-						StandardMaterial {
-							alpha_mode: AlphaMode::Blend,
-							clearcoat: 1.0,
-							clearcoat_perceptual_roughness: 0.0,
-							..default()
-						},
-					),
-					..default()
-				},
+				Mesh3d(meshes.add(Cuboid::from_size(size + Vec3::splat(glass_outline)))),
+				MeshMaterial3d(gridbox_material_extra(
+					"clear",
+					&mut materials,
+					&asset_server,
+					StandardMaterial {
+						alpha_mode: AlphaMode::Blend,
+						clearcoat: 1.0,
+						clearcoat_perceptual_roughness: 0.0,
+						..default()
+					},
+				)),
 			))
 			.set_parent(root)
 			.id();
@@ -95,11 +83,8 @@ pub fn spawn_health_bars(
 					length,
 					height,
 				},
-				PbrBundle {
-					mesh: meshes.add(Cuboid::from_size(size)),
-					material: gridbox_material("red", &mut materials, &asset_server),
-					..default()
-				},
+				Mesh3d(meshes.add(Cuboid::from_size(size))),
+				MeshMaterial3d(gridbox_material("red", &mut materials, &asset_server)),
 			))
 			.set_parent(root);
 	}
@@ -118,19 +103,14 @@ pub fn despawn_invalid_health_bars(
 				.expect("Gel vial root not found");
 
 			commands.entity(health_bar.glass).remove_parent().insert((
-				SpatialBundle::from_transform(
-					Transform::from_translation(
-						root_transform.transform_point(Vec3::X * health_bar.length),
-					)
-					.with_rotation(root_transform.rotation),
-				),
-				GravityRigidbodyBundle {
-					velocity: Velocity {
-						linvel: root_transform.right().as_vec3()
-							+ root_transform.up().as_vec3() * 2.0,
-						angvel: root_transform.forward().as_vec3() * 90.0,
-					},
-					..default()
+				Transform::from_translation(
+					root_transform.transform_point(Vec3::X * health_bar.length),
+				)
+				.with_rotation(root_transform.rotation),
+				AffectedByGravity::default(),
+				Velocity {
+					linvel: root_transform.right().as_vec3() + root_transform.up().as_vec3() * 2.0,
+					angvel: root_transform.forward().as_vec3() * 90.0,
 				},
 				DespawnTimer::new(1.0),
 			));
@@ -179,7 +159,7 @@ pub struct Healing(pub f32);
 
 pub fn heal(mut healings: Query<(&Healing, &mut GelViscosity)>, time: Res<Time>) {
 	for (healing, mut health) in healings.iter_mut() {
-		health.value += healing.0 * time.delta_seconds();
+		health.value += healing.0 * time.delta_secs();
 		health.value = health.value.min(health.max);
 	}
 }

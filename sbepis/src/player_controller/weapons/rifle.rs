@@ -51,7 +51,8 @@ pub fn spawn_rifle(
 	let rifle_pivot = commands
 		.spawn((
 			Name::new("Rifle Pivot"),
-			SpatialBundle::from_transform(Transform::from_translation(Vec3::new(0.25, 0.0, -0.5))),
+			Transform::from_translation(Vec3::new(0.25, 0.0, -0.5)),
+			Visibility::default(),
 			RiflePivot,
 		))
 		.set_parent(body)
@@ -60,9 +61,9 @@ pub fn spawn_rifle(
 	let rifle_barrel = commands
 		.spawn((
 			Name::new("Rifle Barrel"),
-			PbrBundle {
-				transform: Transform::from_rotation(Quat::from_rotation_x(-PI / 2.)),
-				mesh: meshes.add(
+			Transform::from_rotation(Quat::from_rotation_x(-PI / 2.)),
+			Mesh3d(
+				meshes.add(
 					Capsule3d::new(0.1, 0.5)
 						.mesh()
 						.rings(1)
@@ -70,9 +71,8 @@ pub fn spawn_rifle(
 						.longitudes(16)
 						.uv_profile(CapsuleUvProfile::Fixed),
 				),
-				material: gridbox_material("red", materials, asset_server),
-				..default()
-			},
+			),
+			MeshMaterial3d(gridbox_material("red", materials, asset_server)),
 			Rifle {
 				damage: 0.5,
 				pivot: rifle_pivot,
@@ -99,10 +99,11 @@ pub fn animate_rifle(
 	fray: Query<&FrayMusic>,
 	mut ev_hit: EventWriter<EntityDamaged>,
 	asset_server: Res<AssetServer>,
-	rapier_context: Res<RapierContext>,
+	rapier_context: Query<&RapierContext>,
 	player_camera: Query<&GlobalTransform, With<PlayerCamera>>,
 ) {
 	let fray = fray.get_single().expect("Could not find fray");
+	let rapier_context = rapier_context.single();
 	for mut rifle_barrel in rifle_barrels.iter_mut() {
 		let (rifle_barrel_entity, mut transform, mut animation) =
 			ok_or_continue!(rifle_pivots.get_mut(rifle_barrel.pivot));
@@ -116,10 +117,8 @@ pub fn animate_rifle(
 		if (prev_time..curr_time).contains(&0.0) {
 			commands.spawn((
 				Name::new("Rifle Shot SFX"),
-				AudioBundle {
-					source: asset_server.load("flute.wav"),
-					settings: PlaybackSettings::DESPAWN,
-				},
+				AudioPlayer::new(asset_server.load("flute.wav")),
+				PlaybackSettings::DESPAWN,
 			));
 
 			let player_camera = player_camera.get_single().expect("Player camera not found");
@@ -178,10 +177,8 @@ pub fn charge_rifle(
 
 			commands.spawn((
 				Name::new("Rifle Charge SFX"),
-				AudioBundle {
-					source: asset_server.load("flute.wav"),
-					settings: PlaybackSettings::DESPAWN.with_speed(2.0),
-				},
+				AudioPlayer::new(asset_server.load("flute.wav")),
+				PlaybackSettings::DESPAWN.with_speed(2.0),
 			));
 		}
 		rifle_barrel.update_last_beat(fray);

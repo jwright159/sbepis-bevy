@@ -51,6 +51,7 @@ pub struct DamageSweep {
 pub struct EndDamageSweep;
 
 #[derive(Component)]
+#[require(Transform, Visibility)]
 pub struct SweepPivot {
 	pub sweeper_length: f32,
 	pub sweep_depth: f32,
@@ -69,6 +70,7 @@ impl DamageSweep {
 }
 
 #[derive(Component)]
+#[require(Transform, Visibility)]
 pub struct DebugColliderVisualizer;
 
 pub fn attack(
@@ -89,10 +91,11 @@ pub fn sweep_dealers(
 		&GlobalTransform,
 	)>,
 	pivots: Query<(&SweepPivot, &GlobalTransform), Without<DamageSweep>>,
-	rapier_context: Res<RapierContext>,
+	rapier_context: Query<&RapierContext>,
 	debug_collider_visualizers: Query<Entity, With<DebugColliderVisualizer>>,
 ) {
 	let debug_collider_visualizer = debug_collider_visualizers.single();
+	let rapier_context = rapier_context.single();
 	for (dealer_entity, mut dealer, end, transform) in dealers.iter_mut() {
 		let (pivot, pivot_transform) = pivots.get(dealer.pivot).expect("Sweep pivot not found");
 
@@ -163,8 +166,9 @@ pub fn deal_all_damage(
 
 pub fn update_damage_numbers(
 	mut ev_hit: EventReader<EntityDamaged>,
-	mut damage_numbers: Query<&mut Text, With<DamageNumbers>>,
+	mut damage_numbers: Query<Entity, With<DamageNumbers>>,
 	hit_object: Query<&Name, With<GelViscosity>>,
+	mut commands: Commands,
 ) {
 	for event in ev_hit.read() {
 		let Ok(hit_object_name) = hit_object.get(event.victim) else {
@@ -173,18 +177,17 @@ pub fn update_damage_numbers(
 
 		let damage = event.damage;
 		let fray_modifier = event.fray_modifier;
-		for mut damage_numbers in damage_numbers.iter_mut() {
-			damage_numbers.sections.push(TextSection::new(
-				format!("\n{hit_object_name}: {damage:.2}"),
-				TextStyle {
-					color: Color::mix(
+		for damage_numbers in damage_numbers.iter_mut() {
+			commands
+				.spawn((
+					TextSpan(format!("\n{hit_object_name}: {damage:.2}")),
+					TextColor(Color::mix(
 						&Color::from(css::RED),
 						&Color::from(css::GREEN),
 						fray_modifier.clamp(0.0, 1.0),
-					),
-					..default()
-				},
-			));
+					)),
+				))
+				.set_parent(damage_numbers);
 		}
 	}
 }

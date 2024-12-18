@@ -1,4 +1,3 @@
-use bevy::audio::PlaybackMode;
 use bevy::prelude::*;
 use soundyrust::Note;
 
@@ -99,13 +98,10 @@ impl NotePatternEvent for PingCommandEvent {
 }
 
 pub fn ping(mut commands: Commands, asset_server: Res<AssetServer>) {
-	commands.spawn(AudioBundle {
-		source: asset_server.load("pester_notif.mp3"),
-		settings: PlaybackSettings {
-			mode: PlaybackMode::Despawn,
-			..default()
-		},
-	});
+	commands.spawn((
+		AudioPlayer::new(asset_server.load("pester_notif.mp3")),
+		PlaybackSettings::DESPAWN,
+	));
 }
 
 #[derive(Event)]

@@ -7,6 +7,10 @@ use bevy::log::LogPlugin;
 use bevy::prelude::*;
 use bevy::winit::WinitWindows;
 use bevy_rapier3d::prelude::*;
+use blenvy::blueprints::spawn_from_blueprints::{
+	BlueprintInfo, GameWorldTag, HideUntilReady, SpawnBlueprint,
+};
+use blenvy::BlenvyPlugin;
 use winit::window::Icon;
 
 use self::main_bundles::*;
@@ -30,12 +34,8 @@ mod skybox;
 pub mod util;
 
 fn main() {
-	let mut rapier_config = RapierConfiguration::new(1.);
-	rapier_config.gravity = Vec3::ZERO;
-	let rapier_config = rapier_config;
-
-	App::new()
-		.insert_resource(rapier_config)
+	let mut app = App::new();
+	app
 		.add_plugins((
 			DefaultPlugins
 				.set(WindowPlugin {
@@ -46,10 +46,10 @@ fn main() {
 					..default()
 				})
 				.set(ImagePlugin {
-					default_sampler: bevy::render::texture::ImageSamplerDescriptor {
-						address_mode_u: bevy::render::texture::ImageAddressMode::Repeat,
-						address_mode_v: bevy::render::texture::ImageAddressMode::Repeat,
-						address_mode_w: bevy::render::texture::ImageAddressMode::Repeat,
+					default_sampler: bevy::image::ImageSamplerDescriptor {
+						address_mode_u: bevy::image::ImageAddressMode::Repeat,
+						address_mode_v: bevy::image::ImageAddressMode::Repeat,
+						address_mode_w: bevy::image::ImageAddressMode::Repeat,
 						..default()
 					},
 				})
@@ -64,30 +64,32 @@ fn main() {
 			bevy_inspector_egui::quick::WorldInspectorPlugin::new(),
 			#[cfg(feature = "overview_camera")]
 			overview_camera::OverviewCameraPlugin,
-		))
-		.add_plugins((
-			player_commands::PlayerCommandsPlugin,
-			camera::PlayerCameraPlugin,
-			skybox::SkyboxPlugin,
-			entity::EntityPlugin,
-			player_controller::PlayerControllerPlugin,
-			npcs::NpcPlugin,
-			gravity::GravityPlugin,
-			fray::FrayPlugin,
-			questing::QuestingPlugin,
-			menus::MenusPlugin,
-			inventory::InventoryPlugin,
-		))
-		.add_systems(Startup, (set_window_icon, setup))
-		.add_systems(
-			Update,
-			(
-				quit.run_if(input_just_pressed(KeyCode::Escape)),
-				util::despawn_after_timer,
-				util::billboard,
-			),
-		)
-		.run();
+			BlenvyPlugin::default(),
+		));
+
+	app.add_plugins((
+		player_commands::PlayerCommandsPlugin,
+		camera::PlayerCameraPlugin,
+		skybox::SkyboxPlugin,
+		entity::EntityPlugin,
+		player_controller::PlayerControllerPlugin,
+		npcs::NpcPlugin,
+		gravity::GravityPlugin,
+		fray::FrayPlugin,
+		questing::QuestingPlugin,
+		menus::MenusPlugin,
+		inventory::InventoryPlugin,
+	))
+	.add_systems(Startup, (set_window_icon, setup))
+	.add_systems(
+		Update,
+		(
+			quit.run_if(input_just_pressed(KeyCode::Escape)),
+			util::despawn_after_timer,
+			util::billboard,
+		),
+	)
+	.run();
 }
 
 fn set_window_icon(windows: NonSend<WinitWindows>) {
@@ -132,6 +134,7 @@ fn setup(
 	mut meshes: ResMut<Assets<Mesh>>,
 	mut materials: ResMut<Assets<StandardMaterial>>,
 	asset_server: Res<AssetServer>,
+	mut rapier_config: Query<&mut RapierConfiguration>,
 ) {
 	let gray_material = gridbox_material("grey2", &mut materials, &asset_server);
 	let green_material = gridbox_material("green1", &mut materials, &asset_server);
@@ -169,19 +172,25 @@ fn setup(
 
 	commands.spawn((
 		Name::new("Sun"),
-		DirectionalLightBundle {
-			directional_light: DirectionalLight {
-				illuminance: 4000.0,
-				shadows_enabled: true,
-				..default()
-			},
-			transform: Transform {
-				rotation: Quat::from_euler(EulerRot::XYZ, -1.9, 0.8, 0.0),
-				..default()
-			},
+		DirectionalLight {
+			illuminance: 4000.0,
+			shadows_enabled: true,
+			..default()
+		},
+		Transform {
+			rotation: Quat::from_euler(EulerRot::XYZ, -1.9, 0.8, 0.0),
 			..default()
 		},
 	));
+
+	commands.spawn((
+		BlueprintInfo::from_path("levels/World.glb"),
+		SpawnBlueprint,
+		HideUntilReady,
+		GameWorldTag,
+	));
+
+	rapier_config.single_mut().gravity = Vec3::ZERO;
 }
 
 fn quit(mut ev_quit: EventWriter<AppExit>) {
