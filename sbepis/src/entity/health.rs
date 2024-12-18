@@ -41,7 +41,9 @@ pub fn spawn_health_bars(
 		let outline = 0.05;
 		let height = 1.5;
 
-		let root = commands.spawn((Name::new("Gel Vial Root"), Billboard)).id();
+		let root = commands
+			.spawn((Name::new("Gel Vial Root"), Billboard))
+			.id();
 
 		commands
 			.spawn((

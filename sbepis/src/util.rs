@@ -90,7 +90,7 @@ pub fn despawn_after_timer(
 }
 
 #[derive(Component)]
-#[require(Transform)]
+#[require(Transform, Visibility)]
 pub struct Billboard;
 
 pub fn billboard(
