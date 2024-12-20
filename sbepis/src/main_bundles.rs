@@ -77,7 +77,7 @@ impl BoxBundle {
 				angular_velocity: AngularVelocity(Vec3::new(2.5, 3.4, 1.6)),
 				..default()
 			},
-			collider: Collider::cuboid(0.5, 0.5, 0.5),
+			collider: Collider::cuboid(1.0, 1.0, 1.0),
 			health: GelViscosity {
 				value: 1.0,
 				max: 1.0,
