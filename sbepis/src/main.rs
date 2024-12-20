@@ -7,10 +7,6 @@ use bevy::log::LogPlugin;
 use bevy::prelude::*;
 use bevy::winit::WinitWindows;
 use bevy_rapier3d::prelude::*;
-use blenvy::blueprints::spawn_from_blueprints::{
-	BlueprintInfo, GameWorldTag, HideUntilReady, SpawnBlueprint,
-};
-use blenvy::BlenvyPlugin;
 use winit::window::Icon;
 
 use self::main_bundles::*;
@@ -64,7 +60,6 @@ fn main() {
 			bevy_inspector_egui::quick::WorldInspectorPlugin::new(),
 			#[cfg(feature = "overview_camera")]
 			overview_camera::OverviewCameraPlugin,
-			BlenvyPlugin::default(),
 		));
 
 	app.add_plugins((
@@ -181,13 +176,6 @@ fn setup(
 			rotation: Quat::from_euler(EulerRot::XYZ, -1.9, 0.8, 0.0),
 			..default()
 		},
-	));
-
-	commands.spawn((
-		BlueprintInfo::from_path("levels/World.glb"),
-		SpawnBlueprint,
-		HideUntilReady,
-		GameWorldTag,
 	));
 
 	rapier_config.single_mut().gravity = Vec3::ZERO;
