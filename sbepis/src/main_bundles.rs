@@ -3,7 +3,7 @@ use std::f32::consts::{PI, TAU};
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 
-use crate::entity::{GelViscosity, GravityOrientation, MovementInput};
+use crate::entity::{GelViscosity, GravityOrientation, Movement};
 use crate::gravity::{AffectedByGravity, GravityPoint, GravityPriority};
 
 // TODO: Move this stuff to blenvy
@@ -104,7 +104,7 @@ pub struct EntityBundle {
 	affected_by_gravity: AffectedByGravity,
 	collider: Collider,
 	orientation: GravityOrientation,
-	movement_input: MovementInput,
+	movement_input: Movement,
 	locked_axes: LockedAxes,
 	health: GelViscosity,
 }
@@ -123,7 +123,7 @@ impl EntityBundle {
 			affected_by_gravity: AffectedByGravity::default(),
 			collider,
 			orientation: GravityOrientation,
-			movement_input: MovementInput::default(),
+			movement_input: Movement::default(),
 			locked_axes: LockedAxes::ROTATION_LOCKED,
 			health: GelViscosity {
 				value: 3.0,

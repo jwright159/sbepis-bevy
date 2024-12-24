@@ -32,9 +32,11 @@ impl Plugin for PlayerControllerPlugin {
 	fn build(&self, app: &mut App) {
 		app.insert_resource(MouseSensitivity(0.003))
 			.insert_resource(PlayerSpeed {
-				speed: 5.0,
+				speed: 7.0,
 				sprint_modifier: 2.0,
 				jump_speed: 5.0,
+				friction: 6.0,
+				acceleration: 8.0,
 			})
 			.add_event::<EntityDamaged>()
 			.add_plugins(InputManagerMenuPlugin::<PlayerAction>::default())

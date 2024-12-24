@@ -6,9 +6,10 @@ use bevy_rapier3d::prelude::*;
 use crate::player_controller::PlayerBody;
 
 #[derive(Component, Deref, DerefMut, Default)]
-pub struct MovementInput(pub Vec3);
+/// The desired velocity in world-space. Will be projected onto the entity's floor plane.
+pub struct Movement(pub Vec3);
 
-pub fn strafe(mut bodies: Query<(&mut Velocity, &Transform, &MovementInput)>) {
+pub fn strafe(mut bodies: Query<(&mut Velocity, &Transform, &Movement)>) {
 	for (mut velocity, transform, input) in bodies.iter_mut() {
 		velocity.linvel = velocity.linvel.project_onto(transform.up().into())
 			+ input.reject_from(transform.up().into());
@@ -19,7 +20,7 @@ pub fn strafe(mut bodies: Query<(&mut Velocity, &Transform, &MovementInput)>) {
 pub struct RotateTowardMovement;
 
 pub fn rotate_toward_movement(
-	mut bodies: Query<(&mut Transform, &MovementInput), With<RotateTowardMovement>>,
+	mut bodies: Query<(&mut Transform, &Movement), With<RotateTowardMovement>>,
 ) {
 	for (mut transform, input) in bodies.iter_mut() {
 		if input.length() > 0. {
@@ -37,7 +38,7 @@ pub struct RandomInput {
 	pub time_to_change: Duration,
 }
 
-pub fn random_vec2(mut input: Query<(&mut RandomInput, &mut MovementInput)>, time: Res<Time>) {
+pub fn random_vec2(mut input: Query<(&mut RandomInput, &mut Movement)>, time: Res<Time>) {
 	for (mut random_input, mut movement_input) in input.iter_mut() {
 		random_input.time_since_last_change += time.delta();
 
@@ -58,7 +59,7 @@ pub fn random_vec2(mut input: Query<(&mut RandomInput, &mut MovementInput)>, tim
 pub struct TargetPlayer;
 
 pub fn target_player(
-	mut target_players: Query<(&Transform, &mut MovementInput), With<TargetPlayer>>,
+	mut target_players: Query<(&Transform, &mut Movement), With<TargetPlayer>>,
 	player: Query<&Transform, With<PlayerBody>>,
 ) {
 	let player_transform = player.single();
