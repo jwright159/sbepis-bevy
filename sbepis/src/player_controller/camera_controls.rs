@@ -11,7 +11,9 @@ use crate::player_controller::PlayerAction;
 pub struct Pitch(pub f32);
 
 #[derive(Component)]
-pub struct PlayerBody;
+pub struct PlayerBody {
+	pub is_grounded: bool,
+}
 
 /// Probably in radians per pixel?
 #[derive(Resource)]

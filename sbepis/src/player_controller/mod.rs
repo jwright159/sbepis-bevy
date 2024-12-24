@@ -37,6 +37,7 @@ impl Plugin for PlayerControllerPlugin {
 				jump_speed: 5.0,
 				friction: 6.0,
 				acceleration: 8.0,
+				air_acceleration: 6.0,
 			})
 			.add_event::<EntityDamaged>()
 			.add_plugins(InputManagerMenuPlugin::<PlayerAction>::default())
@@ -46,7 +47,7 @@ impl Plugin for PlayerControllerPlugin {
 				(
 					dual_axes_input(PlayerAction::Look).pipe(rotate_camera_and_body),
 					clamped_dual_axes_input(PlayerAction::Move).pipe(axes_to_ground_velocity),
-					jump::<PlayerBody>.run_if(button_just_pressed(PlayerAction::Jump)),
+					jump.run_if(button_just_pressed(PlayerAction::Jump)),
 					attack.run_if(button_just_pressed(PlayerAction::Use)),
 					switch_weapon_next.run_if(button_just_pressed(PlayerAction::NextWeapon)),
 					switch_weapon_prev.run_if(button_just_pressed(PlayerAction::PrevWeapon)),
@@ -58,6 +59,7 @@ impl Plugin for PlayerControllerPlugin {
 					sweep_dealers,
 					deal_all_damage,
 					update_damage_numbers,
+					update_is_grounded,
 				),
 			);
 	}
@@ -109,7 +111,7 @@ fn setup(
 				gridbox_material("white", &mut materials, &asset_server),
 				Collider::capsule_y(0.5, 0.25),
 			),
-			PlayerBody,
+			PlayerBody { is_grounded: false },
 			Inventory::default(),
 		))
 		.id();
@@ -179,6 +181,30 @@ fn setup(
 		DebugColliderVisualizer,
 		CollisionGroups::new(Group::NONE, Group::NONE),
 	));
+}
+
+fn update_is_grounded(
+	mut bodies: Query<(Entity, &mut PlayerBody, &GlobalTransform)>,
+	rapier_context: Query<&RapierContext>,
+) {
+	let rapier_context = rapier_context.single();
+	for (entity, mut body, transform) in bodies.iter_mut() {
+		body.is_grounded = false;
+		rapier_context.intersections_with_shape(
+			transform.translation() - transform.rotation() * Vec3::Y * 0.5,
+			Quat::IDENTITY,
+			&Collider::ball(0.25),
+			QueryFilter::default(),
+			|collided_entity| {
+				if collided_entity == entity {
+					true
+				} else {
+					body.is_grounded = true;
+					false
+				}
+			},
+		);
+	}
 }
 
 #[derive(Clone, Copy, Eq, PartialEq, Hash, Reflect, Debug)]
