@@ -3,6 +3,8 @@ use std::time::Duration;
 use avian3d::prelude::*;
 use bevy::prelude::*;
 use bevy::render::mesh::CapsuleUvProfile;
+use bevy_common_assets::ron::RonAssetPlugin;
+use name_tags::*;
 
 use crate::entity::spawner::{spawn_entities, SpawnEntityInformation, SpawnedEntity, Spawner};
 use crate::entity::{Healing, RandomInput, RotateTowardMovement, SpawnHealthBar, TargetPlayer};
@@ -10,16 +12,22 @@ use crate::main_bundles::EntityBundle;
 use crate::questing::{QuestGiver, SpawnQuestMarker};
 use crate::{gridbox_material, some_or_return};
 
+mod name_tags;
+
 pub struct NpcPlugin;
 impl Plugin for NpcPlugin {
 	fn build(&self, app: &mut App) {
-		app.add_systems(Startup, setup).add_systems(
-			Update,
-			(
-				spawn_entities::<ConsortSpawner, Consort>.pipe(spawn_consort),
-				spawn_entities::<ImpSpawner, Imp>.pipe(spawn_imp),
-			),
-		);
+		app.add_plugins(RonAssetPlugin::<AvailableNames>::new(&["names.ron"]))
+			.init_resource::<FontMeshGenerator>()
+			.add_systems(Startup, (setup, load_names))
+			.add_systems(
+				Update,
+				(
+					spawn_entities::<ConsortSpawner, Consort>.pipe(spawn_consort),
+					spawn_entities::<ImpSpawner, Imp>.pipe(spawn_imp),
+					spawn_name_tags,
+				),
+			);
 	}
 }
 
@@ -43,7 +51,7 @@ fn setup(mut commands: Commands) {
 			spawn_delay: Duration::from_secs_f32(5.),
 			spawn_timer: Duration::ZERO,
 		},
-		TransformBundle::from_transform(Transform::from_translation(Vec3::new(-20., 1., 0.))),
+		Transform::from_xyz(-20., 1., 0.),
 	));
 	commands.spawn((
 		ImpSpawner,
@@ -52,7 +60,7 @@ fn setup(mut commands: Commands) {
 			spawn_delay: Duration::from_secs_f32(5.),
 			spawn_timer: Duration::ZERO,
 		},
-		TransformBundle::from_transform(Transform::from_translation(Vec3::new(20., 1., 0.))),
+		Transform::from_xyz(20., 1., 0.),
 	));
 }
 
@@ -89,6 +97,7 @@ fn spawn_consort(
 		Consort,
 		QuestGiver::default(),
 		SpawnQuestMarker,
+		SpawnNameTag,
 	));
 }
 
@@ -122,5 +131,6 @@ fn spawn_imp(
 			spawner: spawn_info.spawner,
 		},
 		Imp,
+		SpawnNameTag,
 	));
 }

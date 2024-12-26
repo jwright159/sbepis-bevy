@@ -8,7 +8,7 @@ use leafwing_input_manager::prelude::{ActionState, InputMap};
 use leafwing_input_manager::{Actionlike, InputControlKind};
 
 use crate::input::input_managers_where_button_just_pressed;
-use crate::iter_system::IteratorSystemTrait;
+use crate::iter_system::{IntoDoneSystemTrait, IntoIteratorSystemTrait};
 
 pub struct MenusPlugin;
 impl Plugin for MenusPlugin {
@@ -146,8 +146,8 @@ fn show_mouse(
 	let mut window = window.get_single_mut().expect("No primary window found");
 	for MenuActivated(menu) in ev_activated.read() {
 		if menus.get(*menu).is_ok() {
-			window.cursor.grab_mode = CursorGrabMode::None;
-			window.cursor.visible = true;
+			window.cursor_options.grab_mode = CursorGrabMode::None;
+			window.cursor_options.visible = true;
 		}
 	}
 }
@@ -160,8 +160,8 @@ fn hide_mouse(
 	let mut window = window.get_single_mut().expect("No primary window found");
 	for MenuActivated(menu) in ev_activated.read() {
 		if menus.get(*menu).is_ok() {
-			window.cursor.grab_mode = CursorGrabMode::Locked;
-			window.cursor.visible = false;
+			window.cursor_options.grab_mode = CursorGrabMode::Locked;
+			window.cursor_options.visible = false;
 		}
 	}
 }
@@ -233,7 +233,7 @@ pub fn show_menu<T: Component>(
 pub fn close_menu_on<Action: Actionlike + Copy>(action: Action) -> SystemConfigs {
 	input_managers_where_button_just_pressed(action)
 		.iter_map(close_menu)
-		.map(|_| ())
+		.iter_done()
 		.into_configs()
 }
 
@@ -242,7 +242,7 @@ pub fn close_menu_on_event<Ev: Event + InputManagerReference>() -> SystemConfigs
 		ev_input.read().map(|event| event.input_manager()).collect()
 	}
 	.iter_map(close_menu)
-	.map(|_| ())
+	.iter_done()
 	.into_configs()
 }
 
@@ -254,7 +254,7 @@ pub fn fire_input_events<Action: Actionlike + Copy, Ev: Event + InputManagerRefe
 		.iter_map(move |In(input_manager), mut ev_action: EventWriter<Ev>| {
 			ev_action.send(event_generator(input_manager));
 		})
-		.map(|_| ())
+		.iter_done()
 		.into_configs()
 }
 

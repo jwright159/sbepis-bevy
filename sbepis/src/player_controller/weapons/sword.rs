@@ -1,5 +1,4 @@
 use std::f32::consts::PI;
-use std::time::Duration;
 
 use bevy::ecs::entity::EntityHashSet;
 use bevy::prelude::*;
@@ -7,8 +6,8 @@ use bevy::render::mesh::CapsuleUvProfile;
 use interpolation::EaseFunction;
 
 use crate::fray::FrayMusic;
-use crate::gridbox_material;
 use crate::util::MapRange;
+use crate::{gridbox_material, ok_or_continue};
 
 use super::{DamageSweep, EndDamageSweep, EntityDamaged, InAnimation, SweepPivot};
 
@@ -20,7 +19,8 @@ pub struct Sword {
 	pub damage: f32,
 	pub pivot: Entity,
 	pub allies: EntityHashSet,
-	pub start_slash_time: Duration,
+	pub current_slash_damage: f32,
+	pub current_slash_modifier: f32,
 	side: SwordSide,
 	pub follow_through_time: f32,
 }
@@ -36,7 +36,8 @@ impl Sword {
 			damage,
 			pivot,
 			allies,
-			start_slash_time: Duration::ZERO,
+			current_slash_damage: 0.0,
+			current_slash_modifier: 0.0,
 			side: SwordSide::Left,
 			follow_through_time,
 		}
@@ -74,11 +75,7 @@ pub fn spawn_sword(
 	let sword_pivot = commands
 		.spawn((
 			Name::new("Sword Pivot"),
-			TransformBundle::from_transform(
-				Transform::from_translation(Vec3::ZERO)
-					.with_rotation(Quat::from_rotation_y(-PI * 0.5)),
-			),
-			VisibilityBundle::default(),
+			Transform::from_rotation(Quat::from_rotation_y(-PI * 0.5)),
 			SwordPivot,
 			SweepPivot {
 				sweeper_length: 0.2,
@@ -92,11 +89,10 @@ pub fn spawn_sword(
 	let sword_blade = commands
 		.spawn((
 			Name::new("Sword Blade"),
-			PbrBundle {
-				transform: Transform::default()
-					.with_translation(Vec3::NEG_Z * 1.)
-					.with_rotation(Quat::from_rotation_x(PI / 2.)),
-				mesh: meshes.add(
+			Transform::from_translation(Vec3::NEG_Z * 1.)
+				.with_rotation(Quat::from_rotation_x(PI / 2.)),
+			Mesh3d(
+				meshes.add(
 					Capsule3d::new(0.1, 0.5)
 						.mesh()
 						.rings(1)
@@ -104,9 +100,8 @@ pub fn spawn_sword(
 						.longitudes(16)
 						.uv_profile(CapsuleUvProfile::Fixed),
 				),
-				material: gridbox_material("red", materials, asset_server),
-				..default()
-			},
+			),
+			MeshMaterial3d(gridbox_material("red", materials, asset_server)),
 			Sword::new(0.25, sword_pivot, EntityHashSet::from_iter(vec![body]), 0.8),
 		))
 		.set_parent(sword_pivot)
@@ -128,19 +123,18 @@ pub fn animate_sword(
 	for (sword_blade_entity, mut sword_blade, sword_blade_global_transform, dealer) in
 		sword_blades.iter_mut()
 	{
-		let Ok((sword_pivot_entity, mut transform, mut animation)) =
-			sword_pivots.get_mut(sword_blade.pivot)
-		else {
-			continue;
-		};
-		let prev_time = fray.time_to_bpm_beat(animation.time);
+		let (sword_pivot_entity, mut transform, mut animation) =
+			ok_or_continue!(sword_pivots.get_mut(sword_blade.pivot));
+
+		let prev_time = fray.time_to_bpm_beat(animation.time) as f32;
 		animation.time += time.delta();
-		let curr_time = fray.time_to_bpm_beat(animation.time);
+		let curr_time = fray.time_to_bpm_beat(animation.time) as f32;
 
 		let follow_through_time = sword_blade.follow_through_time;
 
 		if (prev_time..curr_time).contains(&0.0) {
-			sword_blade.start_slash_time = fray.time;
+			sword_blade.current_slash_damage = fray.modify_fray_damage(sword_blade.damage);
+			sword_blade.current_slash_modifier = fray.modify_fray_damage(1.0);
 
 			commands.entity(sword_blade_entity).insert(DamageSweep::new(
 				*sword_blade_global_transform,
@@ -150,10 +144,8 @@ pub fn animate_sword(
 
 			commands.spawn((
 				Name::new("Sword Swing SFX"),
-				AudioBundle {
-					source: asset_server.load("woosh.mp3"),
-					settings: PlaybackSettings::DESPAWN,
-				},
+				AudioPlayer::new(asset_server.load("whoosh.mp3")),
+				PlaybackSettings::DESPAWN,
 			));
 		}
 		if (prev_time..curr_time).contains(&follow_through_time) {
@@ -161,15 +153,10 @@ pub fn animate_sword(
 
 			if let Some(dealer) = dealer {
 				for entity in dealer.hit_entities.iter() {
-					let mut fray = fray.clone();
-					fray.time = sword_blade.start_slash_time;
-
-					let damage = fray.modify_fray_damage(sword_blade.damage);
-					let fray_modifier = fray.modify_fray_damage(1.0);
 					ev_hit.send(EntityDamaged {
 						victim: *entity,
-						damage,
-						fray_modifier,
+						damage: sword_blade.current_slash_damage,
+						fray_modifier: sword_blade.current_slash_modifier,
 					});
 				}
 			}

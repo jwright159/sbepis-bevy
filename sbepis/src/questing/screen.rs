@@ -29,16 +29,13 @@ pub struct QuestScreenNode {
 pub fn spawn_quest_screen(mut commands: Commands) {
 	commands
 		.spawn((
-			NodeBundle {
-				style: Style {
-					width: Val::Percent(100.0),
-					height: Val::Percent(100.0),
-					..default()
-				},
-				background_color: bevy::color::palettes::css::GRAY.with_alpha(0.5).into(),
-				visibility: Visibility::Hidden,
+			Node {
+				width: Val::Percent(100.0),
+				height: Val::Percent(100.0),
 				..default()
 			},
+			BackgroundColor(bevy::color::palettes::css::GRAY.with_alpha(0.5).into()),
+			Visibility::Hidden,
 			input_manager_bundle(
 				InputMap::default().with(MenuAction::CloseMenu, KeyCode::KeyJ),
 				false,
@@ -53,30 +50,23 @@ pub fn spawn_quest_screen(mut commands: Commands) {
 		.insert(Name::new("Quest Screen"))
 		.with_children(|parent| {
 			parent.spawn((
-				NodeBundle {
-					style: Style {
-						flex_grow: 1.0,
-						flex_direction: FlexDirection::Column,
-						..default()
-					},
+				Node {
+					flex_grow: 1.0,
+					flex_direction: FlexDirection::Column,
 					..default()
 				},
 				QuestScreenNodeList,
 			));
-			parent.spawn((NodeBundle {
-				style: Style {
+			parent.spawn((
+				Node {
 					width: Val::Px(2.0),
 					..default()
 				},
-				background_color: css::WHITE.into(),
-				..default()
-			},));
+				BackgroundColor(css::WHITE.into()),
+			));
 			parent.spawn((
-				NodeBundle {
-					style: Style {
-						flex_grow: 4.0,
-						..default()
-					},
+				Node {
+					flex_grow: 4.0,
 					..default()
 				},
 				QuestScreenNodeDisplay(None),
@@ -100,67 +90,56 @@ pub fn add_quest_nodes(
 	let mut progress_bar: Option<Entity> = None;
 
 	let display = commands
-		.spawn(NodeBundle {
-			style: Style {
-				display: bevy::ui::Display::None,
-				flex_direction: FlexDirection::Column,
-				..default()
-			},
+		.spawn(Node {
+			display: bevy::ui::Display::None,
+			flex_direction: FlexDirection::Column,
 			..default()
 		})
 		.with_children(|parent| {
-			parent.spawn(TextBundle {
-				text: Text::from_section(
-					quest.description.clone(),
-					TextStyle {
-						font_size: 20.0,
-						color: Color::WHITE,
-						..default()
-					},
-				),
-				..default()
-			});
+			parent.spawn((
+				Text(quest.description.clone()),
+				TextColor(Color::WHITE),
+				TextFont {
+					font_size: 20.0,
+					..default()
+				},
+			));
 			progress_text = Some(
 				parent
-					.spawn(TextBundle {
-						text: Text::from_section(
-							format!(
-								"{}/{}",
-								quest.quest_type.progress(),
-								quest.quest_type.max_progress()
-							),
-							TextStyle {
-								font_size: 20.0,
-								color: Color::WHITE,
-								..default()
-							},
-						),
-						..default()
-					})
+					.spawn((
+						Text(format!(
+							"{}/{}",
+							quest.quest_type.progress(),
+							quest.quest_type.max_progress()
+						)),
+						TextColor(Color::WHITE),
+						TextFont {
+							font_size: 20.0,
+							..default()
+						},
+					))
 					.id(),
 			);
 			parent
-				.spawn(NodeBundle {
-					style: Style {
+				.spawn((
+					Node {
 						height: Val::Px(30.0),
 						width: Val::Percent(100.0),
 						..default()
 					},
-					background_color: css::DARK_GRAY.into(),
-					..default()
-				})
+					BackgroundColor(css::DARK_GRAY.into()),
+				))
 				.with_children(|parent| {
 					progress_bar = Some(
 						parent
-							.spawn(NodeBundle {
-								style: Style {
+							.spawn((
+								Node {
 									width: Val::Percent(0.0),
 									height: Val::Percent(100.0),
 									..default()
 								},
-								background_color: css::LIGHT_GRAY.into(),
-								..default()
-							})
+								BackgroundColor(css::LIGHT_GRAY.into()),
+							))
 							.id(),
 					);
 				});
@@ -170,15 +149,13 @@ pub fn add_quest_nodes(
 
 	commands
 		.spawn((
-			ButtonBundle {
-				style: Style {
-					padding: UiRect::all(Val::Px(10.0)),
-					width: Val::Percent(100.0),
-					..default()
-				},
-				background_color: css::GRAY.into(),
+			Button,
+			Node {
+				padding: UiRect::all(Val::Px(10.0)),
+				width: Val::Percent(100.0),
 				..default()
 			},
+			BackgroundColor(css::GRAY.into()),
 			QuestScreenNode {
 				quest_id,
 				display,
@@ -188,17 +165,14 @@ pub fn add_quest_nodes(
 		))
 		.set_parent(quest_screen_node_list)
 		.with_children(|parent| {
-			parent.spawn(TextBundle {
-				text: Text::from_section(
-					quest.name.clone(),
-					TextStyle {
-						font_size: 20.0,
-						color: Color::WHITE,
-						..default()
-					},
-				),
-				..default()
-			});
+			parent.spawn((
+				Text(quest.name.clone()),
+				TextColor(Color::WHITE),
+				TextFont {
+					font_size: 20.0,
+					..default()
+				},
+			));
 		});
 }
 
@@ -218,7 +192,7 @@ pub fn remove_quest_nodes(
 
 pub fn change_displayed_node(
 	quest_nodes: Query<(&QuestScreenNode, &Interaction), Changed<Interaction>>,
-	mut quest_node_displays: Query<&mut Style>,
+	mut quest_node_displays: Query<&mut Node>,
 	mut quest_screen_node_display: Query<&mut QuestScreenNodeDisplay>,
 ) {
 	let mut quest_screen_node_display = quest_screen_node_display.single_mut();
@@ -244,7 +218,7 @@ pub fn update_quest_node_progress(
 	quests: Res<Quests>,
 	mut quest_nodes: Query<&QuestScreenNode>,
 	mut progress_texts: Query<&mut Text>,
-	mut progress_bars: Query<&mut Style>,
+	mut progress_bars: Query<&mut Node>,
 ) {
 	if !quests.is_changed() {
 		return;
@@ -255,7 +229,7 @@ pub fn update_quest_node_progress(
 		let mut progress_text = progress_texts.get_mut(quest_node.progress_text).unwrap();
 		let mut progress_bar = progress_bars.get_mut(quest_node.progress_bar).unwrap();
 
-		progress_text.sections[0].value = format!(
+		progress_text.0 = format!(
 			"{}/{}",
 			quest.quest_type.progress(),
 			quest.quest_type.max_progress()

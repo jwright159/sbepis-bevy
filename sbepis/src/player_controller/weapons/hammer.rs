@@ -6,8 +6,8 @@ use bevy::render::mesh::CapsuleUvProfile;
 use interpolation::EaseFunction;
 
 use crate::fray::FrayMusic;
-use crate::gridbox_material;
 use crate::util::MapRange;
+use crate::{gridbox_material, ok_or_continue};
 
 use super::{DamageSweep, EndDamageSweep, EntityDamaged, InAnimation, SweepPivot};
 
@@ -33,8 +33,6 @@ pub fn spawn_hammer(
 	let hammer_pivot = commands
 		.spawn((
 			Name::new("Hammer Pivot"),
-			TransformBundle::from_transform(Transform::from_translation(Vec3::ZERO)),
-			VisibilityBundle::default(),
 			HammerPivot,
 			SweepPivot {
 				sweeper_length: 0.2,
@@ -48,11 +46,11 @@ pub fn spawn_hammer(
 	let hammer_head = commands
 		.spawn((
 			Name::new("Hammer Head"),
-			PbrBundle {
-				transform: Transform::default()
-					.with_translation(Vec3::Y * 1.)
-					.with_rotation(Quat::from_rotation_x(PI / 2.)),
-				mesh: meshes.add(
+			Transform::default()
+				.with_translation(Vec3::Y * 1.)
+				.with_rotation(Quat::from_rotation_x(PI / 2.)),
+			Mesh3d(
+				meshes.add(
 					Capsule3d::new(0.1, 0.5)
 						.mesh()
 						.rings(1)
@@ -60,9 +58,8 @@ pub fn spawn_hammer(
 						.longitudes(16)
 						.uv_profile(CapsuleUvProfile::Fixed),
 				),
-				material: gridbox_material("red", materials, asset_server),
-				..default()
-			},
+			),
+			MeshMaterial3d(gridbox_material("red", materials, asset_server)),
 			Hammer {
 				damage: 1.0,
 				pivot: hammer_pivot,
@@ -90,14 +87,12 @@ pub fn animate_hammer(
 	for (hammer_head_entity, hammer_head, hammer_head_global_transform, dealer) in
 		hammer_heads.iter_mut()
 	{
-		let Ok((hammer_pivot_entity, mut transform, mut animation)) =
-			hammer_pivots.get_mut(hammer_head.pivot)
-		else {
-			continue;
-		};
-		let prev_time = fray.time_to_bpm_beat(animation.time);
+		let (hammer_pivot_entity, mut transform, mut animation) =
+			ok_or_continue!(hammer_pivots.get_mut(hammer_head.pivot));
+
+		let prev_time = fray.time_to_bpm_beat(animation.time) as f32;
 		animation.time += time.delta();
-		let curr_time = fray.time_to_bpm_beat(animation.time);
+		let curr_time = fray.time_to_bpm_beat(animation.time) as f32;
 
 		let lead_in_time = hammer_head.lead_in_time;
 		let follow_through_time = lead_in_time + hammer_head.follow_through_time;
@@ -111,10 +106,8 @@ pub fn animate_hammer(
 
 			commands.spawn((
 				Name::new("Hammer Swing SFX"),
-				AudioBundle {
-					source: asset_server.load("woosh.mp3"),
-					settings: PlaybackSettings::DESPAWN,
-				},
+				AudioPlayer::new(asset_server.load("whoosh.mp3")),
+				PlaybackSettings::DESPAWN,
 			));
 		}
 		if (prev_time..curr_time).contains(&lead_in_time) {
@@ -122,10 +115,8 @@ pub fn animate_hammer(
 
 			commands.spawn((
 				Name::new("Hammer Smash SFX"),
-				AudioBundle {
-					source: asset_server.load("concrete_break3.wav"),
-					settings: PlaybackSettings::DESPAWN,
-				},
+				AudioPlayer::new(asset_server.load("concrete_break3.wav")),
+				PlaybackSettings::DESPAWN,
 			));
 
 			if let Some(dealer) = dealer {

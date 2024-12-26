@@ -58,19 +58,19 @@ impl Plugin for PlayerCommandsPlugin {
 						(hide_staff, disable_note_input, clear_notes).run_if(not(is_staff_open)),
 					)
 						.chain()
-						.run_if(on_event::<ToggleStaffEvent>()),
+						.run_if(on_event::<ToggleStaffEvent>),
 					(spawn_note_audio, add_note_to_holder, add_note_to_player)
-						.run_if(on_event::<NotePlayedEvent>()),
+						.run_if(on_event::<NotePlayedEvent>),
 					(
 						check_note_patterns::<PingCommandEvent>,
 						check_note_patterns::<KillCommandEvent>,
 					),
 					(
-						clear_notes.run_if(on_event::<CommandSentEvent>()),
-						ping.run_if(on_event::<PingCommandEvent>()),
-						kill.run_if(on_event::<KillCommandEvent>()),
+						clear_notes.run_if(on_event::<CommandSentEvent>),
+						ping.run_if(on_event::<PingCommandEvent>),
+						kill.run_if(on_event::<KillCommandEvent>),
 					),
-					(clear_holder_notes, clear_player_notes).run_if(on_event::<ClearNotesEvent>()),
+					(clear_holder_notes, clear_player_notes).run_if(on_event::<ClearNotesEvent>),
 				)
 					.chain(),
 			);

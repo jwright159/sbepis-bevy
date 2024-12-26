@@ -6,7 +6,7 @@ use std::array::IntoIter;
 use std::ops::Range;
 
 use crate::camera::PlayerCamera;
-use crate::iter_system::IteratorSystemTrait;
+use crate::iter_system::IntoIteratorSystemTrait;
 use crate::player_controller::PlayerBody;
 
 pub trait MapRange<T> {
@@ -90,6 +90,7 @@ pub fn despawn_after_timer(
 }
 
 #[derive(Component)]
+#[require(Transform, Visibility)]
 pub struct Billboard;
 
 pub fn billboard(
@@ -127,7 +128,7 @@ impl QuaternionEx for Quat {
 }
 
 pub fn map_event<EventA: Event + Clone, EventB: Event, Marker>(
-	event_generator: impl IntoSystem<EventA, EventB, Marker>,
+	event_generator: impl IntoSystem<In<EventA>, EventB, Marker>, // TODO: This should probably be InRef
 ) -> SystemConfigs {
 	(move |mut ev_a: EventReader<EventA>| ev_a.read().cloned().collect::<Vec<EventA>>())
 		.iter_map(event_generator)
@@ -167,6 +168,16 @@ macro_rules! ok_or_return {
 		match $value {
 			Ok(value) => value,
 			Err(_) => return,
+		}
+	};
+}
+
+#[macro_export]
+macro_rules! ok_or_continue {
+	($value:expr) => {
+		match $value {
+			Ok(value) => value,
+			Err(_) => continue,
 		}
 	};
 }

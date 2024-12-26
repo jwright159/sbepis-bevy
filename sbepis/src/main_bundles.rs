@@ -3,12 +3,16 @@ use std::f32::consts::{PI, TAU};
 use avian3d::prelude::*;
 use bevy::prelude::*;
 
-use crate::entity::{GelViscosity, GravityOrientation, MovementInput};
-use crate::gravity::{GravityPoint, GravityPriority, GravityRigidbodyBundle};
+use crate::entity::{GelViscosity, GravityOrientation, Movement};
+use crate::gravity::{AffectedByGravity, GravityPoint, GravityPriority};
+
+// TODO: Move this stuff to blenvy
 
 #[derive(Bundle)]
 pub struct PlanetBundle {
-	pbr: PbrBundle,
+	transform: Transform,
+	mesh: Mesh3d,
+	material: MeshMaterial3d<StandardMaterial>,
 	rigidbody: RigidBody,
 	collider: Collider,
 	gravity: GravityPoint,
@@ -38,13 +42,10 @@ impl PlanetBundle {
 		let collider = Collider::trimesh_from_mesh(&mesh).expect("Couldn't make a planet collider");
 
 		PlanetBundle {
-			pbr: PbrBundle {
-				transform: Transform::from_translation(position)
-					.with_rotation(Quat::from_axis_angle(Vec3::X, PI / 2.)),
-				mesh: meshes.add(mesh),
-				material,
-				..default()
-			},
+			transform: Transform::from_translation(position)
+				.with_rotation(Quat::from_axis_angle(Vec3::X, PI / 2.)),
+			mesh: Mesh3d(meshes.add(mesh)),
+			material: MeshMaterial3d(material),
 			rigidbody: RigidBody::Static,
 			collider,
 			gravity: GravityPoint {
@@ -58,25 +59,25 @@ impl PlanetBundle {
 
 #[derive(Bundle)]
 pub struct BoxBundle {
-	pbr: PbrBundle,
+	transform: Transform,
+	mesh: Mesh3d,
+	material: MeshMaterial3d<StandardMaterial>,
 	collider: Collider,
-	gravity_rigidbody_bundle: GravityRigidbodyBundle,
+	affected_by_gravity: AffectedByGravity,
+	linear_velocity: LinearVelocity,
+	angular_velocity: AngularVelocity,
 	health: GelViscosity,
 }
 
 impl BoxBundle {
 	pub fn new(position: Vec3, mesh: Handle<Mesh>, material: Handle<StandardMaterial>) -> Self {
 		BoxBundle {
-			pbr: PbrBundle {
-				transform: Transform::from_translation(position),
-				mesh,
-				material,
-				..default()
-			},
-			gravity_rigidbody_bundle: GravityRigidbodyBundle {
-				angular_velocity: AngularVelocity(Vec3::new(2.5, 3.4, 1.6)),
-				..default()
-			},
+			transform: Transform::from_translation(position),
+			mesh: Mesh3d(mesh),
+			material: MeshMaterial3d(material),
+			affected_by_gravity: AffectedByGravity::default(),
+			linear_velocity: LinearVelocity(Vec3::new(0.0, 0.0, 0.0)),
+			angular_velocity: AngularVelocity(Vec3::new(2.5, 3.4, 1.6)),
 			collider: Collider::cuboid(1.0, 1.0, 1.0),
 			health: GelViscosity {
 				value: 1.0,
@@ -95,11 +96,13 @@ impl BoxBundle {
 
 #[derive(Bundle)]
 pub struct EntityBundle {
-	pbr: PbrBundle,
-	gravity_rigidbody: GravityRigidbodyBundle,
+	transform: Transform,
+	mesh: Mesh3d,
+	material: MeshMaterial3d<StandardMaterial>,
+	affected_by_gravity: AffectedByGravity,
 	collider: Collider,
 	orientation: GravityOrientation,
-	movement_input: MovementInput,
+	movement_input: Movement,
 	locked_axes: LockedAxes,
 	health: GelViscosity,
 }
@@ -112,16 +115,13 @@ impl EntityBundle {
 		collider: Collider,
 	) -> Self {
 		EntityBundle {
-			pbr: PbrBundle {
-				transform,
-				mesh,
-				material,
-				..default()
-			},
-			gravity_rigidbody: GravityRigidbodyBundle::default(),
+			transform,
+			mesh: Mesh3d(mesh),
+			material: MeshMaterial3d(material),
+			affected_by_gravity: AffectedByGravity::default(),
 			collider,
 			orientation: GravityOrientation,
-			movement_input: MovementInput::default(),
+			movement_input: Movement::default(),
 			locked_axes: LockedAxes::ROTATION_LOCKED,
 			health: GelViscosity {
 				value: 3.0,

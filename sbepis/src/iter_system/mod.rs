@@ -1,9 +1,9 @@
-mod r#do;
 mod done;
-mod filter_some;
+mod flatten;
+mod inspect;
 mod map;
 
-pub use done::DoneSystemTrait;
-pub use filter_some::FilterOkSystemTrait;
-pub use map::IteratorSystemTrait;
-pub use r#do::DoSystemTrait;
+pub use done::IntoDoneSystemTrait;
+pub use flatten::IntoFlattenSystemTrait;
+pub use inspect::IntoInspectSystemTrait;
+pub use map::IntoIteratorSystemTrait;

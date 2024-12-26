@@ -32,9 +32,12 @@ impl Plugin for PlayerControllerPlugin {
 	fn build(&self, app: &mut App) {
 		app.insert_resource(MouseSensitivity(0.003))
 			.insert_resource(PlayerSpeed {
-				speed: 5.0,
+				speed: 7.0,
 				sprint_modifier: 2.0,
 				jump_speed: 5.0,
+				friction: 6.0,
+				acceleration: 8.0,
+				air_acceleration: 6.0,
 			})
 			.add_event::<EntityDamaged>()
 			.add_plugins(InputManagerMenuPlugin::<PlayerAction>::default())
@@ -44,7 +47,7 @@ impl Plugin for PlayerControllerPlugin {
 				(
 					dual_axes_input(PlayerAction::Look).pipe(rotate_camera_and_body),
 					clamped_dual_axes_input(PlayerAction::Move).pipe(axes_to_ground_velocity),
-					jump::<PlayerBody>.run_if(button_just_pressed(PlayerAction::Jump)),
+					jump.run_if(button_just_pressed(PlayerAction::Jump)),
 					attack.run_if(button_just_pressed(PlayerAction::Use)),
 					switch_weapon_next.run_if(button_just_pressed(PlayerAction::NextWeapon)),
 					switch_weapon_prev.run_if(button_just_pressed(PlayerAction::PrevWeapon)),
@@ -56,6 +59,7 @@ impl Plugin for PlayerControllerPlugin {
 					sweep_dealers,
 					deal_all_damage,
 					update_damage_numbers,
+					update_is_grounded,
 				),
 			);
 	}
@@ -72,7 +76,7 @@ fn setup(
 		.spawn((
 			input_manager_bundle(
 				InputMap::default()
-					.with_dual_axis(PlayerAction::Move, KeyboardVirtualDPad::WASD)
+					.with_dual_axis(PlayerAction::Move, VirtualDPad::wasd())
 					.with(PlayerAction::Jump, KeyCode::Space)
 					.with_dual_axis(PlayerAction::Look, MouseMove::default())
 					.with(PlayerAction::Sprint, KeyCode::ShiftLeft)
@@ -105,9 +109,9 @@ fn setup(
 						.uv_profile(CapsuleUvProfile::Fixed),
 				),
 				gridbox_material("white", &mut materials, &asset_server),
-				Collider::capsule(0.5, 0.5),
+				Collider::capsule(0.25, 1.0),
 			),
-			PlayerBody,
+			PlayerBody { is_grounded: false },
 			Inventory::default(),
 		))
 		.id();
@@ -115,14 +119,12 @@ fn setup(
 	let camera = commands
 		.spawn((
 			Name::new("Player Camera"),
-			Camera3dBundle {
-				transform: Transform::from_translation(Vec3::Y * 0.5),
-				projection: Projection::Perspective(PerspectiveProjection {
-					fov: 70.0 / 180. * PI,
-					..default()
-				}),
+			Camera3d::default(),
+			Transform::from_translation(Vec3::Y * 0.5),
+			Projection::Perspective(PerspectiveProjection {
+				fov: 70.0 / 180. * PI,
 				..default()
-			},
+			}),
 			PlayerCamera,
 			Pitch(0.0),
 			RayCaster::new(Vec3::ZERO, Dir3::Z)
@@ -166,12 +168,13 @@ fn setup(
 
 	commands.spawn((
 		Name::new("Damage Numbers"),
-		TextBundle::from_section("Damage", TextStyle::default()).with_style(Style {
+		Text("Damage".to_owned()),
+		Node {
 			position_type: PositionType::Absolute,
 			bottom: Val::Px(5.0),
 			right: Val::Px(5.0),
 			..default()
-		}),
+		},
 		DamageNumbers,
 		TargetCamera(camera),
 	));
@@ -179,8 +182,24 @@ fn setup(
 	commands.spawn((
 		Name::new("Debug Collider Visualizer"),
 		DebugColliderVisualizer,
-		SpatialBundle::default(),
 	));
+}
+
+fn update_is_grounded(
+	mut bodies: Query<(Entity, &mut PlayerBody, &GlobalTransform)>,
+	spatial_query: SpatialQuery,
+) {
+	for (entity, mut body, transform) in bodies.iter_mut() {
+		body.is_grounded = spatial_query
+			.shape_intersections(
+				&Collider::sphere(0.25),
+				transform.translation() - transform.rotation() * Vec3::Y * 0.5,
+				Quat::IDENTITY,
+				&SpatialQueryFilter::default(),
+			)
+			.into_iter()
+			.any(|collided_entity| collided_entity != entity);
+	}
 }
 
 #[derive(Clone, Copy, Eq, PartialEq, Hash, Reflect, Debug)]

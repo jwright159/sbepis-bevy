@@ -42,10 +42,10 @@ fn main() {
 					..default()
 				})
 				.set(ImagePlugin {
-					default_sampler: bevy::render::texture::ImageSamplerDescriptor {
-						address_mode_u: bevy::render::texture::ImageAddressMode::Repeat,
-						address_mode_v: bevy::render::texture::ImageAddressMode::Repeat,
-						address_mode_w: bevy::render::texture::ImageAddressMode::Repeat,
+					default_sampler: bevy::image::ImageSamplerDescriptor {
+						address_mode_u: bevy::image::ImageAddressMode::Repeat,
+						address_mode_v: bevy::image::ImageAddressMode::Repeat,
+						address_mode_w: bevy::image::ImageAddressMode::Repeat,
 						..default()
 					},
 				})
@@ -165,16 +165,13 @@ fn setup(
 
 	commands.spawn((
 		Name::new("Sun"),
-		DirectionalLightBundle {
-			directional_light: DirectionalLight {
-				illuminance: 4000.0,
-				shadows_enabled: true,
-				..default()
-			},
-			transform: Transform {
-				rotation: Quat::from_euler(EulerRot::XYZ, -1.9, 0.8, 0.0),
-				..default()
-			},
+		DirectionalLight {
+			illuminance: 4000.0,
+			shadows_enabled: true,
+			..default()
+		},
+		Transform {
+			rotation: Quat::from_euler(EulerRot::XYZ, -1.9, 0.8, 0.0),
 			..default()
 		},
 	));

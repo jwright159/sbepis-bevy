@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use self::health::*;
 pub use self::health::{GelViscosity, Healing, SpawnHealthBar};
 use self::movement::*;
-pub use self::movement::{MovementInput, RandomInput, RotateTowardMovement, TargetPlayer};
+pub use self::movement::{Movement, RandomInput, RotateTowardMovement, TargetPlayer};
 pub use self::orientation::GravityOrientation;
 use self::orientation::*;
 

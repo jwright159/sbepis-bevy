@@ -1,11 +1,9 @@
 use bevy::prelude::*;
+use soundyrust::Note;
 
 use crate::util::MapRange;
 
-use super::{
-	notes::{Note, NotePlayedEvent},
-	staff::*,
-};
+use super::{notes::NotePlayedEvent, staff::*};
 
 #[derive(Component, Default)]
 pub struct NoteNodeHolder {
@@ -45,17 +43,16 @@ pub fn add_note_to_holder(
 		);
 
 		let note_entity = commands
-			.spawn(ImageBundle {
-				image: asset_server.load("quarter_note.png").into(),
-				style: Style {
+			.spawn((
+				ImageNode::new(asset_server.load("quarter_note.png")),
+				Node {
 					position_type: PositionType::Absolute,
 					left: Val::Px(note_holder.next_note_left()),
 					top: Val::Px(note_holder.note_top(&note)),
 					height: Val::Px(QUARTER_NOTE_HEIGHT),
 					..default()
 				},
-				..default()
-			})
+			))
 			.id();
 
 		commands.entity(note_holder_entity).add_child(note_entity);

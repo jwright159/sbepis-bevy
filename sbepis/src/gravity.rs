@@ -42,28 +42,10 @@ impl GravitationalField for GravityPoint {
 }
 
 #[derive(Component, Default)]
+#[require(RigidBody, LinearVelocity, AngularVelocity)]
 pub struct AffectedByGravity {
 	pub acceleration: Vec3,
 	pub up: Vec3,
-}
-
-#[derive(Bundle)]
-pub struct GravityRigidbodyBundle {
-	pub gravity: AffectedByGravity,
-	pub rigidbody: RigidBody,
-	pub linear_velocity: LinearVelocity,
-	pub angular_velocity: AngularVelocity,
-}
-
-impl Default for GravityRigidbodyBundle {
-	fn default() -> Self {
-		GravityRigidbodyBundle {
-			gravity: AffectedByGravity::default(),
-			rigidbody: RigidBody::Dynamic,
-			linear_velocity: LinearVelocity::default(),
-			angular_velocity: AngularVelocity::default(),
-		}
-	}
 }
 
 pub fn calculate_gravity(
@@ -129,6 +111,6 @@ pub fn apply_gravity(
 	time: Res<Time>,
 ) {
 	for (mut velocity, gravity) in rigidbodies.iter_mut() {
-		velocity.0 += gravity.acceleration * time.delta_seconds();
+		velocity.0 += gravity.acceleration * time.delta_secs();
 	}
 }

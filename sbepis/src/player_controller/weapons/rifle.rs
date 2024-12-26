@@ -8,8 +8,8 @@ use interpolation::EaseFunction;
 
 use crate::camera::PlayerCamera;
 use crate::fray::FrayMusic;
-use crate::gridbox_material;
 use crate::util::MapRange;
+use crate::{gridbox_material, ok_or_continue};
 
 use super::{EntityDamaged, InAnimation};
 
@@ -49,10 +49,8 @@ pub fn spawn_rifle(
 	let rifle_pivot = commands
 		.spawn((
 			Name::new("Rifle Pivot"),
-			TransformBundle::from_transform(Transform::from_translation(Vec3::new(
-				0.25, 0.0, -0.5,
-			))),
-			VisibilityBundle::default(),
+			Transform::from_translation(Vec3::new(0.25, 0.0, -0.5)),
+			Visibility::default(),
 			RiflePivot,
 		))
 		.set_parent(body)
@@ -61,9 +59,9 @@ pub fn spawn_rifle(
 	let rifle_barrel = commands
 		.spawn((
 			Name::new("Rifle Barrel"),
-			PbrBundle {
-				transform: Transform::from_rotation(Quat::from_rotation_x(-PI / 2.)),
-				mesh: meshes.add(
+			Transform::from_rotation(Quat::from_rotation_x(-PI / 2.)),
+			Mesh3d(
+				meshes.add(
 					Capsule3d::new(0.1, 0.5)
 						.mesh()
 						.rings(1)
@@ -71,9 +69,8 @@ pub fn spawn_rifle(
 						.longitudes(16)
 						.uv_profile(CapsuleUvProfile::Fixed),
 				),
-				material: gridbox_material("red", materials, asset_server),
-				..default()
-			},
+			),
+			MeshMaterial3d(gridbox_material("red", materials, asset_server)),
 			Rifle {
 				damage: 0.5,
 				pivot: rifle_pivot,
@@ -104,24 +101,20 @@ pub fn animate_rifle(
 ) {
 	let fray = fray.get_single().expect("Could not find fray");
 	for mut rifle_barrel in rifle_barrels.iter_mut() {
-		let Ok((rifle_barrel_entity, mut transform, mut animation)) =
-			rifle_pivots.get_mut(rifle_barrel.pivot)
-		else {
-			continue;
-		};
-		let prev_time = fray.time_to_bpm_beat(animation.time);
+		let (rifle_barrel_entity, mut transform, mut animation) =
+			ok_or_continue!(rifle_pivots.get_mut(rifle_barrel.pivot));
+
+		let prev_time = fray.time_to_bpm_beat(animation.time) as f32;
 		animation.time += time.delta();
-		let curr_time = fray.time_to_bpm_beat(animation.time);
+		let curr_time = fray.time_to_bpm_beat(animation.time) as f32;
 
 		let reload_time = rifle_barrel.reload_time;
 
 		if (prev_time..curr_time).contains(&0.0) {
 			commands.spawn((
 				Name::new("Rifle Shot SFX"),
-				AudioBundle {
-					source: asset_server.load("flute.wav"),
-					settings: PlaybackSettings::DESPAWN,
-				},
+				AudioPlayer::new(asset_server.load("flute.wav")),
+				PlaybackSettings::DESPAWN,
 			));
 
 			let ray_hits = ray_hits.get_single().expect("Ray hits not found");
@@ -179,10 +172,8 @@ pub fn charge_rifle(
 
 			commands.spawn((
 				Name::new("Rifle Charge SFX"),
-				AudioBundle {
-					source: asset_server.load("flute.wav"),
-					settings: PlaybackSettings::DESPAWN.with_speed(2.0),
-				},
+				AudioPlayer::new(asset_server.load("flute.wav")),
+				PlaybackSettings::DESPAWN.with_speed(2.0),
 			));
 		}
 		rifle_barrel.update_last_beat(fray);

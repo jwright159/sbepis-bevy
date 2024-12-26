@@ -8,26 +8,38 @@ type_complexity = "allow"
 too_many_arguments = "allow"
 
 [features]
-debug = ["inspector", "overview_camera", "terminal", "avian3d_debug"]
+debug = [
+	"inspector",
+	"overview_camera",
+	"terminal",
+	"avian3d_debug",
+	"metronome",
+]
 default = []
 inspector = ["dep:bevy-inspector-egui", "bevy_panorbit_camera?/bevy_egui"]
+metronome = []
 overview_camera = ["dep:bevy_panorbit_camera"]
 terminal = []
 avian3d_debug = []
 
 [dependencies]
-bevy = { version = "0.14.1", features = ["wav", "mp3", "wayland"] }
-bevy-inspector-egui = { version = "0.25.1", optional = true }
-bevy_panorbit_camera = { version = "0.19.1", optional = true }
+bevy = { version = "0.15.0", features = ["wav", "mp3", "wayland"] }
+bevy-inspector-egui = { version = "0.28.0", optional = true }
+bevy_panorbit_camera = { version = "0.21.1", optional = true }
 image = "0.25.2"
 itertools = "0.13.0"
-leafwing-input-manager = "0.15.0"
+leafwing-input-manager = "0.16.0"
 num-traits = "0.2.19"
 winit = "0.30.4"
 rand = "0.8.5"
 interpolation = "0.3.0"
 uuid = "1.10.0"
-avian3d = "0.1.2"
+avian3d = "0.2.0"
+serde = "1.0.215"
+bevy_common_assets = { version = "0.12.0", features = ["ron"] }
+faker_rand = "0.1.1"
+meshtext = "0.3.1"
+soundyrust = { path = "../soundyrust" }
 
 [build-dependencies]
 winres = "0.1"

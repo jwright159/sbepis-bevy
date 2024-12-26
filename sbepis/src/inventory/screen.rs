@@ -14,20 +14,17 @@ pub struct InventoryScreen;
 pub fn spawn_inventory_screen(mut commands: Commands) {
 	commands
 		.spawn((
-			NodeBundle {
-				style: Style {
-					width: Val::Percent(100.0),
-					height: Val::Percent(100.0),
-					margin: UiRect::all(Val::Px(10.0)),
-					row_gap: Val::Px(10.0),
-					column_gap: Val::Px(10.0),
-					flex_wrap: FlexWrap::Wrap,
-					..default()
-				},
-				background_color: bevy::color::palettes::css::GRAY.with_alpha(0.5).into(),
-				visibility: Visibility::Hidden,
+			Node {
+				width: Val::Percent(100.0),
+				height: Val::Percent(100.0),
+				margin: UiRect::all(Val::Px(10.0)),
+				row_gap: Val::Px(10.0),
+				column_gap: Val::Px(10.0),
+				flex_wrap: FlexWrap::Wrap,
 				..default()
 			},
+			BackgroundColor(css::GRAY.with_alpha(0.5).into()),
+			Visibility::Hidden,
 			input_manager_bundle(
 				InputMap::default().with(MenuAction::CloseMenu, KeyCode::KeyV),
 				false,
@@ -54,16 +51,15 @@ pub fn add_item_to_inventory_screen(
 		let item = items.get(*item_entity).expect("Item not found");
 
 		commands
-			.spawn(ImageBundle {
-				image: item.icon.clone().into(),
-				style: Style {
+			.spawn((
+				ImageNode::new(item.icon.clone()),
+				Node {
 					width: Val::Px(100.0),
 					height: Val::Px(100.0),
 					..default()
 				},
-				background_color: css::DARK_GRAY.into(),
-				..default()
-			})
+				BackgroundColor(css::DARK_GRAY.into()),
+			))
 			.set_parent(inventory_screen);
 	}
 }

@@ -51,6 +51,7 @@ pub struct DamageSweep {
 pub struct EndDamageSweep;
 
 #[derive(Component)]
+#[require(Transform, Visibility)]
 pub struct SweepPivot {
 	pub sweeper_length: f32,
 	pub sweep_depth: f32,
@@ -69,14 +70,15 @@ impl DamageSweep {
 }
 
 #[derive(Component)]
+#[require(Transform, Visibility)]
 pub struct DebugColliderVisualizer;
 
 pub fn attack(
 	mut commands: Commands,
-	swords: Query<Entity, (Without<InAnimation>, With<ActiveWeapon>)>,
+	weapons: Query<Entity, (Without<InAnimation>, With<ActiveWeapon>)>,
 ) {
-	for hammer in swords.iter() {
-		commands.entity(hammer).insert(InAnimation::default());
+	for weapon in weapons.iter() {
+		commands.entity(weapon).insert(InAnimation::default());
 	}
 }
 
@@ -113,7 +115,12 @@ pub fn sweep_dealers(
 			delta.length() * 0.5,
 		);
 		let hits = spatial_query
-			.shape_intersections(&collider, position, rotation, SpatialQueryFilter::default())
+			.shape_intersections(
+				&collider,
+				position,
+				rotation,
+				&SpatialQueryFilter::default(),
+			)
 			.into_iter()
 			.filter(|hit_entity| !dealer.allies.contains(hit_entity))
 			.collect::<Vec<_>>();
@@ -157,8 +164,9 @@ pub fn deal_all_damage(
 
 pub fn update_damage_numbers(
 	mut ev_hit: EventReader<EntityDamaged>,
-	mut damage_numbers: Query<&mut Text, With<DamageNumbers>>,
+	mut damage_numbers: Query<Entity, With<DamageNumbers>>,
 	hit_object: Query<&Name, With<GelViscosity>>,
+	mut commands: Commands,
 ) {
 	for event in ev_hit.read() {
 		let Ok(hit_object_name) = hit_object.get(event.victim) else {
@@ -167,18 +175,17 @@ pub fn update_damage_numbers(
 
 		let damage = event.damage;
 		let fray_modifier = event.fray_modifier;
-		for mut damage_numbers in damage_numbers.iter_mut() {
-			damage_numbers.sections.push(TextSection::new(
-				format!("\n{hit_object_name}: {damage:.2}"),
-				TextStyle {
-					color: Color::mix(
+		for damage_numbers in damage_numbers.iter_mut() {
+			commands
+				.spawn((
+					TextSpan(format!("\n{hit_object_name}: {damage:.2}")),
+					TextColor(Color::mix(
 						&Color::from(css::RED),
 						&Color::from(css::GREEN),
 						fray_modifier.clamp(0.0, 1.0),
-					),
-					..default()
-				},
-			));
+					)),
+				))
+				.set_parent(damage_numbers);
 		}
 	}
 }

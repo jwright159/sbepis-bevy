@@ -18,8 +18,8 @@ impl Plugin for InventoryPlugin {
 				Update,
 				(
 					interact_with::<Item>
-						.iter_filter_some()
-						.iter_do(pick_up_items)
+						.iter_flatten()
+						.iter_inspect(pick_up_items)
 						.iter_done(),
 					show_menu::<InventoryScreen>
 						.run_if(button_just_pressed(PlayerAction::OpenInventory)),
