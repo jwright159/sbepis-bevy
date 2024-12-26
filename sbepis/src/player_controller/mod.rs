@@ -190,15 +190,14 @@ fn update_is_grounded(
 	spatial_query: SpatialQuery,
 ) {
 	for (entity, mut body, transform) in bodies.iter_mut() {
-		body.is_grounded = spatial_query
+		body.is_grounded = !spatial_query
 			.shape_intersections(
 				&Collider::sphere(0.25),
 				transform.translation() - transform.rotation() * Vec3::Y * 0.5,
 				Quat::IDENTITY,
-				&SpatialQueryFilter::default(),
+				&SpatialQueryFilter::from_excluded_entities([entity]),
 			)
-			.into_iter()
-			.any(|collided_entity| collided_entity != entity);
+			.is_empty();
 	}
 }
 

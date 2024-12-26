@@ -1,13 +1,17 @@
 use avian3d::math::Scalar;
+use avian3d::prelude::*;
 use bevy::ecs::schedule::SystemConfigs;
 use bevy::prelude::*;
+use bevy::scene::SceneInstance;
 use interpolation::{Ease, EaseFunction};
 use std::array::IntoIter;
 use std::ops::Range;
 
 use crate::camera::PlayerCamera;
 use crate::iter_system::IntoIteratorSystemTrait;
+use crate::ok_or_continue;
 use crate::player_controller::PlayerBody;
+use crate::some_or_continue;
 
 pub trait MapRange<T> {
 	fn map_range(self, range_in: Range<T>, range_out: Range<T>) -> T;
@@ -140,6 +144,34 @@ pub fn map_event<EventA: Event + Clone, EventB: Event, Marker>(
 			},
 		)
 		.into_configs()
+}
+
+#[derive(Component)]
+pub struct CreateMeshCollider;
+
+pub fn create_mesh_collider(
+	scenes: Query<Entity, (With<SceneInstance>, With<CreateMeshCollider>)>,
+	children: Query<&Children>,
+	meshes: Query<&Mesh3d>,
+	mesh_assets: Res<Assets<Mesh>>,
+	mut commands: Commands,
+) {
+	for scene in scenes.iter() {
+		let mut num_colliders = 0;
+
+		for child in children.iter_descendants(scene) {
+			let mesh = ok_or_continue!(meshes.get(child));
+			let mesh = some_or_continue!(mesh_assets.get(&mesh.0));
+			let collider =
+				Collider::trimesh_from_mesh(mesh).expect("Couldn't make a mesh collider");
+			commands.entity(child).insert(collider);
+			num_colliders += 1;
+		}
+
+		if num_colliders > 0 {
+			commands.entity(scene).remove::<CreateMeshCollider>();
+		}
+	}
 }
 
 #[macro_export]

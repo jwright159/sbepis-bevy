@@ -81,6 +81,7 @@ fn main() {
 				quit.run_if(input_just_pressed(KeyCode::Escape)),
 				util::despawn_after_timer,
 				util::billboard,
+				util::create_mesh_collider,
 			),
 		)
 		.run();
@@ -129,12 +130,11 @@ fn setup(
 	mut materials: ResMut<Assets<StandardMaterial>>,
 	asset_server: Res<AssetServer>,
 ) {
-	let gray_material = gridbox_material("grey2", &mut materials, &asset_server);
 	let green_material = gridbox_material("green1", &mut materials, &asset_server);
 
 	commands.spawn((
 		Name::new("Planet"),
-		PlanetBundle::new(Vec3::Y * -1000.0, 1000.0, 10.0, &mut meshes, gray_material),
+		PlanetBundle::new(Vec3::Y * -1000.0, 1000.0, 10.0, &asset_server),
 	));
 
 	let cube_mesh = meshes.add(Cuboid::from_size(Vec3::ONE));

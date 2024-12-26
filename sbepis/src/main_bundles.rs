@@ -5,26 +5,20 @@ use bevy::prelude::*;
 
 use crate::entity::{GelViscosity, GravityOrientation, Movement};
 use crate::gravity::{AffectedByGravity, GravityPoint, GravityPriority};
+use crate::util::CreateMeshCollider;
 
 #[derive(Bundle)]
 pub struct PlanetBundle {
 	transform: Transform,
-	mesh: Mesh3d,
-	material: MeshMaterial3d<StandardMaterial>,
 	rigidbody: RigidBody,
-	collider: Collider,
+	collider: CreateMeshCollider,
 	gravity: GravityPoint,
 	gravity_priority: GravityPriority,
+	scene: SceneRoot,
 }
 
 impl PlanetBundle {
-	pub fn new(
-		position: Vec3,
-		radius: f32,
-		gravity: f32,
-		meshes: &mut Assets<Mesh>,
-		material: Handle<StandardMaterial>,
-	) -> Self {
+	pub fn new(position: Vec3, radius: f32, gravity: f32, asset_server: &AssetServer) -> Self {
 		let mut mesh = Sphere::new(radius).mesh().ico(70).unwrap();
 		let uvs = mesh.attribute_mut(Mesh::ATTRIBUTE_UV_0).unwrap();
 		match uvs {
@@ -37,20 +31,17 @@ impl PlanetBundle {
 			_ => panic!("Got a UV that wasn't a Float32x2"),
 		}
 
-		let collider = Collider::trimesh_from_mesh(&mesh).expect("Couldn't make a planet collider");
-
 		PlanetBundle {
 			transform: Transform::from_translation(position)
 				.with_rotation(Quat::from_axis_angle(Vec3::X, PI / 2.)),
-			mesh: Mesh3d(meshes.add(mesh)),
-			material: MeshMaterial3d(material),
 			rigidbody: RigidBody::Static,
-			collider,
+			collider: CreateMeshCollider,
 			gravity: GravityPoint {
 				standard_radius: radius,
 				acceleration_at_radius: gravity,
 			},
 			gravity_priority: GravityPriority(0),
+			scene: SceneRoot(asset_server.load(GltfAssetLabel::Scene(0).from_asset("planet.glb"))),
 		}
 	}
 }
