@@ -6,8 +6,6 @@ use bevy::prelude::*;
 use crate::entity::{GelViscosity, GravityOrientation, Movement};
 use crate::gravity::{AffectedByGravity, GravityPoint, GravityPriority};
 
-// TODO: Move this stuff to blenvy
-
 #[derive(Bundle)]
 pub struct PlanetBundle {
 	transform: Transform,
