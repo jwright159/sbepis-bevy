@@ -127,45 +127,11 @@ fn gridbox_material_extra(
 	})
 }
 
-fn setup(
-	mut commands: Commands,
-	mut meshes: ResMut<Assets<Mesh>>,
-	mut materials: ResMut<Assets<StandardMaterial>>,
-	asset_server: Res<AssetServer>,
-	mut rapier_config: Query<&mut RapierConfiguration>,
-) {
-	let green_material = gridbox_material("green1", &mut materials, &asset_server);
-
+fn setup(mut commands: Commands, mut rapier_config: Query<&mut RapierConfiguration>) {
 	commands.spawn((
 		BlueprintInfo::from_path("levels/World.glb"),
 		SpawnBlueprint,
 		HideUntilReady,
-	));
-
-	let cube_mesh = meshes.add(Cuboid::from_size(Vec3::ONE));
-	commands.spawn((
-		Name::new("Cube 1"),
-		BoxBundle::new(
-			Vec3::new(0.0, 4.0, 0.0),
-			cube_mesh.clone(),
-			green_material.clone(),
-		),
-	));
-	commands.spawn((
-		Name::new("Cube 2"),
-		BoxBundle::new(
-			Vec3::new(0.5, 5.5, 0.0),
-			cube_mesh.clone(),
-			green_material.clone(),
-		),
-	));
-	commands.spawn((
-		Name::new("Cube 3"),
-		BoxBundle::new(
-			Vec3::new(-0.5, 7.0, 0.0),
-			cube_mesh.clone(),
-			green_material.clone(),
-		),
 	));
 
 	commands.spawn((

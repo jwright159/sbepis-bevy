@@ -1,7 +1,8 @@
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 
-use crate::gravity::{GravityPoint, GravityPriority};
+use crate::entity::GelViscosity;
+use crate::gravity::{AffectedByGravity, GravityPoint, GravityPriority};
 use crate::{ok_or_continue, some_or_continue};
 
 pub struct BlenvyPlugin;
@@ -11,9 +12,10 @@ impl Plugin for BlenvyPlugin {
 		app.add_plugins(::blenvy::BlenvyPlugin::default());
 
 		app.register_type::<MeshColliderBlundle>()
-			.register_type::<PlanetBlundle>();
+			.register_type::<PlanetBlundle>()
+			.register_type::<BoxBlundle>();
 
-		app.add_systems(PreUpdate, (create_mesh_collider, create_planet));
+		app.add_systems(PreUpdate, (create_mesh_collider, create_planet, create_box));
 	}
 }
 
@@ -62,6 +64,26 @@ pub fn create_planet(scenes: Query<(Entity, &PlanetBlundle)>, mut commands: Comm
 				acceleration_at_radius: planet.gravity,
 			},
 			GravityPriority(0),
+		));
+	}
+}
+
+#[derive(Component, Reflect)]
+#[reflect(Component)]
+pub struct BoxBlundle;
+
+pub fn create_box(scenes: Query<Entity, With<BoxBlundle>>, mut commands: Commands) {
+	for scene in scenes.iter() {
+		commands.entity(scene).remove::<BoxBlundle>().insert((
+			AffectedByGravity::default(),
+			Velocity {
+				linvel: Vec3::ZERO,
+				angvel: Vec3::new(2.5, 3.4, 1.6),
+			},
+			GelViscosity {
+				value: 1.0,
+				max: 1.0,
+			},
 		));
 	}
 }
