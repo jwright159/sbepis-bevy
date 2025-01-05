@@ -1,8 +1,12 @@
+use std::time::Duration;
+
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 
+use crate::entity::spawner::Spawner;
 use crate::entity::GelViscosity;
 use crate::gravity::{AffectedByGravity, GravityPoint, GravityPriority};
+use crate::npcs::{ConsortSpawner, ImpSpawner};
 use crate::{ok_or_continue, some_or_continue};
 
 pub struct BlenvyPlugin;
@@ -13,9 +17,18 @@ impl Plugin for BlenvyPlugin {
 
 		app.register_type::<MeshColliderBlundle>()
 			.register_type::<PlanetBlundle>()
-			.register_type::<BoxBlundle>();
+			.register_type::<BoxBlundle>()
+			.register_type::<SpawnerBlundle>();
 
-		app.add_systems(PreUpdate, (create_mesh_collider, create_planet, create_box));
+		app.add_systems(
+			PreUpdate,
+			(
+				create_mesh_collider,
+				create_planet,
+				create_box,
+				create_spawner,
+			),
+		);
 	}
 }
 
@@ -85,5 +98,35 @@ pub fn create_box(scenes: Query<Entity, With<BoxBlundle>>, mut commands: Command
 				max: 1.0,
 			},
 		));
+	}
+}
+
+#[derive(Component, Reflect)]
+#[reflect(Component)]
+pub enum SpawnerBlundle {
+	Imp,
+	Consort,
+}
+
+pub fn create_spawner(scenes: Query<(Entity, &SpawnerBlundle)>, mut commands: Commands) {
+	for (scene, spawner) in scenes.iter() {
+		let mut spawner_commands = commands.entity(scene);
+
+		spawner_commands
+			.remove::<SpawnerBlundle>()
+			.insert((Spawner {
+				max_amount: 5,
+				spawn_delay: Duration::from_secs_f32(5.),
+				spawn_timer: Duration::ZERO,
+			},));
+
+		match spawner {
+			SpawnerBlundle::Imp => {
+				spawner_commands.insert(ImpSpawner);
+			}
+			SpawnerBlundle::Consort => {
+				spawner_commands.insert(ConsortSpawner);
+			}
+		}
 	}
 }

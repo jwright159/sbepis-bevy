@@ -9,5 +9,7 @@
     ("Planet", File ( path: "materials/Planet.glb" )),
     ("Cube", File ( path: "blueprints/Cube.glb" )),
     ("Cube", File ( path: "materials/Cube.glb" )),
+    ("rock", File ( path: "blueprints/rock.glb" )),
+    ("Material", File ( path: "materials/Material.glb" )),
    ]
 )

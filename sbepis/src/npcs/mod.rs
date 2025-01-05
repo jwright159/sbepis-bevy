@@ -1,12 +1,10 @@
-use std::time::Duration;
-
 use bevy::prelude::*;
 use bevy::render::mesh::CapsuleUvProfile;
 use bevy_common_assets::ron::RonAssetPlugin;
 use bevy_rapier3d::geometry::Collider;
 use name_tags::*;
 
-use crate::entity::spawner::{spawn_entities, SpawnEntityInformation, SpawnedEntity, Spawner};
+use crate::entity::spawner::{spawn_entities, SpawnEntityInformation, SpawnedEntity};
 use crate::entity::{Healing, RandomInput, RotateTowardMovement, SpawnHealthBar, TargetPlayer};
 use crate::main_bundles::EntityBundle;
 use crate::questing::{QuestGiver, SpawnQuestMarker};
@@ -19,7 +17,7 @@ impl Plugin for NpcPlugin {
 	fn build(&self, app: &mut App) {
 		app.add_plugins(RonAssetPlugin::<AvailableNames>::new(&["names.ron"]))
 			.init_resource::<FontMeshGenerator>()
-			.add_systems(Startup, (setup, load_names))
+			.add_systems(Startup, (load_names,))
 			.add_systems(
 				Update,
 				(
@@ -42,27 +40,6 @@ pub struct Imp;
 
 #[derive(Component)]
 pub struct ImpSpawner;
-
-fn setup(mut commands: Commands) {
-	commands.spawn((
-		ConsortSpawner,
-		Spawner {
-			max_amount: 5,
-			spawn_delay: Duration::from_secs_f32(5.),
-			spawn_timer: Duration::ZERO,
-		},
-		Transform::from_xyz(-20., 1., 0.),
-	));
-	commands.spawn((
-		ImpSpawner,
-		Spawner {
-			max_amount: 5,
-			spawn_delay: Duration::from_secs_f32(5.),
-			spawn_timer: Duration::ZERO,
-		},
-		Transform::from_xyz(20., 1., 0.),
-	));
-}
 
 fn spawn_consort(
 	In(spawn_info): In<Option<SpawnEntityInformation>>,
