@@ -70,6 +70,7 @@ impl Plugin for QuestingPlugin {
 						.iter_inspect(remove_quest)
 						.iter_inspect(remove_quest_nodes)
 						.iter_done(),
+					end_quest_if_giver_killed,
 					change_displayed_node,
 					show_menu::<QuestScreen>
 						.run_if(button_just_pressed(PlayerAction::OpenQuestScreen)),
@@ -273,6 +274,20 @@ fn complete_quest_if_done(
 		return;
 	}
 	ev_completed.send(QuestCompleted(quest_id));
+}
+
+fn end_quest_if_giver_killed(
+	mut ev_killed: EventReader<EntityKilled>,
+	mut ev_ended: EventWriter<QuestEnded>,
+	quest_givers: Query<&QuestGiver>,
+) {
+	for &EntityKilled { entity } in ev_killed.read() {
+		if let Ok(quest_proposal) = quest_givers.get(entity) {
+			if let Some(quest_id) = quest_proposal.given_quest {
+				ev_ended.send(QuestEnded(quest_id));
+			}
+		}
+	}
 }
 
 fn get_ended_quests(mut ev_ended: EventReader<QuestEnded>) -> Vec<QuestId> {
