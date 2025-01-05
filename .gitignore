@@ -10,3 +10,6 @@
 **/*.blend1
 
 *.code-workspace
+
+**/assets/registry.json
+**/assets/levels/Zoo.*

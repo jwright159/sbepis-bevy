@@ -102,7 +102,7 @@ pub fn calculate_gravity(
 				});
 
 		gravity.acceleration = acceleration;
-		gravity.up = -acceleration.normalize();
+		gravity.up = -acceleration.normalize_or(Vec3::Y);
 	}
 }
 

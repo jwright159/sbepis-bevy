@@ -2,6 +2,7 @@
 
 use std::io::Cursor;
 
+use ::blenvy::blueprints::spawn_from_blueprints::{BlueprintInfo, HideUntilReady, SpawnBlueprint};
 use bevy::input::common_conditions::input_just_pressed;
 use bevy::log::LogPlugin;
 use bevy::prelude::*;
@@ -11,6 +12,7 @@ use winit::window::Icon;
 
 use self::main_bundles::*;
 
+mod blenvy;
 mod camera;
 mod entity;
 mod fray;
@@ -74,6 +76,7 @@ fn main() {
 		questing::QuestingPlugin,
 		menus::MenusPlugin,
 		inventory::InventoryPlugin,
+		blenvy::BlenvyPlugin,
 	))
 	.add_systems(Startup, (set_window_icon, setup))
 	.add_systems(
@@ -131,12 +134,12 @@ fn setup(
 	asset_server: Res<AssetServer>,
 	mut rapier_config: Query<&mut RapierConfiguration>,
 ) {
-	let gray_material = gridbox_material("grey2", &mut materials, &asset_server);
 	let green_material = gridbox_material("green1", &mut materials, &asset_server);
 
 	commands.spawn((
-		Name::new("Planet"),
-		PlanetBundle::new(Vec3::Y * -1000.0, 1000.0, 10.0, &mut meshes, gray_material),
+		BlueprintInfo::from_path("levels/World.glb"),
+		SpawnBlueprint,
+		HideUntilReady,
 	));
 
 	let cube_mesh = meshes.add(Cuboid::from_size(Vec3::ONE));

@@ -1,60 +1,8 @@
-use std::f32::consts::{PI, TAU};
-
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 
 use crate::entity::{GelViscosity, GravityOrientation, Movement};
-use crate::gravity::{AffectedByGravity, GravityPoint, GravityPriority};
-
-#[derive(Bundle)]
-pub struct PlanetBundle {
-	transform: Transform,
-	mesh: Mesh3d,
-	material: MeshMaterial3d<StandardMaterial>,
-	rigidbody: RigidBody,
-	collider: Collider,
-	gravity: GravityPoint,
-	gravity_priority: GravityPriority,
-}
-
-impl PlanetBundle {
-	pub fn new(
-		position: Vec3,
-		radius: f32,
-		gravity: f32,
-		meshes: &mut Assets<Mesh>,
-		material: Handle<StandardMaterial>,
-	) -> Self {
-		let mut mesh = Sphere::new(radius).mesh().ico(70).unwrap();
-		let uvs = mesh.attribute_mut(Mesh::ATTRIBUTE_UV_0).unwrap();
-		match uvs {
-			bevy::render::mesh::VertexAttributeValues::Float32x2(values) => {
-				for uv in values {
-					uv[0] *= radius * TAU;
-					uv[1] *= radius * PI;
-				}
-			}
-			_ => panic!("Got a UV that wasn't a Float32x2"),
-		}
-
-		let collider = Collider::from_bevy_mesh(&mesh, &ComputedColliderShape::default())
-			.expect("Couldn't make a planet collider");
-
-		PlanetBundle {
-			transform: Transform::from_translation(position)
-				.with_rotation(Quat::from_axis_angle(Vec3::X, PI / 2.)),
-			mesh: Mesh3d(meshes.add(mesh)),
-			material: MeshMaterial3d(material),
-			rigidbody: RigidBody::Fixed,
-			collider,
-			gravity: GravityPoint {
-				standard_radius: radius,
-				acceleration_at_radius: gravity,
-			},
-			gravity_priority: GravityPriority(0),
-		}
-	}
-}
+use crate::gravity::AffectedByGravity;
 
 #[derive(Bundle)]
 pub struct BoxBundle {
