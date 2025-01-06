@@ -20,7 +20,7 @@ use self::movement::*;
 use self::movement::{axes_to_ground_velocity, jump};
 use self::weapons::hammer::*;
 //use self::weapons::rifle::*;
-//use self::weapons::sword::*;
+use self::weapons::sword::*;
 use self::weapons::*;
 
 mod camera_controls;
@@ -52,7 +52,6 @@ impl Plugin for PlayerControllerPlugin {
 					switch_weapon_next.run_if(button_just_pressed(PlayerAction::NextWeapon)),
 					switch_weapon_prev.run_if(button_just_pressed(PlayerAction::PrevWeapon)),
 					initialize_weapon_sets,
-					// animate_sword,
 					// animate_rifle,
 					// charge_rifle,
 					sweep_dealers,
@@ -143,13 +142,15 @@ fn setup(
 		body,
 	);
 
-	// let (sword_pivot, _sword_blade) = spawn_sword(
-	// 	&mut commands,
-	// 	&asset_server,
-	// 	&mut materials,
-	// 	&mut meshes,
-	// 	body,
-	// );
+	let (sword_pivot, _sword_blade) = spawn_sword(
+		&mut commands,
+		&asset_server,
+		&mut materials,
+		&mut meshes,
+		&mut animations,
+		&mut graphs,
+		body,
+	);
 
 	// let (rifle_pivot, _rifle_barrel) = spawn_rifle(
 	// 	&mut commands,
@@ -161,7 +162,7 @@ fn setup(
 
 	commands.entity(body).insert((
 		WeaponSet {
-			weapons: vec![hammer_pivot],
+			weapons: vec![hammer_pivot, sword_pivot],
 			active_weapon: 0,
 		},
 		UninitializedWeaponSet,

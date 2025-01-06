@@ -1,43 +1,49 @@
 use std::f32::consts::PI;
 
+use bevy::animation::{animated_field, AnimationTarget, AnimationTargetId};
 use bevy::ecs::entity::EntityHashSet;
 use bevy::prelude::*;
 use bevy::render::mesh::CapsuleUvProfile;
 
 use crate::fray::FrayMusic;
-use crate::{gridbox_material, ok_or_continue};
+use crate::gridbox_material;
 
-use super::{DamageSweep, EndDamageSweep, EntityDamaged, SweepPivot};
+use super::{DamageSweep, EndDamageSweep, SweepPivot, WeaponAnimation};
 
 #[derive(Component)]
-pub struct SwordPivot;
+pub struct SwordPivot {
+	pub blade: Entity,
+}
 
 #[derive(Component)]
 pub struct Sword {
 	pub damage: f32,
-	pub pivot: Entity,
 	pub allies: EntityHashSet,
 	pub current_slash_damage: f32,
 	pub current_slash_modifier: f32,
 	side: SwordSide,
-	pub follow_through_time: f32,
+	pub left_swing_animation: AnimationNodeIndex,
+	pub right_swing_animation: AnimationNodeIndex,
+	pub woosh_sound: Handle<AudioSource>,
 }
 
 impl Sword {
 	pub fn new(
 		damage: f32,
-		pivot: Entity,
 		allies: EntityHashSet,
-		follow_through_time: f32,
+		left_swing_animation: AnimationNodeIndex,
+		right_swing_animation: AnimationNodeIndex,
+		woosh_sound: Handle<AudioSource>,
 	) -> Self {
 		Self {
 			damage,
-			pivot,
 			allies,
 			current_slash_damage: 0.0,
 			current_slash_modifier: 0.0,
 			side: SwordSide::Left,
-			follow_through_time,
+			left_swing_animation,
+			right_swing_animation,
+			woosh_sound,
 		}
 	}
 }
@@ -68,21 +74,52 @@ pub fn spawn_sword(
 	asset_server: &AssetServer,
 	materials: &mut Assets<StandardMaterial>,
 	meshes: &mut Assets<Mesh>,
+	animations: &mut Assets<AnimationClip>,
+	graphs: &mut Assets<AnimationGraph>,
 	body: Entity,
 ) -> (Entity, Entity) {
-	let sword_pivot = commands
-		.spawn((
-			Name::new("Sword Pivot"),
-			Transform::from_rotation(Quat::from_rotation_y(-PI * 0.5)),
-			SwordPivot,
-			SweepPivot {
-				sweeper_length: 0.2,
-				sweep_depth: 0.5,
-				sweep_height: 0.2,
-			},
-		))
-		.set_parent(body)
-		.id();
+	let sword_pivot_id = AnimationTargetId::from_iter(["Sword Pivot"]);
+
+	let follow_through_time = 0.8;
+
+	let mut left_attack_animation = AnimationClip::default();
+	left_attack_animation.add_curve_to_target(
+		sword_pivot_id,
+		AnimatableCurve::new(
+			animated_field!(Transform::rotation),
+			EasingCurve::new(
+				Quat::from_rotation_y(SwordSide::Left.angle()),
+				Quat::from_rotation_y(SwordSide::Right.angle()),
+				EaseFunction::QuarticOut,
+			)
+			.reparametrize_linear(Interval::new(0.0, follow_through_time).unwrap())
+			.unwrap(),
+		),
+	);
+	left_attack_animation.add_event(0.0, SwordStart);
+	left_attack_animation.add_event(follow_through_time, SwordEnd);
+
+	let mut right_attack_animation = AnimationClip::default();
+	right_attack_animation.add_curve_to_target(
+		sword_pivot_id,
+		AnimatableCurve::new(
+			animated_field!(Transform::rotation),
+			EasingCurve::new(
+				Quat::from_rotation_y(SwordSide::Right.angle()),
+				Quat::from_rotation_y(SwordSide::Left.angle()),
+				EaseFunction::QuarticOut,
+			)
+			.reparametrize_linear(Interval::new(0.0, follow_through_time).unwrap())
+			.unwrap(),
+		),
+	);
+	right_attack_animation.add_event(0.0, SwordStart);
+	right_attack_animation.add_event(follow_through_time, SwordEnd);
+
+	let mut graph = AnimationGraph::new();
+	let left_attack_index = graph.add_clip(animations.add(left_attack_animation), 1.0, graph.root);
+	let right_attack_index =
+		graph.add_clip(animations.add(right_attack_animation), 1.0, graph.root);
 
 	let sword_blade = commands
 		.spawn((
@@ -100,78 +137,102 @@ pub fn spawn_sword(
 				),
 			),
 			MeshMaterial3d(gridbox_material("red", materials, asset_server)),
-			Sword::new(0.25, sword_pivot, EntityHashSet::from_iter(vec![body]), 0.8),
+			Sword::new(
+				0.25,
+				EntityHashSet::from_iter(vec![body]),
+				left_attack_index,
+				right_attack_index,
+				asset_server.load("whoosh.mp3"),
+			),
 		))
-		.set_parent(sword_pivot)
 		.id();
+
+	let sword_pivot = commands
+		.spawn((
+			Name::new("Sword Pivot"),
+			Transform::from_rotation(Quat::from_rotation_y(-PI * 0.5)),
+			SwordPivot { blade: sword_blade },
+			SweepPivot {
+				sweeper_length: 0.2,
+				sweep_depth: 0.5,
+				sweep_height: 0.2,
+			},
+			AnimationGraphHandle(graphs.add(graph)),
+			AnimationPlayer::default(),
+			WeaponAnimation(left_attack_index),
+		))
+		.set_parent(body)
+		.add_child(sword_blade)
+		.observe(on_sword_start)
+		.observe(on_sword_end)
+		.id();
+	commands.entity(sword_pivot).insert(AnimationTarget {
+		id: sword_pivot_id,
+		player: sword_pivot,
+	});
 
 	(sword_pivot, sword_blade)
 }
 
-pub fn animate_sword(
-	mut commands: Commands,
-	mut sword_blades: Query<(Entity, &mut Sword, &GlobalTransform, Option<&DamageSweep>)>,
-	mut sword_pivots: Query<(Entity, &mut Transform, &mut InAnimation), With<SwordPivot>>,
-	time: Res<Time>,
+#[derive(Event, Clone, Copy)]
+struct SwordStart;
+
+#[derive(Event, Clone, Copy)]
+struct SwordEnd;
+
+fn on_sword_start(
+	trigger: Trigger<SwordStart>,
+	sword_pivots: Query<&SwordPivot>,
+	mut swords: Query<(&mut Sword, &GlobalTransform)>,
 	fray: Query<&FrayMusic>,
-	mut ev_hit: EventWriter<EntityDamaged>,
-	asset_server: Res<AssetServer>,
+	mut commands: Commands,
 ) {
-	let fray = fray.get_single().expect("Could not find fray");
-	for (sword_blade_entity, mut sword_blade, sword_blade_global_transform, dealer) in
-		sword_blades.iter_mut()
-	{
-		let (sword_pivot_entity, mut transform, mut animation) =
-			ok_or_continue!(sword_pivots.get_mut(sword_blade.pivot));
+	let sword_pivot_entity = trigger.entity();
+	let sword_pivot = sword_pivots
+		.get(sword_pivot_entity)
+		.expect("Sword pivot not found");
+	let sword_blade_entity = sword_pivot.blade;
+	let (mut sword, transform) = swords.get_mut(sword_blade_entity).expect("Sword not found");
 
-		let prev_time = fray.time_to_bpm_beat(animation.time) as f32;
-		animation.time += time.delta();
-		let curr_time = fray.time_to_bpm_beat(animation.time) as f32;
+	let fray = fray.single();
 
-		let follow_through_time = sword_blade.follow_through_time;
+	sword.current_slash_damage = fray.modify_fray_damage(sword.damage);
+	sword.current_slash_modifier = fray.modify_fray_damage(1.0);
 
-		if (prev_time..curr_time).contains(&0.0) {
-			sword_blade.current_slash_damage = fray.modify_fray_damage(sword_blade.damage);
-			sword_blade.current_slash_modifier = fray.modify_fray_damage(1.0);
+	commands.entity(sword_blade_entity).insert(DamageSweep::new(
+		*transform,
+		sword_pivot_entity,
+		sword.allies.clone(),
+	));
 
-			commands.entity(sword_blade_entity).insert(DamageSweep::new(
-				*sword_blade_global_transform,
-				sword_pivot_entity,
-				sword_blade.allies.clone(),
-			));
+	commands.spawn((
+		Name::new("Sword Swing SFX"),
+		AudioPlayer::new(sword.woosh_sound.clone()),
+		PlaybackSettings::DESPAWN,
+	));
+}
 
-			commands.spawn((
-				Name::new("Sword Swing SFX"),
-				AudioPlayer::new(asset_server.load("whoosh.mp3")),
-				PlaybackSettings::DESPAWN,
-			));
-		}
-		if (prev_time..curr_time).contains(&follow_through_time) {
-			commands.entity(sword_blade_entity).insert(EndDamageSweep);
+fn on_sword_end(
+	trigger: Trigger<SwordEnd>,
+	mut sword_pivots: Query<(&SwordPivot, &mut WeaponAnimation)>,
+	mut swords: Query<&mut Sword>,
+	mut commands: Commands,
+) {
+	let sword_pivot_entity = trigger.entity();
+	let (sword_pivot, mut animation) = sword_pivots
+		.get_mut(sword_pivot_entity)
+		.expect("Sword pivot not found");
+	let sword_blade_entity = sword_pivot.blade;
+	let mut sword = swords.get_mut(sword_blade_entity).expect("Sword not found");
 
-			if let Some(dealer) = dealer {
-				for entity in dealer.hit_entities.iter() {
-					ev_hit.send(EntityDamaged {
-						victim: *entity,
-						damage: sword_blade.current_slash_damage,
-						fray_modifier: sword_blade.current_slash_modifier,
-					});
-				}
-			}
+	commands.entity(sword_blade_entity).insert(EndDamageSweep {
+		damage: sword.current_slash_damage,
+		fray_modifier: sword.current_slash_modifier,
+	});
 
-			sword_blade.side = sword_blade.side.other_side();
-			commands.entity(sword_pivot_entity).remove::<InAnimation>();
-		}
-
-		let angle = if (0.0..follow_through_time).contains(&curr_time) {
-			curr_time.map_range_ease(
-				0.0..follow_through_time,
-				sword_blade.side.angle()..sword_blade.side.other_side().angle(),
-				EaseFunction::QuarticOut,
-			)
-		} else {
-			sword_blade.side.angle()
-		};
-		transform.rotation = Quat::from_rotation_y(angle);
-	}
+	sword.side = sword.side.other_side();
+	animation.0 = match sword.side {
+		SwordSide::Left => sword.left_swing_animation,
+		SwordSide::Right => sword.right_swing_animation,
+	};
 }

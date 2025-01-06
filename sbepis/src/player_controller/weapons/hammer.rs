@@ -8,7 +8,7 @@ use bevy::render::mesh::CapsuleUvProfile;
 use crate::fray::FrayMusic;
 use crate::gridbox_material;
 
-use super::{DamageSweep, EndDamageSweep, EntityDamaged, SweepPivot, WeaponAnimation};
+use super::{DamageSweep, EndDamageSweep, SweepPivot, WeaponAnimation};
 
 #[derive(Component)]
 struct HammerPivot {
@@ -153,9 +153,8 @@ fn on_hammer_start(
 fn on_hammer_smash(
 	trigger: Trigger<HammerSmash>,
 	hammer_pivots: Query<&HammerPivot>,
-	hammers: Query<(&Hammer, Option<&DamageSweep>)>,
+	hammers: Query<&Hammer>,
 	fray: Query<&FrayMusic>,
-	mut ev_hit: EventWriter<EntityDamaged>,
 	mut commands: Commands,
 ) {
 	let hammer_pivot_entity = trigger.entity();
@@ -163,27 +162,18 @@ fn on_hammer_smash(
 		.get(hammer_pivot_entity)
 		.expect("Hammer pivot not found");
 	let hammer_head_entity = hammer_pivot.head;
-	let (hammer, dealer) = hammers.get(hammer_head_entity).expect("Hammer not found");
+	let hammer = hammers.get(hammer_head_entity).expect("Hammer not found");
 
 	let fray = fray.single();
 
-	commands.entity(hammer_head_entity).insert(EndDamageSweep);
+	commands.entity(hammer_head_entity).insert(EndDamageSweep {
+		damage: fray.modify_fray_damage(hammer.damage),
+		fray_modifier: fray.modify_fray_damage(1.0),
+	});
 
 	commands.spawn((
 		Name::new("Hammer Smash SFX"),
 		AudioPlayer::new(hammer.smash_sound.clone()),
 		PlaybackSettings::DESPAWN,
 	));
-
-	if let Some(dealer) = dealer {
-		for entity in dealer.hit_entities.iter() {
-			let damage = fray.modify_fray_damage(hammer.damage);
-			let fray_modifier = fray.modify_fray_damage(1.0);
-			ev_hit.send(EntityDamaged {
-				victim: *entity,
-				damage,
-				fray_modifier,
-			});
-		}
-	}
 }

@@ -9,7 +9,7 @@ use crate::util::QuaternionEx;
 
 pub mod hammer;
 //pub mod rifle;
-//pub mod sword;
+pub mod sword;
 
 #[derive(Event)]
 pub struct EntityDamaged {
@@ -42,7 +42,10 @@ pub struct DamageSweep {
 }
 
 #[derive(Component)]
-pub struct EndDamageSweep;
+pub struct EndDamageSweep {
+	pub damage: f32,
+	pub fray_modifier: f32,
+}
 
 #[derive(Component)]
 #[require(Transform, Visibility)]
@@ -68,13 +71,17 @@ impl DamageSweep {
 pub struct DebugColliderVisualizer;
 
 #[derive(Component)]
-pub struct WeaponAnimation(AnimationNodeIndex);
+pub struct WeaponAnimation(pub AnimationNodeIndex);
 
 pub fn attack(mut weapons: Query<(&WeaponAnimation, &mut AnimationPlayer), With<ActiveWeapon>>) {
 	for (animation, mut animation_player) in weapons.iter_mut() {
-		let animation = animation_player.play(animation.0);
-		if animation.is_finished() {
-			animation.replay();
+		if let Some(animation) = animation_player.animation_mut(animation.0) {
+			if animation.is_finished() {
+				animation.replay();
+			}
+		} else {
+			animation_player.stop_all();
+			animation_player.play(animation.0);
 		}
 	}
 }
@@ -102,6 +109,7 @@ pub fn sweep_dealers(
 	pivots: Query<(&SweepPivot, &GlobalTransform), Without<DamageSweep>>,
 	rapier_context: Query<&RapierContext>,
 	debug_collider_visualizers: Query<Entity, With<DebugColliderVisualizer>>,
+	mut ev_hit: EventWriter<EntityDamaged>,
 ) {
 	let debug_collider_visualizer = debug_collider_visualizers.single();
 	let rapier_context = rapier_context.single();
@@ -143,7 +151,15 @@ pub fn sweep_dealers(
 
 		dealer.last_transform = *transform;
 
-		if end.is_some() {
+		if let Some(end) = end {
+			for entity in dealer.hit_entities.iter() {
+				ev_hit.send(EntityDamaged {
+					victim: *entity,
+					damage: end.damage,
+					fray_modifier: end.fray_modifier,
+				});
+			}
+
 			commands
 				.entity(dealer_entity)
 				.remove::<DamageSweep>()
