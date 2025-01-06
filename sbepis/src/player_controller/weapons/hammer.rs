@@ -1,26 +1,26 @@
 use std::f32::consts::PI;
 
+use bevy::animation::{animated_field, AnimationTarget, AnimationTargetId};
 use bevy::ecs::entity::EntityHashSet;
 use bevy::prelude::*;
 use bevy::render::mesh::CapsuleUvProfile;
-use interpolation::EaseFunction;
 
 use crate::fray::FrayMusic;
-use crate::util::MapRange;
-use crate::{gridbox_material, ok_or_continue};
+use crate::gridbox_material;
 
-use super::{DamageSweep, EndDamageSweep, EntityDamaged, InAnimation, SweepPivot};
-
-#[derive(Component)]
-pub struct HammerPivot;
+use super::{DamageSweep, EndDamageSweep, EntityDamaged, SweepPivot, WeaponAnimation};
 
 #[derive(Component)]
-pub struct Hammer {
+struct HammerPivot {
+	pub head: Entity,
+}
+
+#[derive(Component)]
+struct Hammer {
 	pub damage: f32,
-	pub pivot: Entity,
 	pub allies: EntityHashSet,
-	pub lead_in_time: f32,
-	pub follow_through_time: f32,
+	pub woosh_sound: Handle<AudioSource>,
+	pub smash_sound: Handle<AudioSource>,
 }
 
 pub fn spawn_hammer(
@@ -28,20 +28,43 @@ pub fn spawn_hammer(
 	asset_server: &AssetServer,
 	materials: &mut Assets<StandardMaterial>,
 	meshes: &mut Assets<Mesh>,
+	animations: &mut Assets<AnimationClip>,
+	graphs: &mut Assets<AnimationGraph>,
 	body: Entity,
 ) -> (Entity, Entity) {
-	let hammer_pivot = commands
-		.spawn((
-			Name::new("Hammer Pivot"),
-			HammerPivot,
-			SweepPivot {
-				sweeper_length: 0.2,
-				sweep_depth: 0.5,
-				sweep_height: 0.2,
-			},
-		))
-		.set_parent(body)
-		.id();
+	let hammer_pivot_id = AnimationTargetId::from_iter(["Hammer Pivot"]);
+
+	let lead_in_time = 0.5;
+	let follow_through_time = lead_in_time + 3.0;
+
+	let mut attack_animation = AnimationClip::default();
+	attack_animation.add_curve_to_target(
+		hammer_pivot_id,
+		AnimatableCurve::new(
+			animated_field!(Transform::rotation),
+			EasingCurve::new(
+				Quat::from_rotation_x(0.0),
+				Quat::from_rotation_x(-PI * 0.5),
+				EaseFunction::ExponentialIn,
+			)
+			.reparametrize_linear(Interval::new(0.0, lead_in_time).unwrap())
+			.unwrap()
+			.chain(
+				EasingCurve::new(
+					Quat::from_rotation_x(-PI * 0.5),
+					Quat::from_rotation_x(0.0),
+					EaseFunction::CubicInOut,
+				)
+				.reparametrize_linear(Interval::new(lead_in_time, follow_through_time).unwrap())
+				.unwrap(),
+			)
+			.unwrap(),
+		),
+	);
+	attack_animation.add_event(0.0, HammerStart);
+	attack_animation.add_event(lead_in_time, HammerSmash);
+
+	let (graph, animation_index) = AnimationGraph::from_clip(animations.add(attack_animation));
 
 	let hammer_head = commands
 		.spawn((
@@ -62,95 +85,105 @@ pub fn spawn_hammer(
 			MeshMaterial3d(gridbox_material("red", materials, asset_server)),
 			Hammer {
 				damage: 1.0,
-				pivot: hammer_pivot,
 				allies: EntityHashSet::from_iter(vec![body]),
-				lead_in_time: 0.5,
-				follow_through_time: 3.0,
+				woosh_sound: asset_server.load("whoosh.mp3"),
+				smash_sound: asset_server.load("concrete_break3.wav"),
 			},
 		))
-		.set_parent(hammer_pivot)
 		.id();
+
+	let hammer_pivot = commands
+		.spawn((
+			Name::new("Hammer Pivot"),
+			HammerPivot { head: hammer_head },
+			SweepPivot {
+				sweeper_length: 0.2,
+				sweep_depth: 0.5,
+				sweep_height: 0.2,
+			},
+			AnimationGraphHandle(graphs.add(graph)),
+			AnimationPlayer::default(),
+			WeaponAnimation(animation_index),
+		))
+		.set_parent(body)
+		.add_child(hammer_head)
+		.observe(on_hammer_start)
+		.observe(on_hammer_smash)
+		.id();
+	commands.entity(hammer_pivot).insert(AnimationTarget {
+		id: hammer_pivot_id,
+		player: hammer_pivot,
+	});
 
 	(hammer_pivot, hammer_head)
 }
 
-pub fn animate_hammer(
+#[derive(Event, Clone, Copy)]
+struct HammerStart;
+
+#[derive(Event, Clone, Copy)]
+struct HammerSmash;
+
+fn on_hammer_start(
+	trigger: Trigger<HammerStart>,
+	hammer_pivots: Query<&HammerPivot>,
+	hammers: Query<(&Hammer, &GlobalTransform)>,
 	mut commands: Commands,
-	mut hammer_heads: Query<(Entity, &Hammer, &GlobalTransform, Option<&mut DamageSweep>)>,
-	mut hammer_pivots: Query<(Entity, &mut Transform, &mut InAnimation), With<HammerPivot>>,
-	time: Res<Time>,
+) {
+	let hammer_pivot_entity = trigger.entity();
+	let hammer_pivot = hammer_pivots
+		.get(hammer_pivot_entity)
+		.expect("Hammer pivot not found");
+	let hammer_head_entity = hammer_pivot.head;
+	let (hammer, transform) = hammers.get(hammer_head_entity).expect("Hammer not found");
+
+	commands.entity(hammer_head_entity).insert(DamageSweep::new(
+		*transform,
+		hammer_pivot_entity,
+		hammer.allies.clone(),
+	));
+
+	commands.spawn((
+		Name::new("Hammer Swing SFX"),
+		AudioPlayer::new(hammer.woosh_sound.clone()),
+		PlaybackSettings::DESPAWN,
+	));
+}
+
+fn on_hammer_smash(
+	trigger: Trigger<HammerSmash>,
+	hammer_pivots: Query<&HammerPivot>,
+	hammers: Query<(&Hammer, Option<&DamageSweep>)>,
 	fray: Query<&FrayMusic>,
 	mut ev_hit: EventWriter<EntityDamaged>,
-	asset_server: Res<AssetServer>,
+	mut commands: Commands,
 ) {
-	let fray = fray.get_single().expect("Could not find fray");
-	for (hammer_head_entity, hammer_head, hammer_head_global_transform, dealer) in
-		hammer_heads.iter_mut()
-	{
-		let (hammer_pivot_entity, mut transform, mut animation) =
-			ok_or_continue!(hammer_pivots.get_mut(hammer_head.pivot));
+	let hammer_pivot_entity = trigger.entity();
+	let hammer_pivot = hammer_pivots
+		.get(hammer_pivot_entity)
+		.expect("Hammer pivot not found");
+	let hammer_head_entity = hammer_pivot.head;
+	let (hammer, dealer) = hammers.get(hammer_head_entity).expect("Hammer not found");
 
-		let prev_time = fray.time_to_bpm_beat(animation.time) as f32;
-		animation.time += time.delta();
-		let curr_time = fray.time_to_bpm_beat(animation.time) as f32;
+	let fray = fray.single();
 
-		let lead_in_time = hammer_head.lead_in_time;
-		let follow_through_time = lead_in_time + hammer_head.follow_through_time;
+	commands.entity(hammer_head_entity).insert(EndDamageSweep);
 
-		if (prev_time..curr_time).contains(&0.0) {
-			commands.entity(hammer_head_entity).insert(DamageSweep::new(
-				*hammer_head_global_transform,
-				hammer_pivot_entity,
-				hammer_head.allies.clone(),
-			));
+	commands.spawn((
+		Name::new("Hammer Smash SFX"),
+		AudioPlayer::new(hammer.smash_sound.clone()),
+		PlaybackSettings::DESPAWN,
+	));
 
-			commands.spawn((
-				Name::new("Hammer Swing SFX"),
-				AudioPlayer::new(asset_server.load("whoosh.mp3")),
-				PlaybackSettings::DESPAWN,
-			));
+	if let Some(dealer) = dealer {
+		for entity in dealer.hit_entities.iter() {
+			let damage = fray.modify_fray_damage(hammer.damage);
+			let fray_modifier = fray.modify_fray_damage(1.0);
+			ev_hit.send(EntityDamaged {
+				victim: *entity,
+				damage,
+				fray_modifier,
+			});
 		}
-		if (prev_time..curr_time).contains(&lead_in_time) {
-			commands.entity(hammer_head_entity).insert(EndDamageSweep);
-
-			commands.spawn((
-				Name::new("Hammer Smash SFX"),
-				AudioPlayer::new(asset_server.load("concrete_break3.wav")),
-				PlaybackSettings::DESPAWN,
-			));
-
-			if let Some(dealer) = dealer {
-				for entity in dealer.hit_entities.iter() {
-					let damage = fray.modify_fray_damage(hammer_head.damage);
-					let fray_modifier = fray.modify_fray_damage(1.0);
-					ev_hit.send(EntityDamaged {
-						victim: *entity,
-						damage,
-						fray_modifier,
-					});
-				}
-			}
-		}
-		if (prev_time..curr_time).contains(&follow_through_time) {
-			commands.entity(hammer_pivot_entity).remove::<InAnimation>();
-		}
-
-		let angle = if (0.0..lead_in_time).contains(&curr_time) {
-			curr_time.map_range_ease(
-				0.0..lead_in_time,
-				0.0..(-PI * 0.5),
-				EaseFunction::ExponentialIn,
-			)
-		} else if (lead_in_time..follow_through_time).contains(&curr_time) {
-			curr_time.map_range_ease(
-				lead_in_time..follow_through_time,
-				(-PI * 0.5)..0.0,
-				EaseFunction::CubicInOut,
-			)
-		} else {
-			0.0
-		};
-
-		transform.rotation = Quat::from_rotation_x(angle);
 	}
 }

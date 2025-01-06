@@ -1,7 +1,6 @@
 use bevy::ecs::schedule::SystemConfigs;
 use bevy::prelude::*;
 use bevy_rapier3d::math::Real;
-use interpolation::{Ease, EaseFunction};
 use std::array::IntoIter;
 use std::ops::Range;
 
@@ -13,7 +12,6 @@ pub trait MapRange<T> {
 	fn map_range(self, range_in: Range<T>, range_out: Range<T>) -> T;
 	fn map_to_01(self, range_in: Range<T>) -> T;
 	fn map_from_01(self, range_out: Range<T>) -> T;
-	fn map_range_ease(self, range_in: Range<T>, range_out: Range<T>, ease: EaseFunction) -> T;
 }
 impl MapRange<Real> for Real {
 	fn map_range(self, range_in: Range<Real>, range_out: Range<Real>) -> Real {
@@ -26,15 +24,6 @@ impl MapRange<Real> for Real {
 
 	fn map_from_01(self, range_out: Range<Real>) -> Real {
 		self * (range_out.end - range_out.start) + range_out.start
-	}
-
-	fn map_range_ease(
-		self,
-		range_in: Range<Real>,
-		range_out: Range<Real>,
-		ease: EaseFunction,
-	) -> Real {
-		self.map_to_01(range_in).calc(ease).map_from_01(range_out)
 	}
 }
 
@@ -140,6 +129,39 @@ pub fn map_event<EventA: Event + Clone, EventB: Event, Marker>(
 			},
 		)
 		.into_configs()
+}
+
+#[derive(Clone)]
+pub struct DomainedEasingData<T>
+where
+	T: Ease + Clone,
+{
+	pub domain_start: f32,
+	pub domain_end: f32,
+	pub start: T,
+	pub end: T,
+	pub easing: EaseFunction,
+}
+
+impl<T> DomainedEasingData<T>
+where
+	T: Ease + Clone,
+{
+	pub fn new(domain_start: f32, domain_end: f32, start: T, end: T, easing: EaseFunction) -> Self {
+		Self {
+			domain_start,
+			domain_end,
+			start,
+			end,
+			easing,
+		}
+	}
+
+	pub fn into_curve(self) -> LinearReparamCurve<T, EasingCurve<T>> {
+		EasingCurve::new(self.start, self.end, self.easing)
+			.reparametrize_linear(Interval::new(self.domain_start, self.domain_end).unwrap())
+			.unwrap()
+	}
 }
 
 #[macro_export]

@@ -3,13 +3,11 @@ use std::f32::consts::PI;
 use bevy::ecs::entity::EntityHashSet;
 use bevy::prelude::*;
 use bevy::render::mesh::CapsuleUvProfile;
-use interpolation::EaseFunction;
 
 use crate::fray::FrayMusic;
-use crate::util::MapRange;
 use crate::{gridbox_material, ok_or_continue};
 
-use super::{DamageSweep, EndDamageSweep, EntityDamaged, InAnimation, SweepPivot};
+use super::{DamageSweep, EndDamageSweep, EntityDamaged, SweepPivot};
 
 #[derive(Component)]
 pub struct SwordPivot;

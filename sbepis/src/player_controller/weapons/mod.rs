@@ -1,21 +1,15 @@
-use std::time::Duration;
-
 use bevy::color::palettes::css;
 use bevy::ecs::entity::EntityHashSet;
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 
 use crate::entity::{EntityKilled, GelViscosity};
+use crate::fray::FrayMusic;
 use crate::util::QuaternionEx;
 
 pub mod hammer;
-pub mod rifle;
-pub mod sword;
-
-#[derive(Component, Default)]
-pub struct InAnimation {
-	pub time: Duration,
-}
+//pub mod rifle;
+//pub mod sword;
 
 #[derive(Event)]
 pub struct EntityDamaged {
@@ -73,12 +67,27 @@ impl DamageSweep {
 #[require(Transform, Visibility)]
 pub struct DebugColliderVisualizer;
 
-pub fn attack(
-	mut commands: Commands,
-	weapons: Query<Entity, (Without<InAnimation>, With<ActiveWeapon>)>,
+#[derive(Component)]
+pub struct WeaponAnimation(AnimationNodeIndex);
+
+pub fn attack(mut weapons: Query<(&WeaponAnimation, &mut AnimationPlayer), With<ActiveWeapon>>) {
+	for (animation, mut animation_player) in weapons.iter_mut() {
+		let animation = animation_player.play(animation.0);
+		if animation.is_finished() {
+			animation.replay();
+		}
+	}
+}
+
+pub fn correct_animation_speed(
+	fray_music: Query<&FrayMusic>,
+	mut weapons: Query<(&WeaponAnimation, &mut AnimationPlayer)>,
 ) {
-	for weapon in weapons.iter() {
-		commands.entity(weapon).insert(InAnimation::default());
+	let fray_music = fray_music.single();
+	for (animation, mut animation_player) in weapons.iter_mut() {
+		if let Some(animation) = animation_player.animation_mut(animation.0) {
+			animation.set_speed(fray_music.speed());
+		}
 	}
 }
 

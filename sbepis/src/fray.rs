@@ -101,6 +101,10 @@ impl FrayMusic {
 	pub fn time_to_bpm_beat(&self, time: Duration) -> f64 {
 		time.as_secs_f64() * self.beats_per_second
 	}
+
+	pub fn speed(&self) -> f32 {
+		self.beats_per_second as f32
+	}
 }
 
 #[derive(Component, Default)]

@@ -19,8 +19,8 @@ pub use self::camera_controls::{interact_with, MouseSensitivity, PlayerBody};
 use self::movement::*;
 use self::movement::{axes_to_ground_velocity, jump};
 use self::weapons::hammer::*;
-use self::weapons::rifle::*;
-use self::weapons::sword::*;
+//use self::weapons::rifle::*;
+//use self::weapons::sword::*;
 use self::weapons::*;
 
 mod camera_controls;
@@ -52,14 +52,14 @@ impl Plugin for PlayerControllerPlugin {
 					switch_weapon_next.run_if(button_just_pressed(PlayerAction::NextWeapon)),
 					switch_weapon_prev.run_if(button_just_pressed(PlayerAction::PrevWeapon)),
 					initialize_weapon_sets,
-					animate_hammer,
-					animate_sword,
-					animate_rifle,
-					charge_rifle,
+					// animate_sword,
+					// animate_rifle,
+					// charge_rifle,
 					sweep_dealers,
 					deal_all_damage,
 					update_damage_numbers,
 					update_is_grounded,
+					correct_animation_speed,
 				),
 			);
 	}
@@ -69,6 +69,8 @@ fn setup(
 	mut commands: Commands,
 	mut meshes: ResMut<Assets<Mesh>>,
 	mut materials: ResMut<Assets<StandardMaterial>>,
+	mut animations: ResMut<Assets<AnimationClip>>,
+	mut graphs: ResMut<Assets<AnimationGraph>>,
 	asset_server: Res<AssetServer>,
 	mut menu_stack: ResMut<MenuStack>,
 ) {
@@ -136,28 +138,30 @@ fn setup(
 		&asset_server,
 		&mut materials,
 		&mut meshes,
+		&mut animations,
+		&mut graphs,
 		body,
 	);
 
-	let (sword_pivot, _sword_blade) = spawn_sword(
-		&mut commands,
-		&asset_server,
-		&mut materials,
-		&mut meshes,
-		body,
-	);
+	// let (sword_pivot, _sword_blade) = spawn_sword(
+	// 	&mut commands,
+	// 	&asset_server,
+	// 	&mut materials,
+	// 	&mut meshes,
+	// 	body,
+	// );
 
-	let (rifle_pivot, _rifle_barrel) = spawn_rifle(
-		&mut commands,
-		&asset_server,
-		&mut materials,
-		&mut meshes,
-		body,
-	);
+	// let (rifle_pivot, _rifle_barrel) = spawn_rifle(
+	// 	&mut commands,
+	// 	&asset_server,
+	// 	&mut materials,
+	// 	&mut meshes,
+	// 	body,
+	// );
 
 	commands.entity(body).insert((
 		WeaponSet {
-			weapons: vec![sword_pivot, hammer_pivot, rifle_pivot],
+			weapons: vec![hammer_pivot],
 			active_weapon: 0,
 		},
 		UninitializedWeaponSet,

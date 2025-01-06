@@ -6,7 +6,6 @@ use bevy::render::mesh::CapsuleUvProfile;
 use bevy_rapier3d::math::Real;
 use bevy_rapier3d::plugin::RapierContext;
 use bevy_rapier3d::prelude::QueryFilter;
-use interpolation::EaseFunction;
 
 use crate::camera::PlayerCamera;
 use crate::fray::FrayMusic;
