@@ -144,7 +144,7 @@ jobs:
           "embeds": [
             {
               "title": "New Builds Available!",
-              "description": "**Build Number: $DATE**\n\n$LOG",
+              "description": "**Build Number: $DATE**\n$LOG",
               "color": 240116,
               "fields": [
                 {
