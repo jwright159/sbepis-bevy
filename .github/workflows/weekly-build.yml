@@ -38,6 +38,7 @@ jobs:
         {
           echo 'log<<EOF'
           git log --pretty=format:"%s" --since=1.week
+          echo
           echo EOF
         } >> "$GITHUB_OUTPUT"
 
@@ -93,6 +94,7 @@ jobs:
         {
           echo 'log<<EOF'
           git log --pretty=format:"%s" --since=1.week
+          echo
           echo EOF
         } >> "$GITHUB_OUTPUT"
 
