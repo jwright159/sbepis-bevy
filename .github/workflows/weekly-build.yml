@@ -6,36 +6,37 @@ on:
   workflow_dispatch:  # Allows manual triggering
 
 jobs:
-  set-date:
+  set-meta:
     runs-on: ubuntu-latest
     outputs:
       date: ${{ steps.set-date.outputs.date }}
       linux-filename: sbepis-${{ steps.set-date.outputs.date }}-linux.tar.gz
       windows-filename: sbepis-${{ steps.set-date.outputs.date }}-windows.zip
+      log: ${{ steps.set-log.outputs.log }}
 
     steps:
     - name: Set date
       id: set-date
       run: echo "date=$(date +%Y-%m-%d-%H%M)" >> "$GITHUB_OUTPUT"
 
+    - name: Set log
+      id: set-log
+      run: |
+        git clone --bare --filter=blob:none --single-branch https://github.com/Dragon-Fox-Collective/SBEPIS.git
+        cd SBEPIS.git
+        echo "log=$(git log --pretty=format:"%s" --since=1.week | sed 's/^/- /' | tr '\n' '\\' | sed 's/\\/\\n/g')" >> "$GITHUB_OUTPUT"
+
   build-linux:
     runs-on: ubuntu-latest
-    needs: [set-date]
-    outputs:
-      log: ${{ steps.set-log.outputs.log }}
+    needs: [set-meta]
     env:
-      FILENAME: ${{ needs.set-date.outputs.linux-filename }}
+      FILENAME: ${{ needs.set-meta.outputs.linux-filename }}
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v2
       with:
         submodules: recursive
-
-    - name: Set log
-      id: set-log
-      run: |
-        echo "log=$(git log --pretty=format:"%s" --since=1.week | sed 's/^/- /' | tr '\n' '\\' | sed 's/\\/\\n/g')" >> "$GITHUB_OUTPUT"
 
     - name: Install dependencies
       run: sudo apt-get update && sudo apt-get install -y libasound2-dev libudev-dev
@@ -71,9 +72,9 @@ jobs:
 
   build-windows:
     runs-on: windows-latest
-    needs: [set-date]
+    needs: [set-meta]
     env:
-      FILENAME: ${{ needs.set-date.outputs.windows-filename }}
+      FILENAME: ${{ needs.set-meta.outputs.windows-filename }}
 
     steps:
     - name: Checkout code
@@ -113,11 +114,12 @@ jobs:
 
   notify-discord:
     runs-on: ubuntu-latest
-    needs: [set-date, build-linux, build-windows]
+    needs: [set-meta, build-linux, build-windows]
     env:
-      DATE: ${{ needs.set-date.outputs.date }}
-      LINUX_FILENAME: ${{ needs.set-date.outputs.linux-filename }}
-      WINDOWS_FILENAME: ${{ needs.set-date.outputs.windows-filename }}
+      DATE: ${{ needs.set-meta.outputs.date }}
+      LINUX_FILENAME: ${{ needs.set-meta.outputs.linux-filename }}
+      WINDOWS_FILENAME: ${{ needs.set-meta.outputs.windows-filename }}
+      LOG: ${{ needs.set-meta.outputs.log }}
 
     steps:
     - name: Install rclone
@@ -142,7 +144,7 @@ jobs:
           "embeds": [
             {
               "title": "New Builds Available!",
-              "description": "**Build Number: $DATE**\n\n${{ needs.build-linux.outputs.log }}",
+              "description": "**Build Number: $DATE**\n\n$LOG",
               "color": 240116,
               "fields": [
                 {
