@@ -109,6 +109,8 @@ pub fn sweep_dealers(
 	pivots: Query<(&SweepPivot, &GlobalTransform), Without<DamageSweep>>,
 	rapier_context: Query<&RapierContext>,
 	debug_collider_visualizers: Query<Entity, With<DebugColliderVisualizer>>,
+	parents: Query<&Parent>,
+	healths: Query<&GelViscosity>,
 	mut ev_hit: EventWriter<EntityDamaged>,
 ) {
 	let debug_collider_visualizer = debug_collider_visualizers.single();
@@ -138,6 +140,10 @@ pub fn sweep_dealers(
 			&collider,
 			QueryFilter::new(),
 			|hit_entity| {
+				let hit_entity = std::iter::once(hit_entity)
+					.chain(parents.iter_ancestors(hit_entity))
+					.find(|entity| healths.get(*entity).is_ok())
+					.unwrap_or(hit_entity);
 				if !dealer.allies.contains(&hit_entity) {
 					dealer.hit_entities.insert(hit_entity);
 				}
@@ -174,31 +180,33 @@ pub fn deal_all_damage(
 	mut healths: Query<&mut GelViscosity>,
 ) {
 	for event in ev_hit.read() {
-		let Ok(mut health) = healths.get_mut(event.victim) else {
-			continue;
-		};
-		let damage = event.damage;
+		if let Ok(mut health) = healths.get_mut(event.victim) {
+			let damage = event.damage;
 
-		if damage > 0.0 && health.value <= 0.0 {
-			ev_kill.send(EntityKilled {
-				entity: event.victim,
-			});
+			if damage > 0.0 && health.value <= 0.0 {
+				ev_kill.send(EntityKilled {
+					entity: event.victim,
+				});
+			}
+
+			health.value -= damage;
 		}
-
-		health.value -= damage;
 	}
 }
 
 pub fn update_damage_numbers(
 	mut ev_hit: EventReader<EntityDamaged>,
 	mut damage_numbers: Query<Entity, With<DamageNumbers>>,
-	hit_object: Query<&Name, With<GelViscosity>>,
+	hit_object: Query<Option<&Name>, With<GelViscosity>>,
 	mut commands: Commands,
 ) {
 	for event in ev_hit.read() {
 		let Ok(hit_object_name) = hit_object.get(event.victim) else {
 			continue;
 		};
+		let hit_object_name = hit_object_name
+			.map(|name| name.as_str())
+			.unwrap_or("Object");
 
 		let damage = event.damage;
 		let fray_modifier = event.fray_modifier;
