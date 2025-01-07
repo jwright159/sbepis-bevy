@@ -19,7 +19,7 @@ pub use self::camera_controls::{interact_with, MouseSensitivity, PlayerBody};
 use self::movement::*;
 use self::movement::{axes_to_ground_velocity, jump};
 use self::weapons::hammer::*;
-//use self::weapons::rifle::*;
+use self::weapons::rifle::*;
 use self::weapons::sword::*;
 use self::weapons::*;
 
@@ -39,6 +39,7 @@ impl Plugin for PlayerControllerPlugin {
 				acceleration: 8.0,
 				air_acceleration: 6.0,
 			})
+			.add_event::<EntityHit>()
 			.add_event::<EntityDamaged>()
 			.add_plugins(InputManagerMenuPlugin::<PlayerAction>::default())
 			.add_systems(Startup, setup)
@@ -52,9 +53,9 @@ impl Plugin for PlayerControllerPlugin {
 					switch_weapon_next.run_if(button_just_pressed(PlayerAction::NextWeapon)),
 					switch_weapon_prev.run_if(button_just_pressed(PlayerAction::PrevWeapon)),
 					initialize_weapon_sets,
-					// animate_rifle,
-					// charge_rifle,
+					charge_rifle,
 					sweep_dealers,
+					hit_to_damage,
 					deal_all_damage,
 					update_damage_numbers,
 					update_is_grounded,
@@ -152,17 +153,19 @@ fn setup(
 		body,
 	);
 
-	// let (rifle_pivot, _rifle_barrel) = spawn_rifle(
-	// 	&mut commands,
-	// 	&asset_server,
-	// 	&mut materials,
-	// 	&mut meshes,
-	// 	body,
-	// );
+	let (rifle_pivot, _rifle_barrel) = spawn_rifle(
+		&mut commands,
+		&asset_server,
+		&mut materials,
+		&mut meshes,
+		&mut animations,
+		&mut graphs,
+		body,
+	);
 
 	commands.entity(body).insert((
 		WeaponSet {
-			weapons: vec![hammer_pivot, sword_pivot],
+			weapons: vec![hammer_pivot, sword_pivot, rifle_pivot],
 			active_weapon: 0,
 		},
 		UninitializedWeaponSet,

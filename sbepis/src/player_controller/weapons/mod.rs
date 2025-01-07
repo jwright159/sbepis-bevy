@@ -8,8 +8,16 @@ use crate::fray::FrayMusic;
 use crate::util::QuaternionEx;
 
 pub mod hammer;
-//pub mod rifle;
+pub mod rifle;
 pub mod sword;
+
+#[derive(Event)]
+pub struct EntityHit {
+	pub victim: Entity,
+	pub allies: EntityHashSet,
+	pub damage: f32,
+	pub fray_modifier: f32,
+}
 
 #[derive(Event)]
 pub struct EntityDamaged {
@@ -109,9 +117,7 @@ pub fn sweep_dealers(
 	pivots: Query<(&SweepPivot, &GlobalTransform), Without<DamageSweep>>,
 	rapier_context: Query<&RapierContext>,
 	debug_collider_visualizers: Query<Entity, With<DebugColliderVisualizer>>,
-	parents: Query<&Parent>,
-	healths: Query<&GelViscosity>,
-	mut ev_hit: EventWriter<EntityDamaged>,
+	mut ev_hit: EventWriter<EntityHit>,
 ) {
 	let debug_collider_visualizer = debug_collider_visualizers.single();
 	let rapier_context = rapier_context.single();
@@ -140,13 +146,7 @@ pub fn sweep_dealers(
 			&collider,
 			QueryFilter::new(),
 			|hit_entity| {
-				let hit_entity = std::iter::once(hit_entity)
-					.chain(parents.iter_ancestors(hit_entity))
-					.find(|entity| healths.get(*entity).is_ok())
-					.unwrap_or(hit_entity);
-				if !dealer.allies.contains(&hit_entity) {
-					dealer.hit_entities.insert(hit_entity);
-				}
+				dealer.hit_entities.insert(hit_entity);
 				true
 			},
 		);
@@ -159,8 +159,9 @@ pub fn sweep_dealers(
 
 		if let Some(end) = end {
 			for entity in dealer.hit_entities.iter() {
-				ev_hit.send(EntityDamaged {
+				ev_hit.send(EntityHit {
 					victim: *entity,
+					allies: dealer.allies.clone(),
 					damage: end.damage,
 					fray_modifier: end.fray_modifier,
 				});
@@ -170,6 +171,27 @@ pub fn sweep_dealers(
 				.entity(dealer_entity)
 				.remove::<DamageSweep>()
 				.remove::<EndDamageSweep>();
+		}
+	}
+}
+
+pub fn hit_to_damage(
+	parents: Query<&Parent>,
+	healths: Query<&GelViscosity>,
+	mut ev_hit: EventReader<EntityHit>,
+	mut ev_damage: EventWriter<EntityDamaged>,
+) {
+	for event in ev_hit.read() {
+		let victim = std::iter::once(event.victim)
+			.chain(parents.iter_ancestors(event.victim))
+			.find(|entity| healths.get(*entity).is_ok())
+			.unwrap_or(event.victim);
+		if !event.allies.contains(&victim) {
+			ev_damage.send(EntityDamaged {
+				victim,
+				damage: event.damage,
+				fray_modifier: event.fray_modifier,
+			});
 		}
 	}
 }
