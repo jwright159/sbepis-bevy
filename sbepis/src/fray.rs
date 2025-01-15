@@ -22,14 +22,12 @@ fn play_background_music(mut commands: Commands, mut assets: ResMut<Assets<MidiA
 	commands.spawn((
 		AudioPlayer(
 			assets.add(
-				MidiAudio::from_bytes(
-					include_bytes!("../assets/fray.mid"),
-					include_bytes!("../assets/hl4mgm.sf2"),
-				)
-				.with_channel_patch(0, 0, 46)
-				.with_channel_patch(1, 0, 3)
-				.with_channel_patch(2, 128, 0)
-				.with_channel_patch(3, 0, 0),
+				MidiAudio::from_bytes(include_bytes!("../assets/hl4mgm.sf2")).with_track(
+					MidiTrackAudio::from_bytes(include_bytes!("../assets/fray backing.mid"))
+						.with_channel_patch(0, 0, 3)
+						.with_channel_patch(1, 128, 0)
+						.with_channel_patch(2, 0, 0),
+				),
 			),
 		),
 		PlaybackSettings::LOOP
@@ -70,7 +68,7 @@ impl FrayMusic {
 	}
 
 	pub fn tick(&mut self, delta: Duration, midi_audio: &MidiAudio) {
-		self.beats_per_second = midi_audio.beats_per_second() / 2.0;
+		self.beats_per_second = midi_audio.tracks().next().unwrap().beats_per_second() / 2.0;
 		self.beat += self.time_to_bpm_beat(delta);
 	}
 
