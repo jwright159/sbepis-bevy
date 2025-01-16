@@ -43,7 +43,6 @@ impl Plugin for QuestingPlugin {
 				Update,
 				(
 					interact_with::<QuestGiver>
-						.iter_flatten()
 						.iter_inspect(propose_quest_if_none)
 						.iter_inspect(complete_quest_if_done)
 						.iter_done(),

@@ -2,14 +2,17 @@
   assets:
    [ 
     ("House", File ( path: "blueprints/House.glb" )),
-    ("Building", File ( path: "materials/Building.glb" )),
     ("Roof", File ( path: "materials/Roof.glb" )),
     ("Door", File ( path: "materials/Door.glb" )),
+    ("Building", File ( path: "materials/Building.glb" )),
     ("Planet", File ( path: "blueprints/Planet.glb" )),
     ("Planet", File ( path: "materials/Planet.glb" )),
     ("Cube", File ( path: "blueprints/Cube.glb" )),
     ("Cube", File ( path: "materials/Cube.glb" )),
     ("rock", File ( path: "blueprints/rock.glb" )),
     ("Material", File ( path: "materials/Material.glb" )),
+    ("Button", File ( path: "blueprints/Button.glb" )),
+    ("Button Top", File ( path: "materials/Button Top.glb" )),
+    ("Button Bottom", File ( path: "materials/Button Bottom.glb" )),
    ]
 )

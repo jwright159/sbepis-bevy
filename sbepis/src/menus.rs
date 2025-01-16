@@ -8,7 +8,7 @@ use leafwing_input_manager::prelude::{ActionState, InputMap};
 use leafwing_input_manager::{Actionlike, InputControlKind};
 
 use crate::input::input_managers_where_button_just_pressed;
-use crate::iter_system::{IntoDoneSystemTrait, IntoIteratorSystemTrait};
+use crate::iter_system::{IntoDoneSystemTrait, IntoInspectSystemTrait};
 
 pub struct MenusPlugin;
 impl Plugin for MenusPlugin {
@@ -232,7 +232,7 @@ pub fn show_menu<T: Component>(
 
 pub fn close_menu_on<Action: Actionlike + Copy>(action: Action) -> SystemConfigs {
 	input_managers_where_button_just_pressed(action)
-		.iter_map(close_menu)
+		.iter_inspect(close_menu)
 		.iter_done()
 		.into_configs()
 }
@@ -241,7 +241,7 @@ pub fn close_menu_on_event<Ev: Event + InputManagerReference>() -> SystemConfigs
 	|mut ev_input: EventReader<Ev>| -> Vec<Entity> {
 		ev_input.read().map(|event| event.input_manager()).collect()
 	}
-	.iter_map(close_menu)
+	.iter_inspect(close_menu)
 	.iter_done()
 	.into_configs()
 }
@@ -251,7 +251,7 @@ pub fn fire_input_events<Action: Actionlike + Copy, Ev: Event + InputManagerRefe
 	event_generator: impl Fn(Entity) -> Ev + Send + Sync + 'static,
 ) -> SystemConfigs {
 	input_managers_where_button_just_pressed(action)
-		.iter_map(move |In(input_manager), mut ev_action: EventWriter<Ev>| {
+		.iter_inspect(move |In(input_manager), mut ev_action: EventWriter<Ev>| {
 			ev_action.send(event_generator(input_manager));
 		})
 		.iter_done()

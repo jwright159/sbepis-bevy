@@ -4,17 +4,56 @@ use std::time::Duration;
 use bevy::audio::Volume;
 use bevy::prelude::*;
 use soundyrust::*;
+use tracks::{
+	open_track_switch_dialogue, switch_track, Track, TrackSwitched, TrackSwitcher,
+	TrackSwitcherAction, TrackSwitcherFourFour, TrackSwitcherSixEight,
+};
 
 use crate::camera::PlayerCameraNode;
+use crate::iter_system::{IntoDoneSystemTrait, IntoInspectSystemTrait};
+use crate::menus::{close_menu, fire_input_and_button_events, input_managers_where_action_fired};
+use crate::player_controller::interact_with;
 use crate::util::MapRange;
+
+mod tracks;
 
 pub struct FrayPlugin;
 
 impl Plugin for FrayPlugin {
 	fn build(&self, app: &mut App) {
 		app.add_plugins(SoundyPlugin)
+			.register_type::<TrackSwitcher>()
+			.add_event::<TrackSwitched>()
 			.add_systems(Startup, play_background_music)
-			.add_systems(Update, tick_fray_music);
+			.add_systems(
+				Update,
+				(
+					tick_fray_music,
+					interact_with::<TrackSwitcher>
+						.iter_inspect(open_track_switch_dialogue)
+						.iter_done(),
+					fire_input_and_button_events::<
+						TrackSwitcherAction,
+						TrackSwitcherFourFour,
+						TrackSwitched,
+					>(TrackSwitcherAction::FourFour, |dialogue| TrackSwitched {
+						track: Track::FourFour,
+						dialogue,
+					}),
+					fire_input_and_button_events::<
+						TrackSwitcherAction,
+						TrackSwitcherSixEight,
+						TrackSwitched,
+					>(TrackSwitcherAction::SixEight, |dialogue| TrackSwitched {
+						track: Track::SixEight,
+						dialogue,
+					}),
+					input_managers_where_action_fired::<TrackSwitched>()
+						.iter_inspect(close_menu)
+						.iter_done(),
+					switch_track,
+				),
+			);
 	}
 }
 
@@ -22,12 +61,23 @@ fn play_background_music(mut commands: Commands, mut assets: ResMut<Assets<MidiA
 	commands.spawn((
 		AudioPlayer(
 			assets.add(
-				MidiAudio::from_bytes(include_bytes!("../assets/hl4mgm.sf2")).with_track(
-					MidiTrackAudio::from_bytes(include_bytes!("../assets/fray backing.mid"))
+				MidiAudio::from_bytes(include_bytes!("../../assets/hl4mgm.sf2"))
+					.with_track(
+						MidiTrackAudio::from_bytes(
+							include_bytes!("../../assets/fray backing.mid"),
+							4.0 / 4.0,
+						)
 						.with_channel_patch(0, 0, 3)
 						.with_channel_patch(1, 128, 0)
 						.with_channel_patch(2, 0, 0),
-				),
+					)
+					.with_track(
+						MidiTrackAudio::from_bytes(
+							include_bytes!("../../assets/fray 6⁄8 lead.mid"),
+							6.0 / 8.0,
+						)
+						.with_channel_patch(0, 0, 46),
+					),
 			),
 		),
 		PlaybackSettings::LOOP

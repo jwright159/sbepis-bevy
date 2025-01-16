@@ -18,7 +18,6 @@ impl Plugin for InventoryPlugin {
 				Update,
 				(
 					interact_with::<Item>
-						.iter_flatten()
 						.iter_inspect(pick_up_items)
 						.iter_done(),
 					show_menu::<InventoryScreen>

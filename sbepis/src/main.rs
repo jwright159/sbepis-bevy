@@ -14,6 +14,7 @@ use self::main_bundles::*;
 
 mod blenvy;
 mod camera;
+mod dialogue;
 mod entity;
 mod fray;
 mod gravity;

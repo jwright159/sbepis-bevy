@@ -5,7 +5,7 @@ use bevy_rapier3d::prelude::*;
 
 use crate::entity::{EntityKilled, GelViscosity};
 use crate::fray::FrayMusic;
-use crate::util::QuaternionEx;
+use crate::util::{find_in_ancestors, QuaternionEx};
 
 pub mod hammer;
 pub mod rifle;
@@ -177,15 +177,12 @@ pub fn sweep_dealers(
 
 pub fn hit_to_damage(
 	parents: Query<&Parent>,
-	healths: Query<&GelViscosity>,
+	healths: Query<Entity, With<GelViscosity>>,
 	mut ev_hit: EventReader<EntityHit>,
 	mut ev_damage: EventWriter<EntityDamaged>,
 ) {
 	for event in ev_hit.read() {
-		let victim = std::iter::once(event.victim)
-			.chain(parents.iter_ancestors(event.victim))
-			.find(|entity| healths.get(*entity).is_ok())
-			.unwrap_or(event.victim);
+		let victim = find_in_ancestors(event.victim, &healths, &parents).unwrap_or(event.victim);
 		if !event.allies.contains(&victim) {
 			ev_damage.send(EntityDamaged {
 				victim,

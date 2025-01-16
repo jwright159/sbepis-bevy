@@ -1,9 +1,7 @@
-use bevy::color::palettes::css;
 use bevy::prelude::*;
 use leafwing_input_manager::prelude::*;
 
-use crate::camera::PlayerCameraNode;
-use crate::input::input_manager_bundle;
+use crate::dialogue::spawn_dialogue;
 use crate::menus::*;
 
 use super::{InputManagerReference, Quest, QuestGiver, QuestId, Quests};
@@ -57,104 +55,29 @@ pub fn propose_quest_if_none(
 
 	quest_giver.given_quest = Some(quest_id);
 
-	let proposal = commands
-		.spawn((
-			Node {
-				margin: UiRect::all(Val::Auto),
-				width: Val::Percent(100.0),
-				max_width: Val::Px(600.0),
-				padding: UiRect::all(Val::Px(10.0)),
-				flex_direction: FlexDirection::Column,
-				..default()
-			},
-			BackgroundColor(css::GRAY.into()),
-			PlayerCameraNode,
-			input_manager_bundle(
-				InputMap::default()
-					.with(QuestProposalAction::Accept, KeyCode::KeyE)
-					.with(QuestProposalAction::Decline, KeyCode::Space),
-				false,
-			),
-			Menu,
-			MenuWithMouse,
-			MenuWithInputManager,
-			MenuDespawnsWhenClosed,
-			QuestProposal { quest_id },
-		))
-		.insert(Name::new(format!("Quest Proposal for {quest_id}")))
-		.with_children(|parent| {
-			let proposal = parent.parent_entity();
-
-			parent.spawn((
-				Text(format!("{}\n\n{}", quest.name, quest.description)),
-				TextColor(Color::WHITE),
-				TextFont {
-					font_size: 20.0,
-					..default()
-				},
-				Node {
-					margin: UiRect::bottom(Val::Px(10.0)),
-					..default()
-				},
-			));
-			parent
-				.spawn(Node {
-					flex_direction: FlexDirection::Row,
-					column_gap: Val::Px(10.0),
-					..default()
-				})
-				.with_children(|parent| {
-					parent
-						.spawn((
-							Button,
-							Node {
-								padding: UiRect::all(Val::Px(10.0)),
-								flex_grow: 1.0,
-								..default()
-							},
-							BackgroundColor(css::DARK_GRAY.into()),
-							QuestProposalAccept {
-								quest_proposal: proposal,
-							},
-						))
-						.with_children(|parent| {
-							parent.spawn((
-								Text("Accept [E]".to_owned()),
-								TextColor(Color::WHITE),
-								TextFont {
-									font_size: 20.0,
-									..default()
-								},
-							));
-						});
-					parent
-						.spawn((
-							Button,
-							Node {
-								padding: UiRect::all(Val::Px(10.0)),
-								flex_grow: 1.0,
-								..default()
-							},
-							BackgroundColor(css::DARK_GRAY.into()),
-							QuestProposalDecline {
-								quest_proposal: proposal,
-							},
-						))
-						.with_children(|parent| {
-							parent.spawn((
-								Text("Decline [Space]".to_owned()),
-								TextColor(Color::WHITE),
-								TextFont {
-									font_size: 20.0,
-									..default()
-								},
-							));
-						});
-				});
-		})
-		.id();
-
-	menu_stack.push(proposal);
+	let mut dialogue = spawn_dialogue(
+		&mut commands,
+		&mut menu_stack,
+		format!("{}\n\n{}", quest.name, quest.description),
+		QuestProposal { quest_id },
+		InputMap::default()
+			.with(QuestProposalAction::Accept, KeyCode::KeyE)
+			.with(QuestProposalAction::Decline, KeyCode::Space),
+	);
+	dialogue.add_option(
+		&mut commands,
+		"Accept [E]".to_owned(),
+		QuestProposalAccept {
+			quest_proposal: dialogue.root,
+		},
+	);
+	dialogue.add_option(
+		&mut commands,
+		"Decline [Space]".to_owned(),
+		QuestProposalDecline {
+			quest_proposal: dialogue.root,
+		},
+	);
 }
 
 pub fn get_proposed_quest(

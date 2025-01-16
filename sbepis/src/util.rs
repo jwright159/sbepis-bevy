@@ -1,3 +1,4 @@
+use bevy::ecs::query::{QueryData, QueryFilter, ROQueryItem};
 use bevy::ecs::schedule::SystemConfigs;
 use bevy::prelude::*;
 use bevy_rapier3d::math::Real;
@@ -162,6 +163,16 @@ where
 			.reparametrize_linear(Interval::new(self.domain_start, self.domain_end).unwrap())
 			.unwrap()
 	}
+}
+
+pub fn find_in_ancestors<'a, D: QueryData, F: QueryFilter>(
+	entity: Entity,
+	query: &'a Query<D, F>,
+	parents: &Query<&Parent>,
+) -> Option<ROQueryItem<'a, D>> {
+	Iterator::chain(std::iter::once(entity), parents.iter_ancestors(entity))
+		.filter_map(|entity| query.get(entity).ok())
+		.next()
 }
 
 #[macro_export]

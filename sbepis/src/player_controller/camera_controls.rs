@@ -6,6 +6,7 @@ use leafwing_input_manager::prelude::*;
 
 use crate::camera::PlayerCamera;
 use crate::player_controller::PlayerAction;
+use crate::util::find_in_ancestors;
 
 #[derive(Component)]
 pub struct Pitch(pub f32);
@@ -59,8 +60,9 @@ pub fn interact_with<T: Component>(
 	rapier_context: Query<&RapierContext>,
 	player_camera: Query<&GlobalTransform, With<PlayerCamera>>,
 	entities: Query<Entity, With<T>>,
+	parents: Query<&Parent>,
 	input: Query<&ActionState<PlayerAction>>,
-) -> Vec<Option<Entity>> {
+) -> Vec<Entity> {
 	if !match input.iter().find(|input| !input.disabled()) {
 		Some(input) => input.just_pressed(&PlayerAction::Interact),
 		None => false,
@@ -69,21 +71,31 @@ pub fn interact_with<T: Component>(
 	}
 
 	let player_camera = player_camera.get_single().expect("Player camera missing");
-	let mut hit_entity = None;
+	let mut hit_entity: Option<(Option<Entity>, f32)> = None;
 	rapier_context.single().intersections_with_ray(
 		player_camera.translation(),
 		player_camera.forward().into(),
 		3.0,
-		false,
+		true,
 		QueryFilter::default(),
-		|entity, _intersection| {
-			if entities.get(entity).is_ok() {
-				hit_entity = Some(entity);
-				false
-			} else {
-				true
+		|entity, intersection| {
+			if hit_entity
+				.map(|(_, time)| intersection.time_of_impact < time)
+				.unwrap_or(true)
+				&& intersection.time_of_impact > 0.0
+			{
+				hit_entity = Some((
+					find_in_ancestors(entity, &entities, &parents),
+					intersection.time_of_impact,
+				));
 			}
+			true
 		},
 	);
-	vec![hit_entity]
+
+	if let Some((Some(entity), _)) = hit_entity {
+		vec![entity]
+	} else {
+		vec![]
+	}
 }
