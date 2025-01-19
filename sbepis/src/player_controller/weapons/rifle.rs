@@ -22,6 +22,7 @@ pub struct RiflePivot {
 #[derive(Component)]
 pub struct Rifle {
 	pub damage: f32,
+	pub wielder: Entity,
 	pub allies: EntityHashSet,
 	pub charge: u32,
 	pub last_beat: u32,
@@ -103,6 +104,7 @@ pub fn spawn_rifle(
 			MeshMaterial3d(gridbox_material("red", materials, asset_server)),
 			Rifle {
 				damage: 0.5,
+				wielder: body,
 				allies: EntityHashSet::from_iter(vec![body]),
 				charge: 0,
 				last_beat: 0,
@@ -197,6 +199,7 @@ fn on_rifle_fire(
 		let fray_modifier = fray.modify_fray_damage(1.0);
 		ev_hit.send(EntityHit {
 			victim: hit_entity,
+			perpetrator: rifle.wielder,
 			allies: rifle.allies.clone(),
 			damage,
 			fray_modifier,

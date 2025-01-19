@@ -18,6 +18,7 @@ pub struct SwordPivot {
 #[derive(Component)]
 pub struct Sword {
 	pub damage: f32,
+	pub wielder: Entity,
 	pub allies: EntityHashSet,
 	pub current_slash_damage: f32,
 	pub current_slash_modifier: f32,
@@ -30,6 +31,7 @@ pub struct Sword {
 impl Sword {
 	pub fn new(
 		damage: f32,
+		wielder: Entity,
 		allies: EntityHashSet,
 		left_swing_animation: AnimationNodeIndex,
 		right_swing_animation: AnimationNodeIndex,
@@ -37,6 +39,7 @@ impl Sword {
 	) -> Self {
 		Self {
 			damage,
+			wielder,
 			allies,
 			current_slash_damage: 0.0,
 			current_slash_modifier: 0.0,
@@ -139,6 +142,7 @@ pub fn spawn_sword(
 			MeshMaterial3d(gridbox_material("red", materials, asset_server)),
 			Sword::new(
 				0.25,
+				body,
 				EntityHashSet::from_iter(vec![body]),
 				left_attack_index,
 				right_attack_index,
@@ -203,6 +207,7 @@ fn on_sword_start(
 		*transform,
 		sword_pivot_entity,
 		sword.allies.clone(),
+		sword.wielder,
 	));
 
 	commands.spawn((

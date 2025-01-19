@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 use leafwing_input_manager::prelude::*;
+use soundyrust::MidiAudioTrackHandle;
 
 use crate::dialogue::spawn_dialogue;
 use crate::menus::{InputManagerReference, MenuStack};
@@ -7,6 +8,38 @@ use crate::menus::{InputManagerReference, MenuStack};
 #[derive(Component, Reflect)]
 #[reflect(Component)]
 pub struct TrackSwitcher;
+
+#[derive(Resource)]
+pub struct FrayTracks {
+	pub player: Track,
+	pub imp: Track,
+	pub four_four: MidiAudioTrackHandle,
+	pub six_eight: MidiAudioTrackHandle,
+}
+impl FrayTracks {
+	pub fn player_track(&self) -> MidiAudioTrackHandle {
+		self.track(self.player)
+	}
+
+	pub fn imp_track(&self) -> MidiAudioTrackHandle {
+		self.track(self.imp)
+	}
+
+	fn track(&self, track: Track) -> MidiAudioTrackHandle {
+		match track {
+			Track::FourFour => self.four_four,
+			Track::SixEight => self.six_eight,
+		}
+	}
+
+	pub fn set_player_track(&mut self, track: Track) {
+		self.player = track;
+		self.imp = match track {
+			Track::FourFour => Track::SixEight,
+			Track::SixEight => Track::FourFour,
+		};
+	}
+}
 
 pub fn open_track_switch_dialogue(
 	_switcher_entity: In<Entity>,
@@ -36,16 +69,12 @@ pub fn open_track_switch_dialogue(
 	);
 }
 
-pub fn switch_track(mut ev_track_switched: EventReader<TrackSwitched>) {
+pub fn switch_track(
+	mut ev_track_switched: EventReader<TrackSwitched>,
+	mut fray_tracks: ResMut<FrayTracks>,
+) {
 	for ev in ev_track_switched.read() {
-		match ev.track {
-			Track::FourFour => {
-				println!("Switched to 4/4");
-			}
-			Track::SixEight => {
-				println!("Switched to 6/8");
-			}
-		}
+		fray_tracks.set_player_track(ev.track);
 	}
 }
 

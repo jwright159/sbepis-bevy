@@ -9,13 +9,7 @@ too_many_arguments = "allow"
 eq_op = "allow"
 
 [features]
-debug = [
-	"inspector",
-	"overview_camera",
-	"terminal",
-	"rapier_debug",
-	"metronome",
-]
+debug = ["inspector", "overview_camera", "terminal"]
 default = []
 inspector = ["dep:bevy-inspector-egui", "bevy_panorbit_camera?/bevy_egui"]
 metronome = []

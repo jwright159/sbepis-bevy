@@ -22,6 +22,7 @@ use self::weapons::hammer::*;
 use self::weapons::rifle::*;
 use self::weapons::sword::*;
 use self::weapons::*;
+pub use self::weapons::{EntityDamaged, EntityHit};
 
 mod camera_controls;
 mod movement;

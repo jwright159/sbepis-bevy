@@ -18,6 +18,7 @@ struct HammerPivot {
 #[derive(Component)]
 struct Hammer {
 	pub damage: f32,
+	pub wielder: Entity,
 	pub allies: EntityHashSet,
 	pub woosh_sound: Handle<AudioSource>,
 	pub smash_sound: Handle<AudioSource>,
@@ -85,6 +86,7 @@ pub fn spawn_hammer(
 			MeshMaterial3d(gridbox_material("red", materials, asset_server)),
 			Hammer {
 				damage: 1.0,
+				wielder: body,
 				allies: EntityHashSet::from_iter(vec![body]),
 				woosh_sound: asset_server.load("whoosh.mp3"),
 				smash_sound: asset_server.load("concrete_break3.wav"),
@@ -141,6 +143,7 @@ fn on_hammer_start(
 		*transform,
 		hammer_pivot_entity,
 		hammer.allies.clone(),
+		hammer.wielder,
 	));
 
 	commands.spawn((

@@ -14,6 +14,7 @@ pub mod sword;
 #[derive(Event)]
 pub struct EntityHit {
 	pub victim: Entity,
+	pub perpetrator: Entity,
 	pub allies: EntityHashSet,
 	pub damage: f32,
 	pub fray_modifier: f32,
@@ -47,6 +48,7 @@ pub struct DamageSweep {
 	pub last_transform: GlobalTransform,
 	pub pivot: Entity,
 	pub allies: EntityHashSet,
+	pub owner: Entity,
 }
 
 #[derive(Component)]
@@ -64,12 +66,18 @@ pub struct SweepPivot {
 }
 
 impl DamageSweep {
-	pub fn new(transform: GlobalTransform, pivot: Entity, allies: EntityHashSet) -> Self {
+	pub fn new(
+		transform: GlobalTransform,
+		pivot: Entity,
+		allies: EntityHashSet,
+		owner: Entity,
+	) -> Self {
 		Self {
 			hit_entities: EntityHashSet::default(),
 			last_transform: transform,
 			pivot,
 			allies,
+			owner,
 		}
 	}
 }
@@ -161,6 +169,7 @@ pub fn sweep_dealers(
 			for entity in dealer.hit_entities.iter() {
 				ev_hit.send(EntityHit {
 					victim: *entity,
+					perpetrator: dealer.owner,
 					allies: dealer.allies.clone(),
 					damage: end.damage,
 					fray_modifier: end.fray_modifier,

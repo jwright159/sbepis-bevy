@@ -5,14 +5,15 @@ use bevy::audio::Volume;
 use bevy::prelude::*;
 use soundyrust::*;
 use tracks::{
-	open_track_switch_dialogue, switch_track, Track, TrackSwitched, TrackSwitcher,
+	open_track_switch_dialogue, switch_track, FrayTracks, Track, TrackSwitched, TrackSwitcher,
 	TrackSwitcherAction, TrackSwitcherFourFour, TrackSwitcherSixEight,
 };
 
 use crate::camera::PlayerCameraNode;
 use crate::iter_system::{IntoDoneSystemTrait, IntoInspectSystemTrait};
 use crate::menus::{close_menu, fire_input_and_button_events, input_managers_where_action_fired};
-use crate::player_controller::interact_with;
+use crate::npcs::Imp;
+use crate::player_controller::{interact_with, EntityHit, PlayerBody};
 use crate::util::MapRange;
 
 mod tracks;
@@ -52,40 +53,71 @@ impl Plugin for FrayPlugin {
 						.iter_inspect(close_menu)
 						.iter_done(),
 					switch_track,
+					queue_tracks_on_hit,
 				),
 			);
 	}
 }
 
 fn play_background_music(mut commands: Commands, mut assets: ResMut<Assets<MidiAudio>>) {
+	let mut midi = MidiAudio::from_bytes(include_bytes!("../../assets/hl4mgm.sf2"));
+	let backing_track = midi.add_track(
+		MidiAudioTrack::from_bytes(include_bytes!("../../assets/fray backing.mid"), 4.0 / 4.0)
+			.with_channel_patch(0, 0, 3)
+			.with_channel_patch(1, 128, 0)
+			.with_channel_patch(2, 0, 0),
+	);
+	let four_four = midi.add_track(
+		MidiAudioTrack::from_bytes(include_bytes!("../../assets/fray 4⁄4 lead.mid"), 4.0 / 4.0)
+			.with_channel_patch(0, 0, 46)
+			.stopped(),
+	);
+	let six_eight = midi.add_track(
+		MidiAudioTrack::from_bytes(include_bytes!("../../assets/fray 6⁄8 lead.mid"), 6.0 / 8.0)
+			.with_channel_patch(0, 0, 46)
+			.stopped(),
+	);
+
+	midi.queue(
+		four_four,
+		MidiQueueEvent {
+			event: MidiQueueEventType::Queue(Box::new(MidiQueueEvent {
+				event: MidiQueueEventType::Stop,
+				timing: MidiQueueTiming::Bar,
+				looping: MidiQueueLooping::Once,
+			})),
+			timing: MidiQueueTiming::Bar,
+			looping: MidiQueueLooping::Loop,
+		},
+	);
+	midi.queue(
+		six_eight,
+		MidiQueueEvent {
+			event: MidiQueueEventType::Queue(Box::new(MidiQueueEvent {
+				event: MidiQueueEventType::Stop,
+				timing: MidiQueueTiming::Bar,
+				looping: MidiQueueLooping::Once,
+			})),
+			timing: MidiQueueTiming::Bar,
+			looping: MidiQueueLooping::Loop,
+		},
+	);
+
 	commands.spawn((
-		AudioPlayer(
-			assets.add(
-				MidiAudio::from_bytes(include_bytes!("../../assets/hl4mgm.sf2"))
-					.with_track(
-						MidiTrackAudio::from_bytes(
-							include_bytes!("../../assets/fray backing.mid"),
-							4.0 / 4.0,
-						)
-						.with_channel_patch(0, 0, 3)
-						.with_channel_patch(1, 128, 0)
-						.with_channel_patch(2, 0, 0),
-					)
-					.with_track(
-						MidiTrackAudio::from_bytes(
-							include_bytes!("../../assets/fray 6⁄8 lead.mid"),
-							6.0 / 8.0,
-						)
-						.with_channel_patch(0, 0, 46),
-					),
-			),
-		),
+		AudioPlayer(assets.add(midi)),
 		PlaybackSettings::LOOP
 			.with_volume(Volume::new(0.2))
 			.paused(),
 		Name::new("Background Music"),
-		FrayMusic::default(),
+		FrayMusic::new(backing_track),
 	));
+
+	commands.insert_resource(FrayTracks {
+		player: Track::FourFour,
+		imp: Track::SixEight,
+		four_four,
+		six_eight,
+	});
 
 	commands.spawn((
 		Name::new("Beat Counter"),
@@ -104,22 +136,28 @@ fn play_background_music(mut commands: Commands, mut assets: ResMut<Assets<MidiA
 #[derive(Component)]
 pub struct FrayMusic {
 	beat: f64,
+	beats_per_bar: f64,
 	beats_per_second: f64,
 	delay: Option<Duration>,
+	backing_track: MidiAudioTrackHandle,
 }
 
 impl FrayMusic {
-	fn default() -> Self {
+	fn new(backing_track: MidiAudioTrackHandle) -> Self {
 		Self {
 			beat: 0.0,
+			beats_per_bar: 1.0,
 			beats_per_second: 0.0,
 			delay: Some(Duration::from_secs_f32(1.0)),
+			backing_track,
 		}
 	}
 
 	pub fn tick(&mut self, delta: Duration, midi_audio: &MidiAudio) {
-		self.beats_per_second = midi_audio.tracks().next().unwrap().beats_per_second() / 2.0;
+		self.beats_per_second = midi_audio.beats_per_second(&self.backing_track).unwrap() / 2.0;
+		self.beats_per_bar = midi_audio.beats_per_bar(&self.backing_track).unwrap();
 		self.beat += self.time_to_bpm_beat(delta);
+		self.beat %= self.beats_per_bar;
 	}
 
 	pub fn subbeats(&self, divisions: u32) -> u32 {
@@ -166,7 +204,7 @@ fn tick_fray_music(
 	time: Res<Time>,
 	mut fray_musics: Query<(&mut FrayMusic, &AudioSink, &AudioPlayer<MidiAudio>)>,
 	mut beat_counters: Query<(&mut BeatCounter, &mut Text)>,
-	assets: Res<Assets<MidiAudio>>,
+	mut assets: ResMut<Assets<MidiAudio>>,
 ) {
 	let (mut beat_counter, mut beat_counter_text) = beat_counters
 		.get_single_mut()
@@ -187,7 +225,9 @@ fn tick_fray_music(
 			continue;
 		}
 
-		let midi_audio = assets.get(&midi_audio.0).expect("Couldn't find midi audio");
+		let midi_audio = assets
+			.get_mut(&midi_audio.0)
+			.expect("Couldn't find midi audio");
 		audio_sink.play(); // this should really be phased out or smth
 		fray_music.tick(time.delta(), midi_audio);
 		let beat = fray_music.subbeats(1);
@@ -195,8 +235,8 @@ fn tick_fray_music(
 
 		beat_counter_text.0 = format!("{} {:.2}", beat, beat_progress);
 
-		#[cfg(feature = "metronome")]
 		if beat_counter.beat != beat {
+			#[cfg(feature = "metronome")]
 			commands.spawn((
 				Name::new("Beat"),
 				AudioPlayer::new(asset_server.load("metronome.mp3")),
@@ -205,5 +245,39 @@ fn tick_fray_music(
 		}
 
 		beat_counter.beat = beat;
+	}
+}
+
+fn queue_tracks_on_hit(
+	mut ev_hit: EventReader<EntityHit>,
+	imps: Query<(), With<Imp>>,
+	players: Query<(), With<PlayerBody>>,
+	audio_players: Query<&AudioPlayer<MidiAudio>>,
+	mut assets: ResMut<Assets<MidiAudio>>,
+	fray_tracks: Res<FrayTracks>,
+) {
+	let audio = assets.get_mut(&audio_players.single().0).unwrap();
+
+	for event in ev_hit.read() {
+		if imps.get(event.perpetrator).is_ok() {
+			audio.queue(
+				fray_tracks.imp_track(),
+				MidiQueueEvent {
+					event: MidiQueueEventType::Play,
+					timing: MidiQueueTiming::Bar,
+					looping: MidiQueueLooping::Once,
+				},
+			);
+		}
+		if players.get(event.perpetrator).is_ok() {
+			audio.queue(
+				fray_tracks.player_track(),
+				MidiQueueEvent {
+					event: MidiQueueEventType::Play,
+					timing: MidiQueueTiming::Bar,
+					looping: MidiQueueLooping::Once,
+				},
+			);
+		}
 	}
 }
