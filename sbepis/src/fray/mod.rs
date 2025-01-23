@@ -69,12 +69,12 @@ fn play_background_music(mut commands: Commands, mut assets: ResMut<Assets<MidiA
 	);
 	let four_four = midi.add_track(
 		MidiAudioTrack::from_bytes(include_bytes!("../../assets/fray 4⁄4 lead.mid"), 4.0 / 4.0)
-			.with_channel_patch(0, 0, 46)
+			.with_channel_patch(0, 0, 6)
 			.stopped(),
 	);
 	let six_eight = midi.add_track(
 		MidiAudioTrack::from_bytes(include_bytes!("../../assets/fray 6⁄8 lead.mid"), 6.0 / 8.0)
-			.with_channel_patch(0, 0, 46)
+			.with_channel_patch(0, 0, 6)
 			.stopped(),
 	);
 
