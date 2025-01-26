@@ -110,7 +110,7 @@ fn calculate_gravity(
 	plugin = GravityPlugin, schedule = Update,
 	after = calculate_gravity,
 )]
-pub fn apply_gravity(mut rigidbodies: Query<(&mut Velocity, &AffectedByGravity)>, time: Res<Time>) {
+fn apply_gravity(mut rigidbodies: Query<(&mut Velocity, &AffectedByGravity)>, time: Res<Time>) {
 	for (mut velocity, gravity) in rigidbodies.iter_mut() {
 		velocity.linvel += gravity.acceleration * time.delta_secs();
 	}

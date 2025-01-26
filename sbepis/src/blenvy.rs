@@ -62,7 +62,7 @@ pub struct PlanetBlundle {
 #[system(
 	plugin = BlenvyPlugin, schedule = PreUpdate,
 )]
-pub fn create_planet(scenes: Query<(Entity, &PlanetBlundle)>, mut commands: Commands) {
+fn create_planet(scenes: Query<(Entity, &PlanetBlundle)>, mut commands: Commands) {
 	for (scene, planet) in scenes.iter() {
 		commands.entity(scene).remove::<PlanetBlundle>().insert((
 			RigidBody::Fixed,
@@ -82,7 +82,7 @@ pub struct BoxBlundle;
 #[system(
 	plugin = BlenvyPlugin, schedule = PreUpdate,
 )]
-pub fn create_box(scenes: Query<Entity, With<BoxBlundle>>, mut commands: Commands) {
+fn create_box(scenes: Query<Entity, With<BoxBlundle>>, mut commands: Commands) {
 	for scene in scenes.iter() {
 		commands.entity(scene).remove::<BoxBlundle>().insert((
 			AffectedByGravity::default(),
@@ -108,7 +108,7 @@ pub enum SpawnerBlundle {
 #[system(
 	plugin = BlenvyPlugin, schedule = PreUpdate,
 )]
-pub fn create_spawner(scenes: Query<(Entity, &SpawnerBlundle)>, mut commands: Commands) {
+fn create_spawner(scenes: Query<(Entity, &SpawnerBlundle)>, mut commands: Commands) {
 	for (scene, spawner) in scenes.iter() {
 		let mut spawner_commands = commands.entity(scene);
 
