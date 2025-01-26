@@ -8,22 +8,12 @@ use bevy::render::render_resource::Extent3d;
 use bevy::render::render_resource::TextureDimension;
 use bevy::render::render_resource::TextureViewDescriptor;
 use bevy::render::render_resource::TextureViewDimension;
+use bevy_butler::*;
 
+#[butler_plugin(build(
+	init_resource::<CurrentSkybox>(),
+))]
 pub struct SkyboxPlugin;
-
-impl Plugin for SkyboxPlugin {
-	fn build(&self, app: &mut App) {
-		app.insert_resource(CurrentSkybox::default())
-			.add_systems(Startup, (start_loading_skybox,))
-			.add_systems(
-				Update,
-				(
-					stitch_skybox.run_if(not(is_skybox_loaded).and(is_skybox_parts_loaded)),
-					add_skybox.run_if(is_skybox_loaded),
-				),
-			);
-	}
-}
 
 #[derive(Resource, Default)]
 struct CurrentSkybox {
@@ -71,6 +61,9 @@ fn is_skybox_parts_loaded(
 	})
 }
 
+#[system(
+	plugin = SkyboxPlugin, schedule = Startup,
+)]
 fn start_loading_skybox(asset_server: Res<AssetServer>, mut current_skybox: ResMut<CurrentSkybox>) {
 	current_skybox.left = Some(asset_server.load("skybox/left.png"));
 	current_skybox.right = Some(asset_server.load("skybox/right.png"));
@@ -80,6 +73,10 @@ fn start_loading_skybox(asset_server: Res<AssetServer>, mut current_skybox: ResM
 	current_skybox.front = Some(asset_server.load("skybox/front.png"));
 }
 
+#[system(
+	plugin = SkyboxPlugin, schedule = Update,
+	run_if = not(is_skybox_loaded).and(is_skybox_parts_loaded),
+)]
 fn stitch_skybox(mut images: ResMut<Assets<Image>>, mut current_skybox: ResMut<CurrentSkybox>) {
 	let sides: Vec<&Image> = current_skybox
 		.parts()
@@ -111,6 +108,10 @@ fn stitch_skybox(mut images: ResMut<Assets<Image>>, mut current_skybox: ResMut<C
 	current_skybox.skybox = Some(images.add(skybox));
 }
 
+#[system(
+	plugin = SkyboxPlugin, schedule = Update,
+	run_if = is_skybox_loaded,
+)]
 fn add_skybox(
 	mut commands: Commands,
 	camera: Query<Entity, (With<Camera3d>, Without<Skybox>)>,

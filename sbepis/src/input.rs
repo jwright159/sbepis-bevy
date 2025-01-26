@@ -1,97 +1,93 @@
-use std::any::type_name;
-
-use bevy::{ecs::schedule::SystemConfigs, prelude::*};
-use leafwing_input_manager::{plugin::InputManagerSystem, prelude::*};
-
-pub fn spawn_input_manager<Action: Actionlike>(
-	input_map: InputMap<Action>,
-	start_enabled: bool,
-) -> SystemConfigs {
-	(move |mut commands: Commands| {
-		commands.spawn(input_manager_bundle(input_map.clone(), start_enabled));
-	})
-	.into_configs()
-}
+use bevy::ecs::system::SystemId;
+use bevy::prelude::*;
+use leafwing_input_manager::prelude::*;
 
 pub fn input_manager_bundle<Action: Actionlike>(
 	input_map: InputMap<Action>,
 	start_enabled: bool,
-) -> impl Bundle {
+) -> InputManagerBundle<Action> {
 	let mut action_state: ActionState<Action> = default();
 	if !start_enabled {
 		action_state.disable();
 	}
-
-	(
-		Name::new(format!(
-			"InputManager<{}>",
-			type_name::<Action>().split("::").last().unwrap()
-		)),
-		InputManagerBundle::<Action> {
-			input_map,
-			action_state,
-		},
-	)
-}
-
-pub fn action_event<Action: Actionlike + Copy, EventType: Event>(
-	event_generator: impl Fn(Action) -> EventType + Send + Sync + 'static,
-) -> SystemConfigs {
-	(move |input: Query<&ActionState<Action>>, mut event: EventWriter<EventType>| {
-		for input in input.iter().filter(|input| !input.disabled()) {
-			for action in input.get_just_pressed() {
-				event.send(event_generator(action));
-			}
-		}
-	})
-	.after(InputManagerSystem::ManualControl)
-}
-
-pub fn button_event<Action: Actionlike + Copy, EventType: Event>(
-	action: Action,
-	event_generator: impl Fn() -> EventType + Send + Sync + 'static,
-) -> SystemConfigs {
-	(move |input: Query<&ActionState<Action>>, mut event: EventWriter<EventType>| {
-		for input in input.iter().filter(|input| !input.disabled()) {
-			if input.just_pressed(&action) {
-				event.send(event_generator());
-			}
-		}
-	})
-	.after(InputManagerSystem::ManualControl)
-}
-
-pub fn input_managers_where_button_just_pressed<Action: Actionlike + Copy>(
-	action: Action,
-) -> impl Fn(Query<(Entity, &ActionState<Action>)>) -> Vec<Entity> {
-	move |input: Query<(Entity, &ActionState<Action>)>| {
-		input
-			.iter()
-			.filter(|(_, input)| input.just_pressed(&action))
-			.map(|(entity, _)| entity)
-			.collect()
+	InputManagerBundle::<Action> {
+		input_map,
+		action_state,
 	}
 }
 
-macro_rules! value_input {
-	($function_name:ident, $value_type:ident, $default_value:expr => $default_value_type:ident) => {
-		pub fn $function_name<Action: Actionlike + Copy>(
-			action: Action,
-		) -> impl Fn(Query<&ActionState<Action>>) -> $default_value_type {
-			move |input: Query<&ActionState<Action>>| {
-				if let Some(input) = input.iter().find(|input| !input.disabled()) {
-					input.$value_type(&action)
-				} else {
-					$default_value
-				}
-			}
-		}
-	};
+pub trait CoolNewEventMaker {
+	type Action: Actionlike + Copy;
+	type Button: Component + InputManagerReference;
+	type Event: Event + InputManagerReference;
+	fn make_event_system() -> impl IntoSystem<In<Entity>, Self::Event, ()> + 'static;
+	fn action() -> Self::Action;
+}
+pub fn fire_cool_new_events<T: CoolNewEventMaker>(
+	input: Query<(Entity, &ActionState<T::Action>)>,
+	buttons: Query<(&T::Button, &Interaction), Changed<Interaction>>,
+	mut commands: Commands,
+	mut system: Local<Option<SystemId<In<Entity>, ()>>>,
+) {
+	if system.is_none() {
+		*system = Some(commands.register_system(T::make_event_system().pipe(
+			|In(ev): In<T::Event>, mut ev_action: EventWriter<T::Event>| {
+				ev_action.send(ev);
+			},
+		)));
+	}
+	let system = system.unwrap();
+
+	input
+		.iter()
+		.filter(|(_, input)| input.just_pressed(&T::action()))
+		.for_each(|(entity, _)| {
+			commands.run_system_with_input(system, entity);
+		});
+
+	buttons
+		.iter()
+		.filter(|(_, &interaction)| interaction == Interaction::Pressed)
+		.for_each(|(button, _)| {
+			commands.run_system_with_input(system, button.input_manager());
+		});
 }
 
-value_input!(button_input, pressed, false => bool);
-value_input!(button_just_pressed, just_pressed, false => bool);
-value_input!(axis_input, value, 0.0 => f32);
-value_input!(clamped_axis_input, clamped_value, 0.0 => f32);
-value_input!(dual_axes_input, axis_pair, Vec2::ZERO => Vec2);
-value_input!(clamped_dual_axes_input, clamped_axis_pair, Vec2::ZERO => Vec2);
+pub trait InputManagerReference {
+	fn input_manager(&self) -> Entity;
+}
+
+pub trait MapsToEvent<Event> {
+	fn make_event(&self) -> Event;
+}
+pub fn map_event<EventA: Event + MapsToEvent<EventB>, EventB: Event>(
+	mut ev_a: EventReader<EventA>,
+	mut ev_b: EventWriter<EventB>,
+) {
+	for ev in ev_a.read() {
+		ev_b.send(ev.make_event());
+	}
+}
+pub fn map_action_to_event<Action: Actionlike + MapsToEvent<EventB>, EventB: Event>(
+	input: Query<(Entity, &ActionState<Action>)>,
+	mut ev_b: EventWriter<EventB>,
+) {
+	input
+		.iter()
+		.flat_map(|(_, input)| input.get_just_pressed())
+		.for_each(|action| {
+			ev_b.send(action.make_event());
+		});
+}
+
+pub fn button_just_pressed<T: Actionlike + Copy>(
+	action: T,
+) -> impl Fn(Query<&ActionState<T>>) -> bool {
+	move |input: Query<&ActionState<T>>| {
+		if let Some(input) = input.iter().find(|input| !input.disabled()) {
+			input.just_pressed(&action)
+		} else {
+			false
+		}
+	}
+}

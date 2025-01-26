@@ -1,10 +1,11 @@
 use bevy::prelude::*;
+use bevy_butler::*;
 use bevy_rapier3d::prelude::*;
 use leafwing_input_manager::prelude::ActionState;
 
 use crate::entity::Movement;
-
-use super::{PlayerAction, PlayerBody};
+use crate::input::button_just_pressed;
+use crate::player_controller::{PlayerAction, PlayerBody, PlayerControllerPlugin};
 
 #[derive(Resource)]
 pub struct PlayerSpeed {
@@ -16,22 +17,24 @@ pub struct PlayerSpeed {
 	pub air_acceleration: f32,
 }
 
-pub fn axes_to_ground_velocity(
-	In(mut axes_input): In<Vec2>,
-	key_input: Query<&ActionState<PlayerAction>>,
+#[system(
+	plugin = PlayerControllerPlugin, schedule = Update,
+)]
+fn axes_to_ground_velocity(
+	input: Query<&ActionState<PlayerAction>>,
 	mut movement: Query<(&PlayerBody, &mut Movement, &Transform)>,
 	speed: Res<PlayerSpeed>,
 	time: Res<Time>,
 ) {
-	let key_input = key_input.single();
+	let input = input.single();
 	let (body, mut movement, transform) = movement.single_mut();
-	axes_input.y *= -1.;
+	let input_dir = input.clamped_axis_pair(&PlayerAction::Move) * Vec2::new(1.0, -1.0);
 
 	// Set up vectors
 	let velocity = (transform.rotation.inverse() * movement.0).xz();
-	let wish_velocity = axes_input
+	let wish_velocity = input_dir
 		* speed.speed
-		* if key_input.pressed(&PlayerAction::Sprint) {
+		* if input.pressed(&PlayerAction::Sprint) {
 			speed.sprint_modifier
 		} else {
 			1.0
@@ -66,7 +69,11 @@ pub fn axes_to_ground_velocity(
 	movement.0 = transform.rotation * Vec3::new(new_velocity.x, 0.0, new_velocity.y);
 }
 
-pub fn jump(
+#[system(
+	plugin = PlayerControllerPlugin, schedule = Update,
+	run_if = button_just_pressed(PlayerAction::Jump),
+)]
+fn jump(
 	mut player_bodies: Query<(&PlayerBody, &mut Velocity, &Transform)>,
 	speed: Res<PlayerSpeed>,
 ) {

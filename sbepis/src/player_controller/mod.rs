@@ -2,6 +2,7 @@ use std::f32::consts::PI;
 
 use bevy::prelude::*;
 use bevy::render::mesh::CapsuleUvProfile;
+use bevy_butler::*;
 use bevy_rapier3d::prelude::*;
 use leafwing_input_manager::prelude::*;
 
@@ -15,57 +16,35 @@ use crate::menus::{
 };
 
 use self::camera_controls::*;
-pub use self::camera_controls::{interact_with, MouseSensitivity, PlayerBody};
 use self::movement::*;
-use self::movement::{axes_to_ground_velocity, jump};
 use self::weapons::hammer::*;
 use self::weapons::rifle::*;
 use self::weapons::sword::*;
 use self::weapons::*;
-pub use self::weapons::{EntityDamaged, EntityHit};
 
-mod camera_controls;
-mod movement;
-mod weapons;
+pub mod camera_controls;
+pub mod movement;
+pub mod weapons;
 
+#[butler_plugin(build(
+	insert_resource(MouseSensitivity(0.003)),
+	insert_resource(PlayerSpeed {
+		speed: 7.0,
+		sprint_modifier: 2.0,
+		jump_speed: 5.0,
+		friction: 6.0,
+		acceleration: 8.0,
+		air_acceleration: 6.0,
+	}),
+	add_event::<EntityHit>(),
+	add_event::<EntityDamaged>(),
+	add_plugins(InputManagerMenuPlugin::<PlayerAction>::default()),
+))]
 pub struct PlayerControllerPlugin;
-impl Plugin for PlayerControllerPlugin {
-	fn build(&self, app: &mut App) {
-		app.insert_resource(MouseSensitivity(0.003))
-			.insert_resource(PlayerSpeed {
-				speed: 7.0,
-				sprint_modifier: 2.0,
-				jump_speed: 5.0,
-				friction: 6.0,
-				acceleration: 8.0,
-				air_acceleration: 6.0,
-			})
-			.add_event::<EntityHit>()
-			.add_event::<EntityDamaged>()
-			.add_plugins(InputManagerMenuPlugin::<PlayerAction>::default())
-			.add_systems(Startup, setup)
-			.add_systems(
-				Update,
-				(
-					dual_axes_input(PlayerAction::Look).pipe(rotate_camera_and_body),
-					clamped_dual_axes_input(PlayerAction::Move).pipe(axes_to_ground_velocity),
-					jump.run_if(button_just_pressed(PlayerAction::Jump)),
-					attack.run_if(button_just_pressed(PlayerAction::Use)),
-					switch_weapon_next.run_if(button_just_pressed(PlayerAction::NextWeapon)),
-					switch_weapon_prev.run_if(button_just_pressed(PlayerAction::PrevWeapon)),
-					initialize_weapon_sets,
-					charge_rifle,
-					sweep_dealers,
-					hit_to_damage,
-					deal_all_damage,
-					update_damage_numbers,
-					update_is_grounded,
-					correct_animation_speed,
-				),
-			);
-	}
-}
 
+#[system(
+	plugin = PlayerControllerPlugin, schedule = Startup,
+)]
 fn setup(
 	mut commands: Commands,
 	mut meshes: ResMut<Assets<Mesh>>,
@@ -88,7 +67,8 @@ fn setup(
 					.with(PlayerAction::NextWeapon, MouseScrollDirection::UP)
 					.with(PlayerAction::PrevWeapon, MouseScrollDirection::DOWN)
 					.with(PlayerAction::OpenQuestScreen, KeyCode::KeyJ)
-					.with(PlayerAction::OpenInventory, KeyCode::KeyV),
+					.with(PlayerAction::OpenInventory, KeyCode::KeyV)
+					.with(PlayerAction::OpenStaff, KeyCode::Backquote),
 				false,
 			),
 			Menu,
@@ -192,6 +172,9 @@ fn setup(
 	));
 }
 
+#[system(
+	plugin = PlayerControllerPlugin, schedule = Update,
+)]
 fn update_is_grounded(
 	mut bodies: Query<(Entity, &mut PlayerBody, &GlobalTransform)>,
 	rapier_context: Query<&RapierContext>,
@@ -228,6 +211,7 @@ pub enum PlayerAction {
 	PrevWeapon,
 	OpenQuestScreen,
 	OpenInventory,
+	OpenStaff,
 }
 impl Actionlike for PlayerAction {
 	fn input_control_kind(&self) -> InputControlKind {
@@ -242,6 +226,7 @@ impl Actionlike for PlayerAction {
 			PlayerAction::PrevWeapon => InputControlKind::Button,
 			PlayerAction::OpenQuestScreen => InputControlKind::Button,
 			PlayerAction::OpenInventory => InputControlKind::Button,
+			PlayerAction::OpenStaff => InputControlKind::Button,
 		}
 	}
 }

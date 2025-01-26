@@ -1,8 +1,9 @@
 use bevy::prelude::*;
+use bevy_butler::*;
 
+use crate::entity::EntityKilledSet;
+use crate::questing::{QuestGiver, QuestingPlugin, Quests};
 use crate::{some_or_continue, some_or_return};
-
-use super::{QuestGiver, Quests};
 
 #[derive(Component)]
 pub struct SpawnQuestMarker;
@@ -17,12 +18,18 @@ pub struct QuestMarker {
 #[derive(Resource)]
 pub struct QuestMarkerAsset(Handle<Gltf>);
 
-pub fn load_quest_markers(mut commands: Commands, asset_server: Res<AssetServer>) {
+#[system(
+	plugin = QuestingPlugin, schedule = Startup,
+)]
+fn load_quest_markers(mut commands: Commands, asset_server: Res<AssetServer>) {
 	let asset = asset_server.load("quest markers.glb");
 	commands.insert_resource(QuestMarkerAsset(asset));
 }
 
-pub fn spawn_quest_markers(
+#[system(
+	plugin = QuestingPlugin, schedule = Update,
+)]
+fn spawn_quest_markers(
 	mut commands: Commands,
 	mut quest_givers: Query<(Entity, &mut QuestGiver), With<SpawnQuestMarker>>,
 	asset: Res<QuestMarkerAsset>,
@@ -68,7 +75,11 @@ pub fn spawn_quest_markers(
 	}
 }
 
-pub fn despawn_invalid_quest_markers(
+#[system(
+	plugin = QuestingPlugin, schedule = Update,
+	after = EntityKilledSet
+)]
+fn despawn_invalid_quest_markers(
 	mut commands: Commands,
 	quest_markers: Query<(Entity, &QuestMarker)>,
 	entities: Query<Entity>,
@@ -80,7 +91,10 @@ pub fn despawn_invalid_quest_markers(
 	}
 }
 
-pub fn update_quest_markers(
+#[system(
+	plugin = QuestingPlugin, schedule = Update,
+)]
+fn update_quest_markers(
 	quests: Res<Quests>,
 	quest_givers: Query<&QuestGiver>,
 	quest_markers: Query<&QuestMarker>,

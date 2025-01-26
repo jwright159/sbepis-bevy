@@ -1,19 +1,31 @@
 use bevy::prelude::*;
+use bevy_butler::system;
 use soundyrust::Note;
 
+use crate::player_commands::{NotePlayedSet, NotesCleared, NotesClearedSet, PlayerCommandsPlugin};
 use crate::some_or_return;
 
-use super::notes::NotePlayedEvent;
+use crate::player_commands::notes::NotePlayed;
 
-pub fn check_note_patterns<T: Event + NotePatternEvent>(
+#[system(
+	plugin = PlayerCommandsPlugin, schedule = Update,
+	generics = PingCommandEvent,
+	in_set = CommandSentSet,
+)]
+#[system(
+	plugin = PlayerCommandsPlugin, schedule = Update,
+	generics = KillCommandEvent,
+	in_set = CommandSentSet,
+)]
+fn check_note_patterns<T: Event + NotePatternEvent>(
 	note_holder: Res<NotePatternPlayer>,
 	mut ev_command: EventWriter<T>,
-	mut ev_command_sent: EventWriter<CommandSentEvent>,
+	mut ev_command_sent: EventWriter<CommandSent>,
 ) {
 	let event = T::compare_notes(note_holder.current_pattern.as_slice());
 	let event = some_or_return!(event);
 	ev_command.send(event);
-	ev_command_sent.send(CommandSentEvent);
+	ev_command_sent.send(CommandSent);
 }
 
 #[derive(Resource, Default)]
@@ -22,18 +34,30 @@ pub struct NotePatternPlayer {
 }
 
 #[derive(Event)]
-pub struct CommandSentEvent;
+pub struct CommandSent;
+#[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct CommandSentSet;
 
-pub fn add_note_to_player(
+#[system(
+	plugin = PlayerCommandsPlugin, schedule = Update,
+	after = NotePlayedSet,
+	before = CommandSentSet,
+)]
+fn add_note_to_player(
 	mut player: ResMut<NotePatternPlayer>,
-	mut ev_note_played: EventReader<NotePlayedEvent>,
+	mut ev_note_played: EventReader<NotePlayed>,
 ) {
 	for ev in ev_note_played.read() {
 		player.current_pattern.push(ev.note);
 	}
 }
 
-pub fn clear_player_notes(mut player: ResMut<NotePatternPlayer>) {
+#[system(
+	plugin = PlayerCommandsPlugin, schedule = Update,
+	after = NotesClearedSet,
+	run_if = on_event::<NotesCleared>,
+)]
+fn clear_player_notes(mut player: ResMut<NotePatternPlayer>) {
 	player.current_pattern.clear();
 }
 
@@ -97,11 +121,21 @@ impl NotePatternEvent for PingCommandEvent {
 	}
 }
 
-pub fn ping(mut commands: Commands, asset_server: Res<AssetServer>) {
-	commands.spawn((
-		AudioPlayer::new(asset_server.load("pester_notif.mp3")),
-		PlaybackSettings::DESPAWN,
-	));
+#[system(
+	plugin = PlayerCommandsPlugin, schedule = Update,
+	after = CommandSentSet,
+)]
+fn ping(
+	mut ev_ping: EventReader<PingCommandEvent>,
+	mut commands: Commands,
+	asset_server: Res<AssetServer>,
+) {
+	for _ in ev_ping.read() {
+		commands.spawn((
+			AudioPlayer::new(asset_server.load("pester_notif.mp3")),
+			PlaybackSettings::DESPAWN,
+		));
+	}
 }
 
 #[derive(Event)]
@@ -122,7 +156,11 @@ impl NotePatternEvent for KillCommandEvent {
 	}
 }
 
-pub fn kill(mut ev_kill: EventReader<KillCommandEvent>, mut ev_quit: EventWriter<AppExit>) {
+#[system(
+	plugin = PlayerCommandsPlugin, schedule = Update,
+	after = CommandSentSet,
+)]
+fn kill(mut ev_kill: EventReader<KillCommandEvent>, mut ev_quit: EventWriter<AppExit>) {
 	for ev in ev_kill.read() {
 		println!("Tried to kill {}", ev.0);
 		if ev.0 {

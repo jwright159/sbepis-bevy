@@ -1,6 +1,8 @@
 use std::time::Duration;
 
 use bevy::prelude::*;
+use bevy::utils::HashSet;
+use bevy_butler::*;
 use bevy_rapier3d::prelude::*;
 
 use crate::entity::spawner::Spawner;
@@ -9,34 +11,23 @@ use crate::gravity::{AffectedByGravity, GravityPoint, GravityPriority};
 use crate::npcs::{ConsortSpawner, ImpSpawner};
 use crate::{ok_or_continue, some_or_continue};
 
+#[butler_plugin(build(
+	add_plugins(::blenvy::BlenvyPlugin::default()),
+	register_type::<MeshColliderBlundle>(),
+	register_type::<PlanetBlundle>(),
+	register_type::<BoxBlundle>(),
+	register_type::<SpawnerBlundle>(),
+))]
 pub struct BlenvyPlugin;
-
-impl Plugin for BlenvyPlugin {
-	fn build(&self, app: &mut App) {
-		app.add_plugins(::blenvy::BlenvyPlugin::default());
-
-		app.register_type::<MeshColliderBlundle>()
-			.register_type::<PlanetBlundle>()
-			.register_type::<BoxBlundle>()
-			.register_type::<SpawnerBlundle>();
-
-		app.add_systems(
-			PreUpdate,
-			(
-				create_mesh_collider,
-				create_planet,
-				create_box,
-				create_spawner,
-			),
-		);
-	}
-}
 
 #[derive(Component, Reflect)]
 #[reflect(Component)]
 pub struct MeshColliderBlundle;
 
-pub fn create_mesh_collider(
+#[system(
+	plugin = BlenvyPlugin, schedule = PreUpdate,
+)]
+fn create_mesh_collider(
 	scenes: Query<Entity, With<MeshColliderBlundle>>,
 	children: Query<&Children>,
 	meshes: Query<&Mesh3d>,
@@ -68,6 +59,9 @@ pub struct PlanetBlundle {
 	pub gravity: f32,
 }
 
+#[system(
+	plugin = BlenvyPlugin, schedule = PreUpdate,
+)]
 pub fn create_planet(scenes: Query<(Entity, &PlanetBlundle)>, mut commands: Commands) {
 	for (scene, planet) in scenes.iter() {
 		commands.entity(scene).remove::<PlanetBlundle>().insert((
@@ -85,6 +79,9 @@ pub fn create_planet(scenes: Query<(Entity, &PlanetBlundle)>, mut commands: Comm
 #[reflect(Component)]
 pub struct BoxBlundle;
 
+#[system(
+	plugin = BlenvyPlugin, schedule = PreUpdate,
+)]
 pub fn create_box(scenes: Query<Entity, With<BoxBlundle>>, mut commands: Commands) {
 	for scene in scenes.iter() {
 		commands.entity(scene).remove::<BoxBlundle>().insert((
@@ -108,6 +105,9 @@ pub enum SpawnerBlundle {
 	Consort,
 }
 
+#[system(
+	plugin = BlenvyPlugin, schedule = PreUpdate,
+)]
 pub fn create_spawner(scenes: Query<(Entity, &SpawnerBlundle)>, mut commands: Commands) {
 	for (scene, spawner) in scenes.iter() {
 		let mut spawner_commands = commands.entity(scene);
@@ -118,6 +118,7 @@ pub fn create_spawner(scenes: Query<(Entity, &SpawnerBlundle)>, mut commands: Co
 				max_amount: 5,
 				spawn_delay: Duration::from_secs_f32(5.),
 				spawn_timer: Duration::ZERO,
+				entities: HashSet::new(),
 			},));
 
 		match spawner {

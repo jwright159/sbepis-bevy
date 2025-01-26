@@ -1,11 +1,19 @@
-use crate::camera::PlayerCameraNode;
-use crate::menus::MenuStack;
-use crate::player_commands::note_holder::NoteNodeHolder;
-use crate::player_commands::notes::PlayNoteAction;
 use bevy::color::palettes::css;
 use bevy::prelude::*;
-use leafwing_input_manager::prelude::ActionState;
+use bevy_butler::*;
+use leafwing_input_manager::prelude::InputMap;
 use leafwing_input_manager::Actionlike;
+
+use crate::camera::PlayerCameraNode;
+use crate::input::input_manager_bundle;
+use crate::menus::{
+	CloseMenuBinding, Menu, MenuHidesWhenClosed, MenuManipulationSet, MenuWithInputManager,
+	MenuWithoutMouse, OpenMenuBinding,
+};
+use crate::player_commands::note_holder::NoteNodeHolder;
+use crate::player_commands::notes::PlayNoteAction;
+use crate::player_commands::PlayerCommandsPlugin;
+use crate::player_controller::PlayerAction;
 
 #[derive(Component)]
 pub struct CommandStaff;
@@ -24,7 +32,10 @@ pub const QUARTER_NOTE_LEFT_SPACING: f32 = 20.0;
 // Does top + height not actually equal bottom???
 pub const QUARTER_NOTE_WEIRD_SPACING_OFFSET: f32 = 18.0;
 
-pub fn spawn_staff(mut commands: Commands, asset_server: Res<AssetServer>) {
+#[system(
+	plugin = PlayerCommandsPlugin, schedule = Startup,
+)]
+fn spawn_staff(mut commands: Commands, asset_server: Res<AssetServer>) {
 	// Background
 	commands
 		.spawn((
@@ -35,12 +46,58 @@ pub fn spawn_staff(mut commands: Commands, asset_server: Res<AssetServer>) {
 				flex_direction: FlexDirection::Row,
 				margin: UiRect::all(Val::Px(10.0)),
 				padding: UiRect::axes(Val::Px(100.0), Val::Px(10.0)),
-				display: Display::None,
 				..default()
 			},
+			Visibility::Hidden,
 			BackgroundColor(css::BEIGE.into()),
 			CommandStaff,
 			PlayerCameraNode,
+			input_manager_bundle(
+				InputMap::default()
+					.with(PlayNoteAction::C4, KeyCode::KeyZ)
+					.with(PlayNoteAction::CS4, KeyCode::KeyS)
+					.with(PlayNoteAction::D4, KeyCode::KeyX)
+					.with(PlayNoteAction::DS4, KeyCode::KeyD)
+					.with(PlayNoteAction::E4, KeyCode::KeyC)
+					.with(PlayNoteAction::F4, KeyCode::KeyV)
+					.with(PlayNoteAction::FS4, KeyCode::KeyG)
+					.with(PlayNoteAction::G4, KeyCode::KeyB)
+					.with(PlayNoteAction::GS4, KeyCode::KeyH)
+					.with(PlayNoteAction::A4, KeyCode::KeyN)
+					.with(PlayNoteAction::AS4, KeyCode::KeyJ)
+					.with(PlayNoteAction::B4, KeyCode::KeyM)
+					.with(PlayNoteAction::C5, KeyCode::Comma)
+					.with(PlayNoteAction::CS5, KeyCode::KeyL)
+					.with(PlayNoteAction::D5, KeyCode::Period)
+					.with(PlayNoteAction::DS5, KeyCode::Semicolon)
+					.with(PlayNoteAction::E5, KeyCode::Slash)
+					.with(PlayNoteAction::C5, KeyCode::KeyQ)
+					.with(PlayNoteAction::CS5, KeyCode::Digit2)
+					.with(PlayNoteAction::D5, KeyCode::KeyW)
+					.with(PlayNoteAction::DS5, KeyCode::Digit3)
+					.with(PlayNoteAction::E5, KeyCode::KeyE)
+					.with(PlayNoteAction::F5, KeyCode::KeyR)
+					.with(PlayNoteAction::FS5, KeyCode::Digit5)
+					.with(PlayNoteAction::G5, KeyCode::KeyT)
+					.with(PlayNoteAction::GS5, KeyCode::Digit6)
+					.with(PlayNoteAction::A5, KeyCode::KeyY)
+					.with(PlayNoteAction::AS5, KeyCode::Digit7)
+					.with(PlayNoteAction::B5, KeyCode::KeyU)
+					.with(PlayNoteAction::C6, KeyCode::KeyI)
+					.with(PlayNoteAction::CS6, KeyCode::Digit9)
+					.with(PlayNoteAction::D6, KeyCode::KeyO)
+					.with(PlayNoteAction::DS6, KeyCode::Digit0)
+					.with(PlayNoteAction::E6, KeyCode::KeyP),
+				false,
+			),
+			input_manager_bundle(
+				InputMap::default().with(CloseStaffAction, KeyCode::Backquote),
+				false,
+			),
+			Menu,
+			MenuWithInputManager,
+			MenuWithoutMouse,
+			MenuHidesWhenClosed,
 		))
 		.with_children(|parent| {
 			// Clef
@@ -84,49 +141,36 @@ pub fn spawn_staff(mut commands: Commands, asset_server: Res<AssetServer>) {
 		});
 }
 
+pub struct OpenStaffBinding;
+impl OpenMenuBinding for OpenStaffBinding {
+	type Action = PlayerAction;
+	type Menu = CommandStaff;
+	fn action() -> Self::Action {
+		PlayerAction::OpenStaff
+	}
+}
+
+#[system(
+	plugin = PlayerCommandsPlugin, schedule = Update,
+	generics = OpenStaffBinding,
+	in_set = MenuManipulationSet,
+)]
+use crate::menus::show_menu_on_action;
+
 #[derive(Actionlike, Clone, Copy, Eq, PartialEq, Hash, Reflect, Debug)]
-pub enum ToggleStaffAction {
-	ToggleStaff,
-}
+pub struct CloseStaffAction;
 
-#[derive(Event, Default)]
-pub struct ToggleStaffEvent;
-
-#[derive(Resource, Default)]
-pub struct StaffState {
-	pub is_open: bool,
-}
-
-pub fn toggle_staff(mut staff_state: ResMut<StaffState>) {
-	staff_state.is_open = !staff_state.is_open;
-}
-
-pub fn is_staff_open(staff_state: Res<StaffState>) -> bool {
-	staff_state.is_open
-}
-
-pub fn show_staff(mut staff_style: Query<&mut Node, With<CommandStaff>>) {
-	for mut style in staff_style.iter_mut() {
-		style.display = Display::Flex;
+pub struct CloseStaffBinding;
+impl CloseMenuBinding for CloseStaffBinding {
+	type Action = CloseStaffAction;
+	fn action() -> Self::Action {
+		CloseStaffAction
 	}
 }
 
-pub fn hide_staff(mut staff_style: Query<&mut Node, With<CommandStaff>>) {
-	for mut style in staff_style.iter_mut() {
-		style.display = Display::None;
-	}
-}
-
-pub fn disable_note_input(
-	mut menu_stack: ResMut<MenuStack>,
-	note_input: Query<Entity, With<ActionState<PlayNoteAction>>>,
-) {
-	menu_stack.remove(note_input.single());
-}
-
-pub fn enable_note_input(
-	mut menu_stack: ResMut<MenuStack>,
-	note_input: Query<Entity, With<ActionState<PlayNoteAction>>>,
-) {
-	menu_stack.push(note_input.single());
-}
+#[system(
+	plugin = PlayerCommandsPlugin, schedule = Update,
+	generics = CloseStaffBinding,
+	in_set = MenuManipulationSet,
+)]
+use crate::menus::close_menu_on_action;

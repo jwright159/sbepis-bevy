@@ -7,8 +7,7 @@ use bevy::render::mesh::CapsuleUvProfile;
 
 use crate::fray::FrayMusic;
 use crate::gridbox_material;
-
-use super::{DamageSweep, EndDamageSweep, SweepPivot, WeaponAnimation};
+use crate::player_controller::weapons::{DamageSweep, EndDamageSweep, SweepPivot, WeaponAnimation};
 
 #[derive(Component)]
 pub struct SwordPivot {

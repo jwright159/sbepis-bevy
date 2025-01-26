@@ -1,45 +1,31 @@
 use std::time::Instant;
 
-use bevy::ecs::schedule::SystemConfigs;
 use bevy::prelude::*;
 use bevy::window::{CursorGrabMode, PrimaryWindow};
+use bevy_butler::*;
 use leafwing_input_manager::plugin::{InputManagerPlugin, InputManagerSystem};
 use leafwing_input_manager::prelude::{ActionState, InputMap};
 use leafwing_input_manager::{Actionlike, InputControlKind};
 
-use crate::input::input_managers_where_button_just_pressed;
-use crate::iter_system::{IntoDoneSystemTrait, IntoInspectSystemTrait};
+use crate::input::InputManagerReference;
 
+#[butler_plugin(build(
+	register_type::<MenuStack>(),
+	init_resource::<MenuStack>(),
+	add_event::<MenuActivated>(),
+	add_event::<MenuDeactivated>(),
+	add_plugins(InputManagerMenuPlugin::<CloseMenuAction>::default()),
+))]
 pub struct MenusPlugin;
-impl Plugin for MenusPlugin {
-	fn build(&self, app: &mut App) {
-		app.register_type::<MenuStack>()
-			.register_type::<ActionState<MenuAction>>()
-			.register_type::<InputMap<MenuAction>>()
-			.init_resource::<MenuStack>()
-			.add_event::<MenuActivated>()
-			.add_event::<MenuDeactivated>()
-			.add_plugins(InputManagerMenuPlugin::<MenuAction>::default())
-			.add_systems(
-				Update,
-				(
-					activate_stack_current.run_if(resource_changed::<MenuStack>),
-					show_mouse,
-					hide_mouse,
-					hide_menus,
-					despawn_menus,
-					close_menu_on(MenuAction::CloseMenu),
-				),
-			);
-	}
-}
 
 pub struct InputManagerMenuPlugin<Action: Actionlike>(std::marker::PhantomData<Action>);
 impl<Action: Actionlike + TypePath + bevy::reflect::GetTypeRegistration> Plugin
 	for InputManagerMenuPlugin<Action>
 {
 	fn build(&self, app: &mut App) {
-		app.add_plugins(InputManagerPlugin::<Action>::default())
+		app.register_type::<ActionState<Action>>()
+			.register_type::<InputMap<Action>>()
+			.add_plugins(InputManagerPlugin::<Action>::default())
 			.add_systems(
 				PreUpdate,
 				(
@@ -103,22 +89,38 @@ impl MenuStack {
 
 #[derive(Event)]
 pub struct MenuActivated(pub Entity);
+#[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct MenuActivatedSet;
 
 #[derive(Event)]
 pub struct MenuDeactivated(pub Entity);
+#[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct MenuDeactivatedSet;
+
+#[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct MenuManipulationSet;
 
 #[derive(Clone, Copy, Eq, PartialEq, Hash, Reflect, Debug)]
-pub enum MenuAction {
-	CloseMenu,
-}
-impl Actionlike for MenuAction {
+pub struct CloseMenuAction;
+impl Actionlike for CloseMenuAction {
 	fn input_control_kind(&self) -> InputControlKind {
-		match self {
-			MenuAction::CloseMenu => InputControlKind::Button,
-		}
+		InputControlKind::Button
+	}
+}
+impl CloseMenuBinding for CloseMenuAction {
+	type Action = Self;
+	fn action() -> Self {
+		Self
 	}
 }
 
+#[system(
+	plugin = MenusPlugin, schedule = Update,
+	after = MenuManipulationSet,
+	in_set = MenuActivatedSet,
+	in_set = MenuDeactivatedSet,
+	run_if = resource_changed::<MenuStack>,
+)]
 fn activate_stack_current(
 	mut menu_stack: ResMut<MenuStack>,
 	mut ev_activated: EventWriter<MenuActivated>,
@@ -138,6 +140,10 @@ fn activate_stack_current(
 	}
 }
 
+#[system(
+	plugin = MenusPlugin, schedule = Update,
+	after = MenuActivatedSet,
+)]
 fn show_mouse(
 	mut ev_activated: EventReader<MenuActivated>,
 	menus: Query<(), With<MenuWithMouse>>,
@@ -152,6 +158,10 @@ fn show_mouse(
 	}
 }
 
+#[system(
+	plugin = MenusPlugin, schedule = Update,
+	after = MenuActivatedSet,
+)]
 fn hide_mouse(
 	mut ev_activated: EventReader<MenuActivated>,
 	menus: Query<(), With<MenuWithoutMouse>>,
@@ -192,10 +202,75 @@ fn disable_input_managers<Action: Actionlike>(
 	}
 }
 
-pub fn close_menu(In(menu): In<Entity>, mut menu_stack: ResMut<MenuStack>) {
-	menu_stack.remove(menu);
+pub trait CloseMenuBinding {
+	type Action: Actionlike + Copy;
+	fn action() -> Self::Action;
+}
+pub trait OpenMenuBinding {
+	type Action: Actionlike + Copy;
+	type Menu: Component;
+	fn action() -> Self::Action;
 }
 
+#[system(
+	plugin = MenusPlugin, schedule = Update,
+	generics = CloseMenuAction,
+	in_set = MenuManipulationSet,
+)]
+pub fn close_menu_on_action<Binding: CloseMenuBinding>(
+	input: Query<(Entity, &ActionState<Binding::Action>)>,
+	mut menu_stack: ResMut<MenuStack>,
+) {
+	for (entity, _) in input
+		.iter()
+		.filter(|(_, input)| input.just_pressed(&Binding::action()))
+	{
+		menu_stack.remove(entity);
+	}
+}
+
+pub fn close_menu_on_event<Ev: Event + InputManagerReference>(
+	mut menu_stack: ResMut<MenuStack>,
+	mut ev_input: EventReader<Ev>,
+) {
+	for input_manager in ev_input.read() {
+		menu_stack.remove(input_manager.input_manager());
+	}
+}
+
+pub fn show_menu_on_action<Binding: OpenMenuBinding>(
+	input: Query<&ActionState<Binding::Action>>,
+	mut menus: Query<Entity, With<Binding::Menu>>,
+	mut menu_stack: ResMut<MenuStack>,
+) {
+	for _ in input
+		.iter()
+		.filter(|input| input.just_pressed(&Binding::action()))
+	{
+		let menu = menus.get_single_mut().expect("Menu not found");
+		menu_stack.push(menu);
+	}
+}
+
+#[system(
+	plugin = MenusPlugin, schedule = Update,
+	after = MenuActivatedSet,
+)]
+fn show_menus(
+	mut ev_activated: EventReader<MenuActivated>,
+	mut menus: Query<&mut Visibility, With<MenuHidesWhenClosed>>,
+) {
+	for MenuActivated(menu) in ev_activated.read() {
+		if let Ok(mut visibility) = menus.get_mut(*menu) {
+			*visibility = Visibility::Visible;
+		}
+	}
+}
+
+#[system(
+	plugin = MenusPlugin, schedule = Update,
+	after = MenuDeactivatedSet,
+)]
 fn hide_menus(
 	mut ev_deactivated: EventReader<MenuDeactivated>,
 	mut menus: Query<&mut Visibility, With<MenuHidesWhenClosed>>,
@@ -207,6 +282,10 @@ fn hide_menus(
 	}
 }
 
+#[system(
+	plugin = MenusPlugin, schedule = Update,
+	after = MenuDeactivatedSet,
+)]
 fn despawn_menus(
 	mut ev_deactivated: EventReader<MenuDeactivated>,
 	mut menus: Query<Entity, With<MenuDespawnsWhenClosed>>,
@@ -216,91 +295,5 @@ fn despawn_menus(
 		if let Ok(menu) = menus.get_mut(*menu) {
 			commands.entity(menu).despawn_recursive();
 		}
-	}
-}
-
-pub fn show_menu<T: Component>(
-	mut menus: Query<(Entity, &mut Visibility), With<T>>,
-	mut menu_stack: ResMut<MenuStack>,
-) {
-	let (quest_screen, mut visibility) = menus
-		.get_single_mut()
-		.expect("Single menu with marker not found");
-	*visibility = Visibility::Inherited;
-	menu_stack.push(quest_screen);
-}
-
-pub fn close_menu_on<Action: Actionlike + Copy>(action: Action) -> SystemConfigs {
-	input_managers_where_button_just_pressed(action)
-		.iter_inspect(close_menu)
-		.iter_done()
-		.into_configs()
-}
-
-pub fn close_menu_on_event<Ev: Event + InputManagerReference>() -> SystemConfigs {
-	|mut ev_input: EventReader<Ev>| -> Vec<Entity> {
-		ev_input.read().map(|event| event.input_manager()).collect()
-	}
-	.iter_inspect(close_menu)
-	.iter_done()
-	.into_configs()
-}
-
-pub fn fire_input_events<Action: Actionlike + Copy, Ev: Event + InputManagerReference>(
-	action: Action,
-	event_generator: impl Fn(Entity) -> Ev + Send + Sync + 'static,
-) -> SystemConfigs {
-	input_managers_where_button_just_pressed(action)
-		.iter_inspect(move |In(input_manager), mut ev_action: EventWriter<Ev>| {
-			ev_action.send(event_generator(input_manager));
-		})
-		.iter_done()
-		.into_configs()
-}
-
-pub fn fire_button_events<
-	Button: Component + InputManagerReference,
-	Ev: Event + InputManagerReference,
->(
-	event_generator: impl Fn(Entity) -> Ev + Send + Sync + 'static,
-) -> SystemConfigs {
-	(move |buttons: Query<(&Button, &Interaction), Changed<Interaction>>,
-	       mut ev_action: EventWriter<Ev>| {
-		buttons
-			.iter()
-			.filter(|(_, &interaction)| interaction == Interaction::Pressed)
-			.for_each(|(button, _)| {
-				ev_action.send(event_generator(button.input_manager()));
-			});
-	})
-	.into_configs()
-}
-
-pub fn fire_input_and_button_events<
-	Action: Actionlike + Copy,
-	Button: Component + InputManagerReference,
-	Ev: Event + InputManagerReference,
->(
-	action: Action,
-	event_generator: impl Fn(Entity) -> Ev + Send + Sync + Clone + 'static,
-) -> SystemConfigs {
-	(
-		fire_input_events::<Action, Ev>(action, event_generator.clone()),
-		fire_button_events::<Button, Ev>(event_generator),
-	)
-		.into_configs()
-}
-
-pub trait InputManagerReference {
-	fn input_manager(&self) -> Entity;
-}
-
-pub fn input_managers_where_action_fired<Ev: Event + InputManagerReference>(
-) -> impl Fn(EventReader<Ev>) -> Vec<Entity> {
-	move |mut ev_input: EventReader<Ev>| {
-		ev_input
-			.read()
-			.map(InputManagerReference::input_manager)
-			.collect()
 	}
 }

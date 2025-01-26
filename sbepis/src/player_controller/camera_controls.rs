@@ -1,11 +1,13 @@
 use std::f32::consts::PI;
+use std::marker::PhantomData;
 
 use bevy::prelude::*;
+use bevy_butler::*;
 use bevy_rapier3d::prelude::*;
 use leafwing_input_manager::prelude::*;
 
 use crate::camera::PlayerCamera;
-use crate::player_controller::PlayerAction;
+use crate::player_controller::{PlayerAction, PlayerControllerPlugin};
 use crate::util::find_in_ancestors;
 
 #[derive(Component)]
@@ -20,8 +22,11 @@ pub struct PlayerBody {
 #[derive(Resource)]
 pub struct MouseSensitivity(pub f32);
 
-pub fn rotate_camera_and_body(
-	In(delta): In<Vec2>,
+#[system(
+	plugin = PlayerControllerPlugin, schedule = Update,
+)]
+fn rotate_camera_and_body(
+	input: Query<&ActionState<PlayerAction>>,
 	sensitivity: Res<MouseSensitivity>,
 	mut player_camera: Query<
 		(&mut Transform, &mut Pitch, &Camera),
@@ -32,6 +37,8 @@ pub fn rotate_camera_and_body(
 		(Without<PlayerCamera>, With<PlayerBody>),
 	>,
 ) {
+	let delta = input.single().axis_pair(&PlayerAction::Look);
+
 	{
 		let (mut camera_transform, mut camera_pitch, camera) = player_camera.single_mut();
 		if !camera.is_active {
@@ -62,12 +69,13 @@ pub fn interact_with<T: Component>(
 	entities: Query<Entity, With<T>>,
 	parents: Query<&Parent>,
 	input: Query<&ActionState<PlayerAction>>,
-) -> Vec<Entity> {
+	mut ev_interact: EventWriter<InteractedWith<T>>,
+) {
 	if !match input.iter().find(|input| !input.disabled()) {
 		Some(input) => input.just_pressed(&PlayerAction::Interact),
 		None => false,
 	} {
-		return vec![];
+		return;
 	}
 
 	let player_camera = player_camera.get_single().expect("Player camera missing");
@@ -94,8 +102,40 @@ pub fn interact_with<T: Component>(
 	);
 
 	if let Some((Some(entity), _)) = hit_entity {
-		vec![entity]
-	} else {
-		vec![]
+		ev_interact.send(InteractedWith::new(entity));
 	}
+}
+
+#[derive(Event)]
+pub struct InteractedWith<T>(pub Entity, PhantomData<T>);
+impl<T> InteractedWith<T> {
+	pub fn new(entity: Entity) -> Self {
+		Self(entity, PhantomData)
+	}
+}
+#[derive(SystemSet)]
+pub struct InteractedWithSet<T>(PhantomData<T>);
+impl<T> Default for InteractedWithSet<T> {
+	fn default() -> Self {
+		Self(PhantomData)
+	}
+}
+impl<T> std::fmt::Debug for InteractedWithSet<T> {
+	fn fmt(&self, _: &mut std::fmt::Formatter) -> std::fmt::Result {
+		Ok(())
+	}
+}
+impl<T> Clone for InteractedWithSet<T> {
+	fn clone(&self) -> Self {
+		Self(PhantomData)
+	}
+}
+impl<T> PartialEq for InteractedWithSet<T> {
+	fn eq(&self, _: &Self) -> bool {
+		true
+	}
+}
+impl<T> Eq for InteractedWithSet<T> {}
+impl<T> std::hash::Hash for InteractedWithSet<T> {
+	fn hash<H: std::hash::Hasher>(&self, _: &mut H) {}
 }

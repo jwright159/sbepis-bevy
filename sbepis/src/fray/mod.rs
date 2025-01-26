@@ -3,62 +3,30 @@ use std::time::Duration;
 
 use bevy::audio::Volume;
 use bevy::prelude::*;
+use bevy_butler::*;
 use soundyrust::*;
-use tracks::{
-	open_track_switch_dialogue, switch_track, FrayTracks, Track, TrackSwitched, TrackSwitcher,
-	TrackSwitcherAction, TrackSwitcherFourFour, TrackSwitcherSixEight,
-};
+use tracks::{FrayTracks, Track, TrackSwitched, TrackSwitcher};
 
 use crate::camera::PlayerCameraNode;
-use crate::iter_system::{IntoDoneSystemTrait, IntoInspectSystemTrait};
-use crate::menus::{close_menu, fire_input_and_button_events, input_managers_where_action_fired};
 use crate::npcs::Imp;
-use crate::player_controller::{interact_with, EntityHit, PlayerBody};
+use crate::player_controller::camera_controls::InteractedWith;
+use crate::player_controller::weapons::{EntityHit, EntityHitSet};
+use crate::prelude::PlayerBody;
 use crate::util::MapRange;
 
 mod tracks;
 
+#[butler_plugin(build(
+	add_plugins(SoundyPlugin),
+	register_type::<TrackSwitcher>(),
+	add_event::<TrackSwitched>(),
+	add_event::<InteractedWith<TrackSwitcher>>(),
+))]
 pub struct FrayPlugin;
 
-impl Plugin for FrayPlugin {
-	fn build(&self, app: &mut App) {
-		app.add_plugins(SoundyPlugin)
-			.register_type::<TrackSwitcher>()
-			.add_event::<TrackSwitched>()
-			.add_systems(Startup, play_background_music)
-			.add_systems(
-				Update,
-				(
-					tick_fray_music,
-					interact_with::<TrackSwitcher>
-						.iter_inspect(open_track_switch_dialogue)
-						.iter_done(),
-					fire_input_and_button_events::<
-						TrackSwitcherAction,
-						TrackSwitcherFourFour,
-						TrackSwitched,
-					>(TrackSwitcherAction::FourFour, |dialogue| TrackSwitched {
-						track: Track::FourFour,
-						dialogue,
-					}),
-					fire_input_and_button_events::<
-						TrackSwitcherAction,
-						TrackSwitcherSixEight,
-						TrackSwitched,
-					>(TrackSwitcherAction::SixEight, |dialogue| TrackSwitched {
-						track: Track::SixEight,
-						dialogue,
-					}),
-					input_managers_where_action_fired::<TrackSwitched>()
-						.iter_inspect(close_menu)
-						.iter_done(),
-					switch_track,
-					queue_tracks_on_hit,
-				),
-			);
-	}
-}
-
+#[system(
+	plugin = FrayPlugin, schedule = Startup,
+)]
 fn play_background_music(mut commands: Commands, mut assets: ResMut<Assets<MidiAudio>>) {
 	let mut midi = MidiAudio::from_bytes(include_bytes!("../../assets/hl4mgm.sf2"));
 	let backing_track = midi.add_track(
@@ -198,6 +166,9 @@ pub struct BeatCounter {
 	pub beat: u32,
 }
 
+#[system(
+	plugin = FrayPlugin, schedule = Update,
+)]
 fn tick_fray_music(
 	#[cfg(feature = "metronome")] mut commands: Commands,
 	#[cfg(feature = "metronome")] asset_server: Res<AssetServer>,
@@ -235,8 +206,8 @@ fn tick_fray_music(
 
 		beat_counter_text.0 = format!("{} {:.2}", beat, beat_progress);
 
+		#[cfg(feature = "metronome")]
 		if beat_counter.beat != beat {
-			#[cfg(feature = "metronome")]
 			commands.spawn((
 				Name::new("Beat"),
 				AudioPlayer::new(asset_server.load("metronome.mp3")),
@@ -248,6 +219,10 @@ fn tick_fray_music(
 	}
 }
 
+#[system(
+	plugin = FrayPlugin, schedule = Update,
+	after = EntityHitSet,
+)]
 fn queue_tracks_on_hit(
 	mut ev_hit: EventReader<EntityHit>,
 	imps: Query<(), With<Imp>>,

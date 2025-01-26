@@ -32,6 +32,10 @@ mod questing;
 mod skybox;
 pub mod util;
 
+mod prelude {
+	pub use crate::player_controller::camera_controls::{interact_with, PlayerBody};
+}
+
 fn main() {
 	let mut app = App::new();
 	app

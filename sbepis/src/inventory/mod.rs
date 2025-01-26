@@ -1,32 +1,20 @@
 use bevy::prelude::*;
+use bevy_butler::*;
 use bevy_rapier3d::prelude::*;
 use screen::*;
 
-use crate::input::button_just_pressed;
-use crate::iter_system::*;
-use crate::menus::show_menu;
-use crate::player_controller::{interact_with, PlayerAction};
+use crate::menus::{MenuManipulationSet, OpenMenuBinding};
+use crate::player_controller::camera_controls::{InteractedWith, InteractedWithSet};
+use crate::player_controller::PlayerAction;
 
 mod screen;
 
+#[butler_plugin(build(
+	add_event::<ItemPickedUp>(),
+	add_event::<InventoryChanged>(),
+	add_event::<InteractedWith<Item>>(),
+))]
 pub struct InventoryPlugin;
-impl Plugin for InventoryPlugin {
-	fn build(&self, app: &mut App) {
-		app.add_event::<ItemPickedUp>()
-			.add_systems(Startup, spawn_inventory_screen)
-			.add_systems(
-				Update,
-				(
-					interact_with::<Item>
-						.iter_inspect(pick_up_items)
-						.iter_done(),
-					show_menu::<InventoryScreen>
-						.run_if(button_just_pressed(PlayerAction::OpenInventory)),
-					add_item_to_inventory_screen,
-				),
-			);
-	}
-}
 
 #[derive(Component, Default)]
 pub struct Inventory {
@@ -40,19 +28,61 @@ pub struct Item {
 
 #[derive(Event)]
 pub struct ItemPickedUp(pub Entity);
+#[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ItemPickedUpSet;
 
+type InteractedWithItemSet = InteractedWithSet<Item>;
+
+#[system(
+	plugin = InventoryPlugin, schedule = Update,
+	generics = Item,
+	in_set = InteractedWithItemSet::default(),
+)]
+use crate::prelude::interact_with;
+
+#[system(
+	plugin = InventoryPlugin, schedule = Update,
+	after = InteractedWithItemSet::default(),
+	in_set = ItemPickedUpSet,
+	in_set = InventoryChangedSet,
+)]
 fn pick_up_items(
-	In(item_entity): In<Entity>,
+	mut ev_interact: EventReader<InteractedWith<Item>>,
 	mut commands: Commands,
-	mut player: Query<&mut Inventory>,
+	mut player: Query<(Entity, &mut Inventory)>,
 	mut ev_picked_up: EventWriter<ItemPickedUp>,
+	mut ev_inventory_changed: EventWriter<InventoryChanged>,
 ) {
-	let mut inventory = player.single_mut();
-	inventory.items.push(item_entity);
-	commands
-		.entity(item_entity)
-		.remove::<RigidBody>()
-		.insert(Visibility::Hidden)
-		.insert(ColliderDisabled);
-	ev_picked_up.send(ItemPickedUp(item_entity));
+	for ev in ev_interact.read() {
+		let (inventory_entity, mut inventory) = player.single_mut();
+		inventory.items.push(ev.0);
+		commands
+			.entity(ev.0)
+			.remove::<RigidBody>()
+			.insert(Visibility::Hidden)
+			.insert(ColliderDisabled);
+		ev_picked_up.send(ItemPickedUp(ev.0));
+		ev_inventory_changed.send(InventoryChanged(inventory_entity));
+	}
 }
+
+pub struct OpenInventoryBinding;
+impl OpenMenuBinding for OpenInventoryBinding {
+	type Action = PlayerAction;
+	type Menu = InventoryScreen;
+	fn action() -> Self::Action {
+		PlayerAction::OpenInventory
+	}
+}
+
+#[system(
+	plugin = InventoryPlugin, schedule = Update,
+	generics = OpenInventoryBinding,
+	in_set = MenuManipulationSet,
+)]
+use crate::menus::show_menu_on_action;
+
+#[derive(Event)]
+pub struct InventoryChanged(pub Entity);
+#[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct InventoryChangedSet;

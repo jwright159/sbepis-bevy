@@ -1,20 +1,32 @@
 use bevy::prelude::*;
+use bevy_butler::*;
 use leafwing_input_manager::prelude::*;
 use soundyrust::Note;
 
+use crate::input::{button_just_pressed, MapsToEvent};
+use crate::player_commands::{CommandSentSet, PlayerCommandsPlugin};
+
 #[derive(Event)]
-pub struct NotePlayedEvent {
+pub struct NotePlayed {
 	pub note: Note,
 }
+#[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct NotePlayedSet;
 
-impl NotePlayedEvent {
-	pub fn from_play_note_action(note: PlayNoteAction) -> Self {
-		Self { note: note.note() }
-	}
-}
+#[system(
+	plugin = PlayerCommandsPlugin, schedule = Update,
+	generics = <PlayNoteAction, NotePlayed>,
+	in_set = NotePlayedSet,
+)]
+use crate::input::map_action_to_event;
+use crate::player_controller::PlayerAction;
+
+use super::CommandSent;
 
 #[derive(Event)]
-pub struct ClearNotesEvent;
+pub struct NotesCleared;
+#[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct NotesClearedSet;
 
 #[derive(Actionlike, Clone, Copy, Eq, PartialEq, Hash, Reflect, Debug)]
 pub enum PlayNoteAction {
@@ -242,10 +254,19 @@ impl PlayNoteAction {
 		}
 	}
 }
+impl MapsToEvent<NotePlayed> for PlayNoteAction {
+	fn make_event(&self) -> NotePlayed {
+		NotePlayed { note: self.note() }
+	}
+}
 
-pub fn spawn_note_audio(
+#[system(
+	plugin = PlayerCommandsPlugin, schedule = Update,
+	after = NotePlayedSet,
+)]
+fn spawn_note_audio(
 	mut commands: Commands,
-	mut ev_note_played: EventReader<NotePlayedEvent>,
+	mut ev_note_played: EventReader<NotePlayed>,
 	asset_server: Res<AssetServer>,
 ) {
 	for ev in ev_note_played.read() {
@@ -258,6 +279,17 @@ pub fn spawn_note_audio(
 	}
 }
 
-pub fn clear_notes(mut ev_clear_notes: EventWriter<ClearNotesEvent>) {
-	ev_clear_notes.send(ClearNotesEvent);
+#[system(
+	plugin = PlayerCommandsPlugin, schedule = Update,
+	after = CommandSentSet,
+	in_set = NotesClearedSet,
+	run_if = on_event::<CommandSent>,
+)]
+#[system(
+	plugin = PlayerCommandsPlugin, schedule = Update,
+	in_set = NotesClearedSet,
+	run_if = button_just_pressed(PlayerAction::OpenStaff),
+)]
+fn clear_notes(mut ev_clear_notes: EventWriter<NotesCleared>) {
+	ev_clear_notes.send(NotesCleared);
 }

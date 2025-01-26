@@ -1,13 +1,11 @@
 use bevy::ecs::query::{QueryData, QueryFilter, ROQueryItem};
-use bevy::ecs::schedule::SystemConfigs;
 use bevy::prelude::*;
 use bevy_rapier3d::math::Real;
 use std::array::IntoIter;
 use std::ops::Range;
 
 use crate::camera::PlayerCamera;
-use crate::iter_system::IntoIteratorSystemTrait;
-use crate::player_controller::PlayerBody;
+use crate::prelude::PlayerBody;
 
 pub trait MapRange<T> {
 	fn map_range(self, range_in: Range<T>, range_out: Range<T>) -> T;
@@ -115,21 +113,6 @@ impl QuaternionEx for Quat {
 		let up = back.cross(right);
 		Quat::from_mat3(&Mat3::from_cols(right, up, back.into()))
 	}
-}
-
-pub fn map_event<EventA: Event + Clone, EventB: Event, Marker>(
-	event_generator: impl IntoSystem<In<EventA>, EventB, Marker>, // TODO: This should probably be InRef
-) -> SystemConfigs {
-	(move |mut ev_a: EventReader<EventA>| ev_a.read().cloned().collect::<Vec<EventA>>())
-		.iter_map(event_generator)
-		.pipe(
-			|In(events): In<Vec<EventB>>, mut ev_b: EventWriter<EventB>| {
-				for event in events.into_iter() {
-					ev_b.send(event);
-				}
-			},
-		)
-		.into_configs()
 }
 
 #[derive(Clone)]

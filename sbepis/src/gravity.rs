@@ -1,18 +1,15 @@
 use bevy::prelude::*;
+use bevy_butler::*;
 use bevy_rapier3d::prelude::*;
 use itertools::Itertools;
 
 use crate::util::{IterElements, TransformEx};
 
+#[butler_plugin(build(
+	register_type::<GravityPriority>(),
+	register_type::<GravityPoint>(),
+))]
 pub struct GravityPlugin;
-
-impl Plugin for GravityPlugin {
-	fn build(&self, app: &mut App) {
-		app.register_type::<GravityPriority>()
-			.register_type::<GravityPoint>()
-			.add_systems(Update, (calculate_gravity, apply_gravity).chain());
-	}
-}
 
 #[derive(Component, Reflect)]
 pub struct GravityPriority(pub u32);
@@ -48,7 +45,10 @@ pub struct AffectedByGravity {
 	pub up: Vec3,
 }
 
-pub fn calculate_gravity(
+#[system(
+	plugin = GravityPlugin, schedule = Update,
+)]
+fn calculate_gravity(
 	mut rigidbodies: Query<(&Transform, &mut AffectedByGravity)>,
 	gravity_fields: Query<(&GlobalTransform, &GravityPriority, &GravityPoint)>,
 ) {
@@ -106,6 +106,10 @@ pub fn calculate_gravity(
 	}
 }
 
+#[system(
+	plugin = GravityPlugin, schedule = Update,
+	after = calculate_gravity,
+)]
 pub fn apply_gravity(mut rigidbodies: Query<(&mut Velocity, &AffectedByGravity)>, time: Res<Time>) {
 	for (mut velocity, gravity) in rigidbodies.iter_mut() {
 		velocity.linvel += gravity.acceleration * time.delta_secs();

@@ -1,15 +1,21 @@
 use std::time::Duration;
 
 use bevy::prelude::*;
+use bevy_butler::*;
 use bevy_rapier3d::prelude::*;
 
-use crate::player_controller::PlayerBody;
+use crate::entity::EntityPlugin;
+use crate::prelude::PlayerBody;
 
 #[derive(Component, Deref, DerefMut, Default)]
 /// The desired velocity in world-space. Will be projected onto the entity's floor plane.
 pub struct Movement(pub Vec3);
 
-pub fn strafe(mut bodies: Query<(&mut Velocity, &Transform, &Movement)>) {
+#[system(
+	plugin = EntityPlugin, schedule = Update,
+	in_set = ExecuteMovementSet,
+)]
+fn strafe(mut bodies: Query<(&mut Velocity, &Transform, &Movement)>) {
 	for (mut velocity, transform, input) in bodies.iter_mut() {
 		velocity.linvel = velocity.linvel.project_onto(transform.up().into())
 			+ input.reject_from(transform.up().into());
@@ -19,7 +25,11 @@ pub fn strafe(mut bodies: Query<(&mut Velocity, &Transform, &Movement)>) {
 #[derive(Component)]
 pub struct RotateTowardMovement;
 
-pub fn rotate_toward_movement(
+#[system(
+	plugin = EntityPlugin, schedule = Update,
+	in_set = ExecuteMovementSet,
+)]
+fn rotate_toward_movement(
 	mut bodies: Query<(&mut Transform, &Movement), With<RotateTowardMovement>>,
 ) {
 	for (mut transform, input) in bodies.iter_mut() {
@@ -31,6 +41,9 @@ pub fn rotate_toward_movement(
 	}
 }
 
+#[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ExecuteMovementSet;
+
 #[derive(Component, Default)]
 pub struct RandomInput {
 	pub input: Vec3,
@@ -38,7 +51,11 @@ pub struct RandomInput {
 	pub time_to_change: Duration,
 }
 
-pub fn random_vec2(mut input: Query<(&mut RandomInput, &mut Movement)>, time: Res<Time>) {
+#[system(
+	plugin = EntityPlugin, schedule = Update,
+	before = ExecuteMovementSet,
+)]
+fn random_vec2(mut input: Query<(&mut RandomInput, &mut Movement)>, time: Res<Time>) {
 	for (mut random_input, mut movement_input) in input.iter_mut() {
 		random_input.time_since_last_change += time.delta();
 
@@ -58,7 +75,11 @@ pub fn random_vec2(mut input: Query<(&mut RandomInput, &mut Movement)>, time: Re
 #[derive(Component)]
 pub struct TargetPlayer;
 
-pub fn target_player(
+#[system(
+	plugin = EntityPlugin, schedule = Update,
+	before = ExecuteMovementSet,
+)]
+fn target_player(
 	mut target_players: Query<(&Transform, &mut Movement), With<TargetPlayer>>,
 	player: Query<&Transform, With<PlayerBody>>,
 ) {

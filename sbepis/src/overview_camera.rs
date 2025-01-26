@@ -1,29 +1,22 @@
 use bevy::input::common_conditions::input_just_pressed;
 use bevy::prelude::*;
+use bevy_butler::*;
 
 use crate::camera::PlayerCamera;
-use crate::menus::{Menu, MenuActivated, MenuDeactivated, MenuStack, MenuWithMouse};
+use crate::menus::{
+	Menu, MenuActivated, MenuActivatedSet, MenuDeactivated, MenuDeactivatedSet,
+	MenuManipulationSet, MenuStack, MenuWithMouse,
+};
 
+#[butler_plugin(build(add_plugins(bevy_panorbit_camera::PanOrbitCameraPlugin)))]
 pub struct OverviewCameraPlugin;
-
-impl Plugin for OverviewCameraPlugin {
-	fn build(&self, app: &mut App) {
-		app.add_plugins((bevy_panorbit_camera::PanOrbitCameraPlugin,))
-			.add_systems(Startup, (setup,))
-			.add_systems(
-				Update,
-				(
-					toggle_camera.run_if(input_just_pressed(KeyCode::Tab)),
-					enable_overview_camera,
-					disable_overview_camera,
-				),
-			);
-	}
-}
 
 #[derive(Component)]
 pub struct OverviewCamera;
 
+#[system(
+	plugin = OverviewCameraPlugin, schedule = Startup,
+)]
 fn setup(mut commands: Commands) {
 	commands.spawn((
 		Name::new("Overview Camera"),
@@ -45,7 +38,12 @@ fn setup(mut commands: Commands) {
 	));
 }
 
-pub fn toggle_camera(
+#[system(
+	plugin = OverviewCameraPlugin, schedule = Update,
+	run_if = input_just_pressed(KeyCode::Tab),
+	in_set = MenuManipulationSet,
+)]
+fn toggle_camera(
 	mut menu_stack: ResMut<MenuStack>,
 	overview_camera: Query<Entity, With<OverviewCamera>>,
 ) {
@@ -55,7 +53,11 @@ pub fn toggle_camera(
 	menu_stack.toggle(overview_camera);
 }
 
-pub fn enable_overview_camera(
+#[system(
+	plugin = OverviewCameraPlugin, schedule = Update,
+	after = MenuActivatedSet,
+)]
+fn enable_overview_camera(
 	mut ev_activated: EventReader<MenuActivated>,
 	mut overview_camera: Query<&mut Camera, (With<OverviewCamera>, Without<PlayerCamera>)>,
 	mut player_camera: Query<&mut Camera, (With<PlayerCamera>, Without<OverviewCamera>)>,
@@ -68,7 +70,11 @@ pub fn enable_overview_camera(
 	}
 }
 
-pub fn disable_overview_camera(
+#[system(
+	plugin = OverviewCameraPlugin, schedule = Update,
+	after = MenuDeactivatedSet,
+)]
+fn disable_overview_camera(
 	mut ev_deactivated: EventReader<MenuDeactivated>,
 	mut overview_camera: Query<&mut Camera, (With<OverviewCamera>, Without<PlayerCamera>)>,
 	mut player_camera: Query<&mut Camera, (With<PlayerCamera>, Without<OverviewCamera>)>,

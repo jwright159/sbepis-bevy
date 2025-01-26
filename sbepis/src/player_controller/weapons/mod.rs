@@ -1,10 +1,13 @@
 use bevy::color::palettes::css;
 use bevy::ecs::entity::EntityHashSet;
 use bevy::prelude::*;
+use bevy_butler::*;
 use bevy_rapier3d::prelude::*;
 
-use crate::entity::{EntityKilled, GelViscosity};
+use crate::entity::{EntityKilled, EntityKilledSet, GelViscosity};
 use crate::fray::FrayMusic;
+use crate::input::button_just_pressed;
+use crate::player_controller::{PlayerAction, PlayerControllerPlugin};
 use crate::util::{find_in_ancestors, QuaternionEx};
 
 pub mod hammer;
@@ -19,6 +22,8 @@ pub struct EntityHit {
 	pub damage: f32,
 	pub fray_modifier: f32,
 }
+#[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct EntityHitSet;
 
 #[derive(Event)]
 pub struct EntityDamaged {
@@ -26,6 +31,8 @@ pub struct EntityDamaged {
 	pub damage: f32,
 	pub fray_modifier: f32,
 }
+#[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct EntityDamagedSet;
 
 #[derive(Component)]
 pub struct DamageNumbers;
@@ -89,7 +96,11 @@ pub struct DebugColliderVisualizer;
 #[derive(Component)]
 pub struct WeaponAnimation(pub AnimationNodeIndex);
 
-pub fn attack(mut weapons: Query<(&WeaponAnimation, &mut AnimationPlayer), With<ActiveWeapon>>) {
+#[system(
+	plugin = PlayerControllerPlugin, schedule = Update,
+	run_if = button_just_pressed(PlayerAction::Use),
+)]
+fn attack(mut weapons: Query<(&WeaponAnimation, &mut AnimationPlayer), With<ActiveWeapon>>) {
 	for (animation, mut animation_player) in weapons.iter_mut() {
 		if let Some(animation) = animation_player.animation_mut(animation.0) {
 			if animation.is_finished() {
@@ -102,7 +113,10 @@ pub fn attack(mut weapons: Query<(&WeaponAnimation, &mut AnimationPlayer), With<
 	}
 }
 
-pub fn correct_animation_speed(
+#[system(
+	plugin = PlayerControllerPlugin, schedule = Update,
+)]
+fn correct_animation_speed(
 	fray_music: Query<&FrayMusic>,
 	mut weapons: Query<(&WeaponAnimation, &mut AnimationPlayer)>,
 ) {
@@ -114,7 +128,11 @@ pub fn correct_animation_speed(
 	}
 }
 
-pub fn sweep_dealers(
+#[system(
+	plugin = PlayerControllerPlugin, schedule = Update,
+	in_set = EntityHitSet,
+)]
+fn sweep_dealers(
 	mut commands: Commands,
 	mut dealers: Query<(
 		Entity,
@@ -184,7 +202,12 @@ pub fn sweep_dealers(
 	}
 }
 
-pub fn hit_to_damage(
+#[system(
+	plugin = PlayerControllerPlugin, schedule = Update,
+	after = EntityHitSet,
+	in_set = EntityDamagedSet,
+)]
+fn hit_to_damage(
 	parents: Query<&Parent>,
 	healths: Query<Entity, With<GelViscosity>>,
 	mut ev_hit: EventReader<EntityHit>,
@@ -202,7 +225,12 @@ pub fn hit_to_damage(
 	}
 }
 
-pub fn deal_all_damage(
+#[system(
+	plugin = PlayerControllerPlugin, schedule = Update,
+	after = EntityDamagedSet,
+	in_set = EntityKilledSet,
+)]
+fn deal_all_damage(
 	mut ev_hit: EventReader<EntityDamaged>,
 	mut ev_kill: EventWriter<EntityKilled>,
 	mut healths: Query<&mut GelViscosity>,
@@ -212,9 +240,7 @@ pub fn deal_all_damage(
 			let damage = event.damage;
 
 			if damage > 0.0 && health.value <= 0.0 {
-				ev_kill.send(EntityKilled {
-					entity: event.victim,
-				});
+				ev_kill.send(EntityKilled(event.victim));
 			}
 
 			health.value -= damage;
@@ -222,7 +248,11 @@ pub fn deal_all_damage(
 	}
 }
 
-pub fn update_damage_numbers(
+#[system(
+	plugin = PlayerControllerPlugin, schedule = Update,
+	after = EntityDamagedSet,
+)]
+fn update_damage_numbers(
 	mut ev_hit: EventReader<EntityDamaged>,
 	mut damage_numbers: Query<Entity, With<DamageNumbers>>,
 	hit_object: Query<Option<&Name>, With<GelViscosity>>,
@@ -253,7 +283,10 @@ pub fn update_damage_numbers(
 	}
 }
 
-pub fn initialize_weapon_sets(
+#[system(
+	plugin = PlayerControllerPlugin, schedule = Update,
+)]
+fn initialize_weapon_sets(
 	mut commands: Commands,
 	weapon_sets: Query<(Entity, &WeaponSet), With<UninitializedWeaponSet>>,
 ) {
@@ -269,7 +302,11 @@ pub fn initialize_weapon_sets(
 	}
 }
 
-pub fn switch_weapon_next(mut commands: Commands, mut weapon_sets: Query<&mut WeaponSet>) {
+#[system(
+	plugin = PlayerControllerPlugin, schedule = Update,
+	run_if = button_just_pressed(PlayerAction::NextWeapon),
+)]
+fn switch_weapon_next(mut commands: Commands, mut weapon_sets: Query<&mut WeaponSet>) {
 	for mut weapon_set in weapon_sets.iter_mut() {
 		let old_weapon = weapon_set.weapons[weapon_set.active_weapon];
 		hide_weapon(&mut commands, old_weapon);
@@ -279,7 +316,11 @@ pub fn switch_weapon_next(mut commands: Commands, mut weapon_sets: Query<&mut We
 	}
 }
 
-pub fn switch_weapon_prev(mut commands: Commands, mut weapon_sets: Query<&mut WeaponSet>) {
+#[system(
+	plugin = PlayerControllerPlugin, schedule = Update,
+	run_if = button_just_pressed(PlayerAction::PrevWeapon),
+)]
+fn switch_weapon_prev(mut commands: Commands, mut weapon_sets: Query<&mut WeaponSet>) {
 	for mut weapon_set in weapon_sets.iter_mut() {
 		let old_weapon = weapon_set.weapons[weapon_set.active_weapon];
 		hide_weapon(&mut commands, old_weapon);

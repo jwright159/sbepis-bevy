@@ -2,11 +2,14 @@ use std::f32::consts::PI;
 
 use bevy::prelude::*;
 use bevy::render::render_asset::RenderAssetUsages;
+use bevy_butler::*;
 use faker_rand::en_us::names::FirstName;
 use meshtext::{Face, MeshGenerator, MeshText, TextSection};
 use rand::seq::IteratorRandom;
 use serde::Deserialize;
 
+use crate::entity::spawner::EntitySpawnedSet;
+use crate::npcs::NpcPlugin;
 use crate::some_or_return;
 
 #[derive(Resource)]
@@ -55,12 +58,19 @@ impl Default for FontMeshGenerator {
 #[derive(Component)]
 pub struct SpawnNameTag;
 
-pub fn load_names(mut commands: Commands, asset_server: Res<AssetServer>) {
+#[system(
+	plugin = NpcPlugin, schedule = Startup,
+)]
+fn load_names(mut commands: Commands, asset_server: Res<AssetServer>) {
 	let asset: Handle<AvailableNames> = asset_server.load("supporters.names.ron");
 	commands.insert_resource(AvailableNamesAsset(asset));
 }
 
-pub fn spawn_name_tags(
+#[system(
+	plugin = NpcPlugin, schedule = Update,
+	after = EntitySpawnedSet,
+)]
+fn spawn_name_tags(
 	mut commands: Commands,
 	asset: Res<AvailableNamesAsset>,
 	mut assets: ResMut<Assets<AvailableNames>>,

@@ -4,6 +4,7 @@ use bevy::animation::{animated_field, AnimationTarget, AnimationTargetId};
 use bevy::ecs::entity::EntityHashSet;
 use bevy::prelude::*;
 use bevy::render::mesh::CapsuleUvProfile;
+use bevy_butler::*;
 use bevy_rapier3d::math::Real;
 use bevy_rapier3d::plugin::RapierContext;
 use bevy_rapier3d::prelude::QueryFilter;
@@ -11,8 +12,8 @@ use bevy_rapier3d::prelude::QueryFilter;
 use crate::camera::PlayerCamera;
 use crate::fray::FrayMusic;
 use crate::gridbox_material;
-
-use super::{EntityHit, WeaponAnimation};
+use crate::player_controller::weapons::{EntityHit, WeaponAnimation};
+use crate::player_controller::PlayerControllerPlugin;
 
 #[derive(Component)]
 pub struct RiflePivot {
@@ -228,7 +229,10 @@ fn on_rifle_start_charging(
 	rifle.is_charging = true;
 }
 
-pub fn charge_rifle(
+#[system(
+	plugin = PlayerControllerPlugin, schedule = Update,
+)]
+fn charge_rifle(
 	mut commands: Commands,
 	mut rifle_barrels: Query<&mut Rifle>,
 	fray: Query<&FrayMusic>,

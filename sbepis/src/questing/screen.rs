@@ -1,13 +1,17 @@
 use bevy::color::palettes::css;
 use bevy::prelude::*;
+use bevy::utils::hashbrown::HashSet;
+use bevy_butler::*;
 use leafwing_input_manager::prelude::InputMap;
 
 use crate::camera::PlayerCameraNode;
 use crate::input::input_manager_bundle;
 use crate::menus::*;
+use crate::player_controller::PlayerAction;
+use crate::questing::{
+	QuestAccepted, QuestAcceptedSet, QuestEnded, QuestEndedSet, QuestId, QuestingPlugin, Quests,
+};
 use crate::util::MapRange;
-
-use super::{QuestId, Quests};
 
 #[derive(Component)]
 pub struct QuestScreen;
@@ -26,7 +30,26 @@ pub struct QuestScreenNode {
 	pub progress_bar: Entity,
 }
 
-pub fn spawn_quest_screen(mut commands: Commands) {
+pub struct OpenQuestScreenBinding;
+impl OpenMenuBinding for OpenQuestScreenBinding {
+	type Action = PlayerAction;
+	type Menu = QuestScreen;
+	fn action() -> Self::Action {
+		PlayerAction::OpenQuestScreen
+	}
+}
+
+#[system(
+	plugin = QuestingPlugin, schedule = Update,
+	generics = OpenQuestScreenBinding,
+	in_set = MenuManipulationSet,
+)]
+use crate::menus::show_menu_on_action;
+
+#[system(
+	plugin = QuestingPlugin, schedule = Startup,
+)]
+fn spawn_quest_screen(mut commands: Commands) {
 	commands
 		.spawn((
 			Node {
@@ -37,7 +60,7 @@ pub fn spawn_quest_screen(mut commands: Commands) {
 			BackgroundColor(bevy::color::palettes::css::GRAY.with_alpha(0.5).into()),
 			Visibility::Hidden,
 			input_manager_bundle(
-				InputMap::default().with(MenuAction::CloseMenu, KeyCode::KeyJ),
+				InputMap::default().with(CloseMenuAction, KeyCode::KeyJ),
 				false,
 			),
 			PlayerCameraNode,
@@ -74,123 +97,143 @@ pub fn spawn_quest_screen(mut commands: Commands) {
 		});
 }
 
-pub fn add_quest_nodes(
-	In(quest_id): In<QuestId>,
+#[system(
+	plugin = QuestingPlugin, schedule = Update,
+	after = QuestAcceptedSet,
+)]
+fn add_quest_nodes(
+	mut ev_quest_accepted: EventReader<QuestAccepted>,
 	mut commands: Commands,
 	quests: Res<Quests>,
 	quest_screen_node_list: Query<Entity, With<QuestScreenNodeList>>,
 	quest_screen_node_display: Query<Entity, With<QuestScreenNodeDisplay>>,
 ) {
-	let quest_screen_node_list = quest_screen_node_list.single();
-	let quest_screen_node_display = quest_screen_node_display.single();
+	for ev in ev_quest_accepted.read() {
+		let quest_screen_node_list = quest_screen_node_list.single();
+		let quest_screen_node_display = quest_screen_node_display.single();
 
-	let quest = quests.0.get(&quest_id).expect("Unknown quest");
+		let quest_id = ev.quest_id;
+		let quest = quests.0.get(&quest_id).expect("Unknown quest");
 
-	let mut progress_text: Option<Entity> = None;
-	let mut progress_bar: Option<Entity> = None;
+		let mut progress_text: Option<Entity> = None;
+		let mut progress_bar: Option<Entity> = None;
 
-	let display = commands
-		.spawn(Node {
-			display: bevy::ui::Display::None,
-			flex_direction: FlexDirection::Column,
-			..default()
-		})
-		.with_children(|parent| {
-			parent.spawn((
-				Text(quest.description.clone()),
-				TextColor(Color::WHITE),
-				TextFont {
-					font_size: 20.0,
-					..default()
-				},
-			));
-			progress_text = Some(
-				parent
-					.spawn((
-						Text(format!(
-							"{}/{}",
-							quest.quest_type.progress(),
-							quest.quest_type.max_progress()
-						)),
-						TextColor(Color::WHITE),
-						TextFont {
-							font_size: 20.0,
-							..default()
-						},
-					))
-					.id(),
-			);
-			parent
-				.spawn((
-					Node {
-						height: Val::Px(30.0),
-						width: Val::Percent(100.0),
+		let display = commands
+			.spawn(Node {
+				display: bevy::ui::Display::None,
+				flex_direction: FlexDirection::Column,
+				..default()
+			})
+			.with_children(|parent| {
+				parent.spawn((
+					Text(quest.description.clone()),
+					TextColor(Color::WHITE),
+					TextFont {
+						font_size: 20.0,
 						..default()
 					},
-					BackgroundColor(css::DARK_GRAY.into()),
-				))
-				.with_children(|parent| {
-					progress_bar = Some(
-						parent
-							.spawn((
-								Node {
-									width: Val::Percent(0.0),
-									height: Val::Percent(100.0),
-									..default()
-								},
-								BackgroundColor(css::LIGHT_GRAY.into()),
-							))
-							.id(),
-					);
-				});
-		})
-		.set_parent(quest_screen_node_display)
-		.id();
+				));
+				progress_text = Some(
+					parent
+						.spawn((
+							Text(format!(
+								"{}/{}",
+								quest.quest_type.progress(),
+								quest.quest_type.max_progress()
+							)),
+							TextColor(Color::WHITE),
+							TextFont {
+								font_size: 20.0,
+								..default()
+							},
+						))
+						.id(),
+				);
+				parent
+					.spawn((
+						Node {
+							height: Val::Px(30.0),
+							width: Val::Percent(100.0),
+							..default()
+						},
+						BackgroundColor(css::DARK_GRAY.into()),
+					))
+					.with_children(|parent| {
+						progress_bar = Some(
+							parent
+								.spawn((
+									Node {
+										width: Val::Percent(0.0),
+										height: Val::Percent(100.0),
+										..default()
+									},
+									BackgroundColor(css::LIGHT_GRAY.into()),
+								))
+								.id(),
+						);
+					});
+			})
+			.set_parent(quest_screen_node_display)
+			.id();
 
-	commands
-		.spawn((
-			Button,
-			Node {
-				padding: UiRect::all(Val::Px(10.0)),
-				width: Val::Percent(100.0),
-				..default()
-			},
-			BackgroundColor(css::GRAY.into()),
-			QuestScreenNode {
-				quest_id,
-				display,
-				progress_text: progress_text.unwrap(),
-				progress_bar: progress_bar.unwrap(),
-			},
-		))
-		.set_parent(quest_screen_node_list)
-		.with_children(|parent| {
-			parent.spawn((
-				Text(quest.name.clone()),
-				TextColor(Color::WHITE),
-				TextFont {
-					font_size: 20.0,
+		commands
+			.spawn((
+				Button,
+				Node {
+					padding: UiRect::all(Val::Px(10.0)),
+					width: Val::Percent(100.0),
 					..default()
 				},
-			));
-		});
+				BackgroundColor(css::GRAY.into()),
+				QuestScreenNode {
+					quest_id,
+					display,
+					progress_text: progress_text.unwrap(),
+					progress_bar: progress_bar.unwrap(),
+				},
+			))
+			.set_parent(quest_screen_node_list)
+			.with_children(|parent| {
+				parent.spawn((
+					Text(quest.name.clone()),
+					TextColor(Color::WHITE),
+					TextFont {
+						font_size: 20.0,
+						..default()
+					},
+				));
+			});
+	}
 }
 
-pub fn remove_quest_nodes(
-	In(quest_id): In<QuestId>,
+#[system(
+	plugin = QuestingPlugin, schedule = Update,
+	after = QuestEndedSet,
+)]
+fn remove_quest_nodes(
+	mut ev_ended: EventReader<QuestEnded>,
 	mut commands: Commands,
 	quest_nodes: Query<(Entity, &QuestScreenNode)>,
 ) {
+	if ev_ended.is_empty() {
+		return;
+	}
+
+	let quest_ids = ev_ended.read().map(|ev| ev.0).collect::<HashSet<_>>();
+
 	for (quest_node_entity, quest_node) in quest_nodes
 		.iter()
-		.filter(|(_, node)| node.quest_id == quest_id)
+		.filter(|(_, node)| quest_ids.contains(&node.quest_id))
 	{
 		commands.entity(quest_node_entity).despawn_recursive();
 		commands.entity(quest_node.display).despawn_recursive();
 	}
 }
 
-pub fn change_displayed_node(
+#[system(
+	plugin = QuestingPlugin, schedule = Update,
+)]
+fn change_displayed_node(
 	quest_nodes: Query<(&QuestScreenNode, &Interaction), Changed<Interaction>>,
 	mut quest_node_displays: Query<&mut Node>,
 	mut quest_screen_node_display: Query<&mut QuestScreenNodeDisplay>,
@@ -214,7 +257,11 @@ pub fn change_displayed_node(
 	}
 }
 
-pub fn update_quest_node_progress(
+#[system(
+	plugin = QuestingPlugin, schedule = Update,
+	after = QuestProgressUpdatedSet,
+)]
+fn update_quest_node_progress(
 	quests: Res<Quests>,
 	mut quest_nodes: Query<&QuestScreenNode>,
 	mut progress_texts: Query<&mut Text>,
@@ -240,3 +287,6 @@ pub fn update_quest_node_progress(
 		);
 	}
 }
+
+#[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct QuestProgressUpdatedSet;

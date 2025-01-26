@@ -1,17 +1,20 @@
 use bevy::color::palettes::css;
 use bevy::prelude::*;
+use bevy_butler::*;
 use leafwing_input_manager::prelude::InputMap;
 
 use crate::camera::PlayerCameraNode;
 use crate::input::input_manager_bundle;
+use crate::inventory::{pick_up_items, InventoryPlugin, Item, ItemPickedUp};
 use crate::menus::*;
-
-use super::{Item, ItemPickedUp};
 
 #[derive(Component)]
 pub struct InventoryScreen;
 
-pub fn spawn_inventory_screen(mut commands: Commands) {
+#[system(
+	plugin = InventoryPlugin, schedule = Startup,
+)]
+fn spawn_inventory_screen(mut commands: Commands) {
 	commands
 		.spawn((
 			Node {
@@ -26,7 +29,7 @@ pub fn spawn_inventory_screen(mut commands: Commands) {
 			BackgroundColor(css::GRAY.with_alpha(0.5).into()),
 			Visibility::Hidden,
 			input_manager_bundle(
-				InputMap::default().with(MenuAction::CloseMenu, KeyCode::KeyV),
+				InputMap::default().with(CloseMenuAction, KeyCode::KeyV),
 				false,
 			),
 			PlayerCameraNode,
@@ -39,7 +42,11 @@ pub fn spawn_inventory_screen(mut commands: Commands) {
 		.insert(Name::new("Inventory Screen"));
 }
 
-pub fn add_item_to_inventory_screen(
+#[system(
+	plugin = InventoryPlugin, schedule = Update,
+	after = pick_up_items,
+)]
+fn add_item_to_inventory_screen(
 	mut ev_picked_up: EventReader<ItemPickedUp>,
 	mut commands: Commands,
 	items: Query<&Item>,

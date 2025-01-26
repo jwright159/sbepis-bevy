@@ -1,9 +1,11 @@
 use bevy::prelude::*;
+use bevy_butler::*;
 use soundyrust::Note;
 
+use crate::player_commands::notes::NotePlayed;
+use crate::player_commands::{staff::*, NotesCleared, NotesClearedSet};
+use crate::player_commands::{NotePlayedSet, PlayerCommandsPlugin};
 use crate::util::MapRange;
-
-use super::{notes::NotePlayedEvent, staff::*};
 
 #[derive(Component, Default)]
 pub struct NoteNodeHolder {
@@ -24,9 +26,13 @@ impl NoteNodeHolder {
 	}
 }
 
-pub fn add_note_to_holder(
+#[system(
+	plugin = PlayerCommandsPlugin, schedule = Update,
+	after = NotePlayedSet,
+)]
+fn add_note_to_holder(
 	mut commands: Commands,
-	mut ev_note_played: EventReader<NotePlayedEvent>,
+	mut ev_note_played: EventReader<NotePlayed>,
 	mut note_holder: Query<(&mut NoteNodeHolder, Entity)>,
 	asset_server: Res<AssetServer>,
 ) {
@@ -61,7 +67,12 @@ pub fn add_note_to_holder(
 	}
 }
 
-pub fn clear_holder_notes(mut commands: Commands, mut note_holder: Query<&mut NoteNodeHolder>) {
+#[system(
+	plugin = PlayerCommandsPlugin, schedule = Update,
+	after = NotesClearedSet,
+	run_if = on_event::<NotesCleared>,
+)]
+fn clear_holder_notes(mut commands: Commands, mut note_holder: Query<&mut NoteNodeHolder>) {
 	let mut note_holder = note_holder.single_mut();
 	for note_entity in note_holder.note_entities.iter_mut() {
 		commands.entity(*note_entity).despawn_recursive();
