@@ -5,7 +5,7 @@ use soundyrust::MidiAudioTrackHandle;
 
 use crate::dialogue::spawn_dialogue;
 use crate::fray::FrayPlugin;
-use crate::input::{CoolNewEventMaker, InputManagerReference};
+use crate::input::{ActionButtonEvent, InputManagerReference};
 use crate::menus::{MenuManipulationSet, MenuStack};
 use crate::player_controller::camera_controls::{InteractedWith, InteractedWithSet};
 
@@ -99,7 +99,7 @@ fn open_track_switch_dialogue(
 	generics = TrackSwitcherSixEight,
 	in_set = TrackSwitchedSet,
 )]
-use crate::input::fire_cool_new_events;
+use crate::input::fire_action_button_events;
 
 #[system(
 	plugin = FrayPlugin, schedule = Update,
@@ -123,7 +123,7 @@ impl InputManagerReference for TrackSwitcherFourFour {
 		self.dialogue
 	}
 }
-impl CoolNewEventMaker for TrackSwitcherFourFour {
+impl ActionButtonEvent for TrackSwitcherFourFour {
 	type Action = TrackSwitcherAction;
 	type Button = Self;
 	type Event = TrackSwitched;
@@ -149,7 +149,7 @@ impl InputManagerReference for TrackSwitcherSixEight {
 		self.dialogue
 	}
 }
-impl CoolNewEventMaker for TrackSwitcherSixEight {
+impl ActionButtonEvent for TrackSwitcherSixEight {
 	type Action = TrackSwitcherAction;
 	type Button = Self;
 	type Event = TrackSwitched;

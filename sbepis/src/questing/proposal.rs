@@ -3,7 +3,7 @@ use bevy_butler::*;
 use leafwing_input_manager::prelude::*;
 
 use crate::dialogue::spawn_dialogue;
-use crate::input::{CoolNewEventMaker, InputManagerReference};
+use crate::input::{ActionButtonEvent, InputManagerReference};
 use crate::menus::*;
 use crate::player_controller::camera_controls::InteractedWith;
 use crate::questing::{
@@ -25,7 +25,7 @@ impl InputManagerReference for QuestProposalAccept {
 		self.quest_proposal
 	}
 }
-impl CoolNewEventMaker for QuestProposalAccept {
+impl ActionButtonEvent for QuestProposalAccept {
 	type Action = QuestProposalAction;
 	type Button = Self;
 	type Event = QuestAccepted;
@@ -59,7 +59,7 @@ impl InputManagerReference for QuestProposalDecline {
 		self.quest_proposal
 	}
 }
-impl CoolNewEventMaker for QuestProposalDecline {
+impl ActionButtonEvent for QuestProposalDecline {
 	type Action = QuestProposalAction;
 	type Button = Self;
 	type Event = QuestDeclined;
@@ -94,7 +94,7 @@ impl CoolNewEventMaker for QuestProposalDecline {
 	generics = QuestProposalDecline,
 	in_set = QuestDeclinedSet,
 )]
-use crate::input::fire_cool_new_events;
+use crate::input::fire_action_button_events;
 
 #[system(
 	plugin = QuestingPlugin, schedule = Update,

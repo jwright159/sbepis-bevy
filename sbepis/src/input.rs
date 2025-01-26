@@ -16,14 +16,14 @@ pub fn input_manager_bundle<Action: Actionlike>(
 	}
 }
 
-pub trait CoolNewEventMaker {
+pub trait ActionButtonEvent {
 	type Action: Actionlike + Copy;
 	type Button: Component + InputManagerReference;
 	type Event: Event + InputManagerReference;
 	fn make_event_system() -> impl IntoSystem<In<Entity>, Self::Event, ()> + 'static;
 	fn action() -> Self::Action;
 }
-pub fn fire_cool_new_events<T: CoolNewEventMaker>(
+pub fn fire_action_button_events<T: ActionButtonEvent>(
 	input: Query<(Entity, &ActionState<T::Action>)>,
 	buttons: Query<(&T::Button, &Interaction), Changed<Interaction>>,
 	mut commands: Commands,
