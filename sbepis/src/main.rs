@@ -18,11 +18,10 @@ mod dialogue;
 mod entity;
 mod fray;
 mod gravity;
-pub mod input;
+mod input;
 mod inventory;
-pub mod iter_system;
 mod main_bundles;
-pub mod menus;
+mod menus;
 mod npcs;
 #[cfg(feature = "overview_camera")]
 mod overview_camera;
