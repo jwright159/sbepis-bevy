@@ -99,6 +99,7 @@ fn setup(
 			}),
 			PlayerCamera,
 			Pitch(0.0),
+			SpatialListener::new(-0.25),
 		))
 		.set_parent(body)
 		.id();

@@ -9,10 +9,15 @@ use bevy_rapier3d::geometry::Collider;
 use crate::entity::spawner::{
 	EntitySpawned, EntitySpawnedSet, SpawnerActivated, SpawnerActivatedSet,
 };
-use crate::entity::{Movement, RotateTowardMovement, SpawnHealthBar, TargetPlayer};
+use crate::entity::{
+	EntityKilled, EntityKilledSet, GelViscosity, Movement, RotateTowardMovement, SpawnHealthBar,
+	TargetPlayer,
+};
 use crate::main_bundles::Mob;
 use crate::npcs::NpcPlugin;
+use crate::player_controller::weapons::EntityDamaged;
 use crate::util::AnimationRootReference;
+use crate::{ok_or_continue, some_or_return};
 
 use super::name_tags::SpawnNameTag;
 
@@ -26,7 +31,40 @@ pub struct ImpSpawner;
 pub struct InsertImpAssets;
 
 #[derive(Resource)]
-pub struct ImpAssets(pub Handle<Gltf>);
+pub struct ImpAssets {
+	pub model: Handle<Gltf>,
+	pub ambient_sound_1: Handle<AudioSource>,
+	pub ambient_sound_2: Handle<AudioSource>,
+	pub hurt_sound: Handle<AudioSource>,
+	pub death_sound: Handle<AudioSource>,
+
+	pub sound_effect_variance: f32,
+
+	pub ambient_sound_time: Duration,
+	pub ambient_sound_time_variance: Duration,
+}
+
+impl ImpAssets {
+	pub fn random_ambient_sound(&self) -> &Handle<AudioSource> {
+		if rand::random::<f32>() < 0.5 {
+			&self.ambient_sound_1
+		} else {
+			&self.ambient_sound_2
+		}
+	}
+
+	pub fn random_sound_effect_variance(&self) -> f32 {
+		rand::random::<f32>() * self.sound_effect_variance * 2.0 + 1.0 - self.sound_effect_variance
+	}
+
+	pub fn random_ambient_sound_time(&self) -> Duration {
+		Duration::from_secs_f32(
+			rand::random::<f32>() * self.ambient_sound_time_variance.as_secs_f32() * 2.0
+				+ self.ambient_sound_time.as_secs_f32()
+				- self.ambient_sound_time_variance.as_secs_f32(),
+		)
+	}
+}
 
 #[derive(Component)]
 pub struct ImpAnimations {
@@ -39,7 +77,17 @@ pub struct ImpAnimations {
 	plugin = NpcPlugin, schedule = Startup,
 )]
 fn setup_imp_assets(mut commands: Commands, asset_server: Res<AssetServer>) {
-	commands.insert_resource(ImpAssets(asset_server.load("imp.glb")));
+	commands.insert_resource(ImpAssets {
+		model: asset_server.load("imp.glb"),
+		ambient_sound_1: asset_server.load("imp_ambient_1.ogg"),
+		ambient_sound_2: asset_server.load("imp_ambient_2.ogg"),
+		hurt_sound: asset_server.load("imp_hurt.ogg"),
+		death_sound: asset_server.load("imp_death.ogg"),
+
+		sound_effect_variance: 0.3,
+		ambient_sound_time: Duration::from_secs_f32(5.0),
+		ambient_sound_time_variance: Duration::from_secs_f32(2.0),
+	});
 }
 
 #[system(
@@ -76,9 +124,7 @@ fn spawn_imp(
 	imp_assets: Res<ImpAssets>,
 	gltfs: Res<Assets<Gltf>>,
 ) {
-	let Some(imp_gltf) = gltfs.get(&imp_assets.0) else {
-		return;
-	};
+	let imp_gltf = some_or_return!(gltfs.get(&imp_assets.model));
 
 	for imp in imps.iter() {
 		commands
@@ -91,6 +137,7 @@ fn spawn_imp(
 				RotateTowardMovement,
 				Imp,
 				SpawnNameTag,
+				AmbientSoundTimer::default(),
 			))
 			.remove::<InsertImpAssets>()
 			.with_child((
@@ -105,7 +152,7 @@ fn spawn_imp(
 				 mut animation_graphs: ResMut<Assets<AnimationGraph>>,
 				 children: Query<&Children>| {
 					let imp_gltf = gltfs
-						.get(&imp_assets.0)
+						.get(&imp_assets.model)
 						.expect("Gltf should be loaded by now");
 
 					let (animation_graph, nodes) = AnimationGraph::from_clips([
@@ -189,6 +236,91 @@ fn update_imp_animations(
 					Duration::from_secs_f32(0.5),
 				)
 				.repeat();
+		}
+	}
+}
+
+#[system(
+	plugin = NpcPlugin, schedule = Update,
+	after = EntityKilledSet,
+)]
+fn imp_hurt_sound(
+	mut ev_damaged: EventReader<EntityDamaged>,
+	mut imps: Query<(&GelViscosity, &GlobalTransform, &mut AmbientSoundTimer), With<Imp>>,
+	mut commands: Commands,
+	imp_assets: Res<ImpAssets>,
+) {
+	for ev in ev_damaged.read() {
+		let (health, transform, mut sound_timer) = ok_or_continue!(imps.get_mut(ev.victim));
+
+		if ev.damage + health.value < 0.0 {
+			// dead
+			continue;
+		}
+
+		commands.spawn((
+			Transform::from_translation(transform.translation()),
+			AudioPlayer(imp_assets.hurt_sound.clone()),
+			PlaybackSettings::DESPAWN
+				.with_speed(imp_assets.random_sound_effect_variance())
+				.with_spatial(true),
+		));
+
+		sound_timer.0 = imp_assets.random_ambient_sound_time();
+	}
+}
+
+#[system(
+	plugin = NpcPlugin, schedule = Update,
+	after = EntityKilledSet,
+)]
+fn imp_kill_sound(
+	mut ev_damaged: EventReader<EntityKilled>,
+	mut imps: Query<(&GlobalTransform, &mut AmbientSoundTimer), With<Imp>>,
+	mut commands: Commands,
+	imp_assets: Res<ImpAssets>,
+) {
+	for ev in ev_damaged.read() {
+		let (transform, mut sound_timer) = ok_or_continue!(imps.get_mut(ev.0));
+
+		commands.spawn((
+			Transform::from_translation(transform.translation()),
+			AudioPlayer(imp_assets.death_sound.clone()),
+			PlaybackSettings::DESPAWN
+				.with_speed(imp_assets.random_sound_effect_variance())
+				.with_spatial(true),
+		));
+
+		sound_timer.0 = imp_assets.random_ambient_sound_time();
+	}
+}
+
+#[derive(Component, Default)]
+pub struct AmbientSoundTimer(pub Duration);
+
+#[system(
+	plugin = NpcPlugin, schedule = Update,
+)]
+fn imp_ambient_sound(
+	mut imps: Query<(&GlobalTransform, &mut AmbientSoundTimer), With<Imp>>,
+	mut commands: Commands,
+	imp_assets: Res<ImpAssets>,
+	time: Res<Time>,
+) {
+	for (transform, mut sound_timer) in imps.iter_mut() {
+		sound_timer.0 = match sound_timer.0.checked_sub(time.delta()) {
+			Some(time) => time,
+			None => {
+				commands.spawn((
+					Transform::from_translation(transform.translation()),
+					AudioPlayer(imp_assets.random_ambient_sound().clone()),
+					PlaybackSettings::DESPAWN
+						.with_speed(imp_assets.random_sound_effect_variance())
+						.with_spatial(true),
+				));
+
+				imp_assets.random_ambient_sound_time()
+			}
 		}
 	}
 }
