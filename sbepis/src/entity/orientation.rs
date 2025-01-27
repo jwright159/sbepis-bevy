@@ -5,7 +5,7 @@ use crate::entity::movement::ExecuteMovementSet;
 use crate::entity::EntityPlugin;
 use crate::gravity::AffectedByGravity;
 
-#[derive(Component)]
+#[derive(Component, Default)]
 pub struct GravityOrientation;
 
 #[system(

@@ -3,6 +3,7 @@ use std::fmt::{self, Display, Formatter};
 use bevy::prelude::*;
 use bevy::utils::HashMap;
 use bevy_butler::*;
+use bevy_rapier3d::prelude::Collider;
 use proposal::*;
 use rand::distributions::{Distribution, Standard};
 use rand::Rng;
@@ -15,7 +16,7 @@ use crate::inventory::{Inventory, InventoryChanged, InventoryChangedSet, Item};
 use crate::menus::*;
 use crate::npcs::Imp;
 use crate::player_controller::camera_controls::{InteractedWith, InteractedWithSet};
-use crate::{gridbox_material, some_or_return, BoxBundle};
+use crate::{gridbox_material, some_or_return, Box};
 
 mod proposal;
 mod quest_markers;
@@ -368,7 +369,8 @@ fn spawn_quest_drops(
 				Transform::from_translation(transform.translation + Vec3::Y * 0.2),
 				Mesh3d(meshes.add(Cuboid::from_size(Vec3::splat(0.2)))),
 				MeshMaterial3d(gridbox_material("orange", &mut materials, &asset_server)),
-				BoxBundle::default().with_collider_size(0.1),
+				Box,
+				Collider::cuboid(0.1, 0.1, 0.1),
 				Item {
 					icon: asset_server.load("item.png"),
 				},

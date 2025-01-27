@@ -10,7 +10,7 @@ use crate::camera::PlayerCamera;
 use crate::gridbox_material;
 use crate::input::*;
 use crate::inventory::Inventory;
-use crate::main_bundles::EntityBundle;
+use crate::main_bundles::Mob;
 use crate::menus::{
 	InputManagerMenuPlugin, Menu, MenuStack, MenuWithInputManager, MenuWithoutMouse,
 };
@@ -94,7 +94,7 @@ fn setup(
 			),
 			MeshMaterial3d(gridbox_material("white", &mut materials, &asset_server)),
 			Collider::capsule_y(0.5, 0.25),
-			EntityBundle::default(),
+			Mob,
 			PlayerBody { is_grounded: false },
 			Inventory::default(),
 		))

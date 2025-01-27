@@ -12,7 +12,7 @@ use crate::entity::spawner::{
 };
 use crate::entity::{Healing, RandomInput, RotateTowardMovement, SpawnHealthBar, TargetPlayer};
 use crate::gridbox_material;
-use crate::main_bundles::EntityBundle;
+use crate::main_bundles::Mob;
 use crate::questing::{QuestGiver, SpawnQuestMarker};
 
 mod name_tags;
@@ -65,8 +65,7 @@ fn spawn_consort(
 			.insert((
 				Name::new("Consort"),
 				Transform::from_translation(ev.position),
-				EntityBundle::default(),
-				Visibility::Inherited,
+				Mob,
 				SpawnHealthBar,
 				RandomInput::default(),
 				Healing(0.2),
@@ -144,8 +143,7 @@ fn spawn_imp(
 		commands
 			.entity(imp)
 			.insert((
-				EntityBundle::default(),
-				Visibility::Inherited,
+				Mob,
 				SpawnHealthBar,
 				TargetPlayer,
 				RotateTowardMovement,
