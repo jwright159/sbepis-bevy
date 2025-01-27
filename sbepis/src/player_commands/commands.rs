@@ -11,11 +11,13 @@ use crate::player_commands::notes::NotePlayed;
 	plugin = PlayerCommandsPlugin, schedule = Update,
 	generics = PingCommandEvent,
 	in_set = CommandSentSet,
+	run_if = on_event::<NotePlayed>,
 )]
 #[system(
 	plugin = PlayerCommandsPlugin, schedule = Update,
 	generics = KillCommandEvent,
 	in_set = CommandSentSet,
+	run_if = on_event::<NotePlayed>,
 )]
 fn check_note_patterns<T: Event + NotePatternEvent>(
 	note_holder: Res<NotePatternPlayer>,

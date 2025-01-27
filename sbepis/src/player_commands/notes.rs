@@ -4,7 +4,7 @@ use leafwing_input_manager::prelude::*;
 use soundyrust::Note;
 
 use crate::input::{button_just_pressed, MapsToEvent};
-use crate::player_commands::{CommandSentSet, PlayerCommandsPlugin};
+use crate::player_commands::{CloseStaffAction, CommandSent, CommandSentSet, PlayerCommandsPlugin};
 
 #[derive(Event)]
 pub struct NotePlayed {
@@ -19,9 +19,6 @@ pub struct NotePlayedSet;
 	in_set = NotePlayedSet,
 )]
 use crate::input::map_action_to_event;
-use crate::player_controller::PlayerAction;
-
-use super::CommandSent;
 
 #[derive(Event)]
 pub struct NotesCleared;
@@ -288,7 +285,7 @@ fn spawn_note_audio(
 #[system(
 	plugin = PlayerCommandsPlugin, schedule = Update,
 	in_set = NotesClearedSet,
-	run_if = button_just_pressed(PlayerAction::OpenStaff),
+	run_if = button_just_pressed(CloseStaffAction),
 )]
 fn clear_notes(mut ev_clear_notes: EventWriter<NotesCleared>) {
 	ev_clear_notes.send(NotesCleared);

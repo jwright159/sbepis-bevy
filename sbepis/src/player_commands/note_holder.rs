@@ -29,6 +29,7 @@ impl NoteNodeHolder {
 #[system(
 	plugin = PlayerCommandsPlugin, schedule = Update,
 	after = NotePlayedSet,
+	before = NotesClearedSet,
 )]
 fn add_note_to_holder(
 	mut commands: Commands,
@@ -59,9 +60,8 @@ fn add_note_to_holder(
 					..default()
 				},
 			))
+			.set_parent(note_holder_entity)
 			.id();
-
-		commands.entity(note_holder_entity).add_child(note_entity);
 
 		note_holder.note_entities.push(note_entity);
 	}
