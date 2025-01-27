@@ -14,7 +14,7 @@ use crate::entity::{EntityKilled, EntityKilledSet};
 use crate::input::{InputManagerReference, MapsToEvent};
 use crate::inventory::{Inventory, InventoryChanged, InventoryChangedSet, Item};
 use crate::menus::*;
-use crate::npcs::Imp;
+use crate::npcs::imp::Imp;
 use crate::prelude::InteractedWithSet;
 use crate::{gridbox_material, some_or_return, Box};
 

@@ -8,7 +8,8 @@ use bevy_rapier3d::prelude::*;
 use crate::entity::spawner::Spawner;
 use crate::entity::GelViscosity;
 use crate::gravity::{AffectedByGravity, GravityPoint, GravityPriority};
-use crate::npcs::{ConsortSpawner, ImpSpawner};
+use crate::npcs::consort::ConsortSpawner;
+use crate::npcs::imp::ImpSpawner;
 use crate::{ok_or_continue, some_or_continue};
 
 #[butler_plugin(build(

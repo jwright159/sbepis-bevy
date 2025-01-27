@@ -158,6 +158,9 @@ pub fn find_in_ancestors<'a, D: QueryData, F: QueryFilter>(
 		.next()
 }
 
+#[derive(Component)]
+pub struct AnimationRootReference(pub Entity);
+
 #[macro_export]
 macro_rules! some_or_return {
 	($value:expr) => {

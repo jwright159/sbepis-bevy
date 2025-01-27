@@ -8,7 +8,7 @@ use soundyrust::*;
 use tracks::{FrayTracks, Track, TrackSwitcher};
 
 use crate::camera::PlayerCameraNode;
-use crate::npcs::Imp;
+use crate::npcs::imp::Imp;
 use crate::player_controller::weapons::{EntityHit, EntityHitSet};
 use crate::prelude::PlayerBody;
 use crate::util::MapRange;
