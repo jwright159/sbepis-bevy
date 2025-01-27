@@ -10,12 +10,11 @@ use bevy::render::render_resource::TextureViewDescriptor;
 use bevy::render::render_resource::TextureViewDimension;
 use bevy_butler::*;
 
-#[butler_plugin(build(
-	init_resource::<CurrentSkybox>(),
-))]
+#[butler_plugin]
 pub struct SkyboxPlugin;
 
 #[derive(Resource, Default)]
+#[resource(plugin = SkyboxPlugin)]
 struct CurrentSkybox {
 	skybox: Option<Handle<Image>>,
 	left: Option<Handle<Image>>,

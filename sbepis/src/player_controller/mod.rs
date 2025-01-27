@@ -16,7 +16,6 @@ use crate::menus::{
 };
 
 use self::camera_controls::*;
-use self::movement::*;
 use self::weapons::hammer::*;
 use self::weapons::rifle::*;
 use self::weapons::sword::*;
@@ -27,17 +26,6 @@ pub mod movement;
 pub mod weapons;
 
 #[butler_plugin(build(
-	insert_resource(MouseSensitivity(0.003)),
-	insert_resource(PlayerSpeed {
-		speed: 7.0,
-		sprint_modifier: 2.0,
-		jump_speed: 5.0,
-		friction: 6.0,
-		acceleration: 8.0,
-		air_acceleration: 6.0,
-	}),
-	add_event::<EntityHit>(),
-	add_event::<EntityDamaged>(),
 	add_plugins(InputManagerMenuPlugin::<PlayerAction>::default()),
 ))]
 pub struct PlayerControllerPlugin;

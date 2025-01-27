@@ -15,7 +15,7 @@ use crate::input::{InputManagerReference, MapsToEvent};
 use crate::inventory::{Inventory, InventoryChanged, InventoryChangedSet, Item};
 use crate::menus::*;
 use crate::npcs::Imp;
-use crate::player_controller::camera_controls::{InteractedWith, InteractedWithSet};
+use crate::prelude::InteractedWithSet;
 use crate::{gridbox_material, some_or_return, Box};
 
 mod proposal;
@@ -31,12 +31,6 @@ pub struct QuestingPlugin;
 	register_type::<QuestGiver>(),
 	register_type::<QuestId>(),
 	register_type::<Quest>(),
-	init_resource::<Quests>(),
-	add_event::<QuestAccepted>(),
-	add_event::<QuestDeclined>(),
-	add_event::<QuestEnded>(),
-	add_event::<QuestCompleted>(),
-	add_event::<InteractedWith<QuestGiver>>(),
 	add_plugins(InputManagerMenuPlugin::<QuestProposalAction>::default()),
 ))]
 impl Plugin for QuestingPlugin {
@@ -47,6 +41,7 @@ impl Plugin for QuestingPlugin {
 }
 
 #[derive(Resource, Default, Debug, Reflect)]
+#[resource(plugin = QuestingPlugin)]
 #[reflect(Resource)]
 pub struct Quests(pub HashMap<QuestId, Quest>);
 
@@ -176,7 +171,11 @@ pub struct QuestGiver {
 	quest_marker: Option<Entity>,
 }
 
+#[event(plugin = QuestingPlugin, generics = QuestGiver)]
+use crate::prelude::InteractedWith;
+
 #[derive(Event)]
+#[event(plugin = QuestingPlugin)]
 pub struct QuestAccepted {
 	pub quest_proposal: Entity,
 	pub quest_id: QuestId,
@@ -190,6 +189,7 @@ impl InputManagerReference for QuestAccepted {
 pub struct QuestAcceptedSet;
 
 #[derive(Event, Clone)]
+#[event(plugin = QuestingPlugin)]
 pub struct QuestDeclined {
 	pub quest_proposal: Entity,
 	pub quest_id: QuestId,
@@ -208,11 +208,13 @@ impl MapsToEvent<QuestEnded> for QuestDeclined {
 pub struct QuestDeclinedSet;
 
 #[derive(Event)]
+#[event(plugin = QuestingPlugin)]
 pub struct QuestEnded(pub QuestId);
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct QuestEndedSet;
 
 #[derive(Event, Clone)]
+#[event(plugin = QuestingPlugin)]
 pub struct QuestCompleted(pub QuestId);
 impl MapsToEvent<QuestEnded> for QuestCompleted {
 	fn make_event(&self) -> QuestEnded {

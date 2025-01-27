@@ -15,6 +15,7 @@ pub mod rifle;
 pub mod sword;
 
 #[derive(Event)]
+#[event(plugin = PlayerControllerPlugin)]
 pub struct EntityHit {
 	pub victim: Entity,
 	pub perpetrator: Entity,
@@ -26,6 +27,7 @@ pub struct EntityHit {
 pub struct EntityHitSet;
 
 #[derive(Event)]
+#[event(plugin = PlayerControllerPlugin)]
 pub struct EntityDamaged {
 	pub victim: Entity,
 	pub damage: f32,

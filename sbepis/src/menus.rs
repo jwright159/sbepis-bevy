@@ -11,9 +11,6 @@ use crate::input::InputManagerReference;
 
 #[butler_plugin(build(
 	register_type::<MenuStack>(),
-	init_resource::<MenuStack>(),
-	add_event::<MenuActivated>(),
-	add_event::<MenuDeactivated>(),
 	add_plugins(InputManagerMenuPlugin::<CloseMenuAction>::default()),
 ))]
 pub struct MenusPlugin;
@@ -61,6 +58,7 @@ pub struct MenuHidesWhenClosed;
 pub struct MenuDespawnsWhenClosed;
 
 #[derive(Resource, Default, Debug, Reflect)]
+#[resource(plugin = MenusPlugin)]
 pub struct MenuStack {
 	stack: Vec<Entity>,
 	current: Option<Entity>,
@@ -88,11 +86,13 @@ impl MenuStack {
 }
 
 #[derive(Event)]
+#[event(plugin = MenusPlugin)]
 pub struct MenuActivated(pub Entity);
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct MenuActivatedSet;
 
 #[derive(Event)]
+#[event(plugin = MenusPlugin)]
 pub struct MenuDeactivated(pub Entity);
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct MenuDeactivatedSet;

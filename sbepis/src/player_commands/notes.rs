@@ -7,6 +7,7 @@ use crate::input::{button_just_pressed, MapsToEvent};
 use crate::player_commands::{CloseStaffAction, CommandSent, CommandSentSet, PlayerCommandsPlugin};
 
 #[derive(Event)]
+#[event(plugin = PlayerCommandsPlugin)]
 pub struct NotePlayed {
 	pub note: Note,
 }
@@ -21,6 +22,7 @@ pub struct NotePlayedSet;
 use crate::input::map_action_to_event;
 
 #[derive(Event)]
+#[event(plugin = PlayerCommandsPlugin)]
 pub struct NotesCleared;
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct NotesClearedSet;

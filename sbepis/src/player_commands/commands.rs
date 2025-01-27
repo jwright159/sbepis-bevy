@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use bevy_butler::system;
+use bevy_butler::*;
 use soundyrust::Note;
 
 use crate::player_commands::{NotePlayedSet, NotesCleared, NotesClearedSet, PlayerCommandsPlugin};
@@ -31,11 +31,13 @@ fn check_note_patterns<T: Event + NotePatternEvent>(
 }
 
 #[derive(Resource, Default)]
+#[resource(plugin = PlayerCommandsPlugin)]
 pub struct NotePatternPlayer {
 	pub current_pattern: Vec<Note>,
 }
 
 #[derive(Event)]
+#[event(plugin = PlayerCommandsPlugin)]
 pub struct CommandSent;
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct CommandSentSet;
@@ -107,6 +109,7 @@ impl NoteSequenceTyped<bool> for &[Note] {
 }
 
 #[derive(Event)]
+#[event(plugin = PlayerCommandsPlugin)]
 pub struct PingCommandEvent;
 
 impl PingCommandEvent {
@@ -141,6 +144,7 @@ fn ping(
 }
 
 #[derive(Event)]
+#[event(plugin = PlayerCommandsPlugin)]
 pub struct KillCommandEvent(pub bool);
 
 impl KillCommandEvent {

@@ -8,6 +8,14 @@ use crate::input::button_just_pressed;
 use crate::player_controller::{PlayerAction, PlayerBody, PlayerControllerPlugin};
 
 #[derive(Resource)]
+#[resource(plugin = PlayerControllerPlugin, init = PlayerSpeed {
+	speed: 7.0,
+	sprint_modifier: 2.0,
+	jump_speed: 5.0,
+	friction: 6.0,
+	acceleration: 8.0,
+	air_acceleration: 6.0,
+})]
 pub struct PlayerSpeed {
 	pub speed: f32,
 	pub sprint_modifier: f32,

@@ -4,16 +4,12 @@ use bevy_rapier3d::prelude::*;
 use screen::*;
 
 use crate::menus::{MenuManipulationSet, OpenMenuBinding};
-use crate::player_controller::camera_controls::{InteractedWith, InteractedWithSet};
+use crate::player_controller::camera_controls::InteractedWithSet;
 use crate::player_controller::PlayerAction;
 
 mod screen;
 
-#[butler_plugin(build(
-	add_event::<ItemPickedUp>(),
-	add_event::<InventoryChanged>(),
-	add_event::<InteractedWith<Item>>(),
-))]
+#[butler_plugin]
 pub struct InventoryPlugin;
 
 #[derive(Component, Default)]
@@ -27,6 +23,7 @@ pub struct Item {
 }
 
 #[derive(Event)]
+#[event(plugin = InventoryPlugin)]
 pub struct ItemPickedUp(pub Entity);
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ItemPickedUpSet;
@@ -83,6 +80,10 @@ impl OpenMenuBinding for OpenInventoryBinding {
 use crate::menus::show_menu_on_action;
 
 #[derive(Event)]
+#[event(plugin = InventoryPlugin)]
 pub struct InventoryChanged(pub Entity);
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct InventoryChangedSet;
+
+#[event(plugin = InventoryPlugin, generics = Item)]
+use crate::player_controller::camera_controls::InteractedWith;

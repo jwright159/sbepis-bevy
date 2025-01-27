@@ -23,7 +23,6 @@ mod name_tags;
 
 #[butler_plugin(build(
 	add_plugins(RonAssetPlugin::<AvailableNames>::new(&["names.ron"])),
-	init_resource::<FontMeshGenerator>(),
 ))]
 pub struct NpcPlugin;
 

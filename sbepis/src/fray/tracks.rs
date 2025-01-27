@@ -7,11 +7,14 @@ use crate::dialogue::spawn_dialogue;
 use crate::fray::FrayPlugin;
 use crate::input::{ActionButtonEvent, InputManagerReference};
 use crate::menus::{MenuManipulationSet, MenuStack};
-use crate::player_controller::camera_controls::{InteractedWith, InteractedWithSet};
+use crate::prelude::InteractedWithSet;
 
 #[derive(Component, Reflect)]
 #[reflect(Component)]
 pub struct TrackSwitcher;
+
+#[event(plugin = FrayPlugin, generics = TrackSwitcher)]
+use crate::prelude::InteractedWith;
 
 #[derive(Resource)]
 pub struct FrayTracks {
@@ -195,6 +198,7 @@ pub enum Track {
 use crate::menus::close_menu_on_event;
 
 #[derive(Event, Clone, Copy)]
+#[event(plugin = FrayPlugin)]
 pub struct TrackSwitched {
 	pub track: Track,
 	pub dialogue: Entity,

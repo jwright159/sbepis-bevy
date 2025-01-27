@@ -32,7 +32,9 @@ mod skybox;
 pub mod util;
 
 mod prelude {
-	pub use crate::player_controller::camera_controls::{interact_with, PlayerBody};
+	pub use crate::player_controller::camera_controls::{
+		interact_with, InteractedWith, InteractedWithSet, PlayerBody,
+	};
 }
 
 fn main() {

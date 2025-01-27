@@ -15,6 +15,7 @@ pub struct Spawner {
 }
 
 #[derive(Event)]
+#[event(plugin = EntityPlugin)]
 pub struct SpawnerActivated {
 	pub entity: Entity,
 	pub spawner: Entity,
@@ -24,6 +25,7 @@ pub struct SpawnerActivated {
 pub struct SpawnerActivatedSet;
 
 #[derive(Event)]
+#[event(plugin = EntityPlugin)]
 pub struct EntitySpawned(pub Entity);
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct EntitySpawnedSet;

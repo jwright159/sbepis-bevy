@@ -1,6 +1,5 @@
 use bevy::prelude::*;
 use bevy_butler::*;
-use spawner::{EntitySpawned, SpawnerActivated};
 
 pub use self::health::{GelViscosity, Healing, SpawnHealthBar};
 pub use self::movement::{Movement, RandomInput, RotateTowardMovement, TargetPlayer};
@@ -11,14 +10,11 @@ pub mod movement;
 pub mod orientation;
 pub mod spawner;
 
-#[butler_plugin(build(
-	add_event::<EntityKilled>(),
-	add_event::<SpawnerActivated>(),
-	add_event::<EntitySpawned>(),
-))]
+#[butler_plugin]
 pub struct EntityPlugin;
 
 #[derive(Event)]
+#[event(plugin = EntityPlugin)]
 pub struct EntityKilled(pub Entity);
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct EntityKilledSet;

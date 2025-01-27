@@ -20,6 +20,7 @@ pub struct PlayerBody {
 
 /// Probably in radians per pixel?
 #[derive(Resource)]
+#[resource(plugin = PlayerControllerPlugin, init = MouseSensitivity(0.003))]
 pub struct MouseSensitivity(pub f32);
 
 #[system(

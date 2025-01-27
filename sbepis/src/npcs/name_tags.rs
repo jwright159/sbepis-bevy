@@ -21,6 +21,7 @@ pub struct AvailableNames {
 }
 
 #[derive(Resource)]
+#[resource(plugin = NpcPlugin)]
 pub struct FontMeshGenerator(MeshGenerator<Face<'static>>);
 impl FontMeshGenerator {
 	pub fn new(font_data: &'static [u8]) -> Self {

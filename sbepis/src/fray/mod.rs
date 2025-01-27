@@ -5,11 +5,10 @@ use bevy::audio::Volume;
 use bevy::prelude::*;
 use bevy_butler::*;
 use soundyrust::*;
-use tracks::{FrayTracks, Track, TrackSwitched, TrackSwitcher};
+use tracks::{FrayTracks, Track, TrackSwitcher};
 
 use crate::camera::PlayerCameraNode;
 use crate::npcs::Imp;
-use crate::player_controller::camera_controls::InteractedWith;
 use crate::player_controller::weapons::{EntityHit, EntityHitSet};
 use crate::prelude::PlayerBody;
 use crate::util::MapRange;
@@ -19,8 +18,6 @@ mod tracks;
 #[butler_plugin(build(
 	add_plugins(SoundyPlugin),
 	register_type::<TrackSwitcher>(),
-	add_event::<TrackSwitched>(),
-	add_event::<InteractedWith<TrackSwitcher>>(),
 ))]
 pub struct FrayPlugin;
 
