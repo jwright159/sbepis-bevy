@@ -365,12 +365,10 @@ fn spawn_quest_drops(
 			}
 
 			commands.spawn((
-				BoxBundle::new(
-					transform.translation + Vec3::Y * 0.2,
-					meshes.add(Cuboid::from_size(Vec3::splat(0.2))),
-					gridbox_material("orange", &mut materials, &asset_server),
-				)
-				.with_collider_size(0.1),
+				Transform::from_translation(transform.translation + Vec3::Y * 0.2),
+				Mesh3d(meshes.add(Cuboid::from_size(Vec3::splat(0.2)))),
+				MeshMaterial3d(gridbox_material("orange", &mut materials, &asset_server)),
+				BoxBundle::default().with_collider_size(0.1),
 				Item {
 					icon: asset_server.load("item.png"),
 				},

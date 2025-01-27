@@ -106,7 +106,7 @@ fn spawn_name_tags(
 			.spawn((
 				Mesh3d(meshes.add(mesh)),
 				MeshMaterial3d(materials.add(Color::WHITE)),
-				Transform::from_xyz(mesh_text.bbox.size().x * scale * 0.5, 0.6, 0.0)
+				Transform::from_xyz(mesh_text.bbox.size().x * scale * 0.5, 1.1, 0.0)
 					.with_rotation(Quat::from_rotation_y(PI))
 					.with_scale(Vec3::splat(scale)),
 			))

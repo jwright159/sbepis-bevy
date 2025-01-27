@@ -59,7 +59,7 @@ fn spawn_quest_markers(
 		let marker = commands
 			.spawn((
 				Name::new("Quest Marker"),
-				Transform::from_xyz(0.0, 0.6, 0.0),
+				Transform::from_xyz(0.0, 2.0, 0.0),
 				Visibility::Inherited,
 				QuestMarker {
 					entity: quest_giver_entity,

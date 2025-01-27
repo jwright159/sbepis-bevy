@@ -81,8 +81,8 @@ fn setup(
 	let body = commands
 		.spawn((
 			Name::new("Player Body"),
-			EntityBundle::new(
-				Transform::from_translation(Vec3::new(5.0, 10.0, 0.0)),
+			Transform::from_translation(Vec3::new(5.0, 10.0, 0.0)),
+			Mesh3d(
 				meshes.add(
 					Capsule3d::new(0.25, 1.0)
 						.mesh()
@@ -91,9 +91,10 @@ fn setup(
 						.longitudes(16)
 						.uv_profile(CapsuleUvProfile::Fixed),
 				),
-				gridbox_material("white", &mut materials, &asset_server),
-				Collider::capsule_y(0.5, 0.25),
 			),
+			MeshMaterial3d(gridbox_material("white", &mut materials, &asset_server)),
+			Collider::capsule_y(0.5, 0.25),
+			EntityBundle::default(),
 			PlayerBody { is_grounded: false },
 			Inventory::default(),
 		))
