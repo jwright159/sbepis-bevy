@@ -17,7 +17,17 @@ pub struct AvailableNamesAsset(Handle<AvailableNames>);
 
 #[derive(Asset, Deserialize, TypePath)]
 pub struct AvailableNames {
-	names: Vec<String>,
+	names: Vec<(String, NameTier)>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize)]
+enum NameTier {
+	Past,
+	Pgo,
+	Captcha,
+	Alchemiter,
+	Denizen,
+	Master,
 }
 
 #[derive(Resource)]
@@ -85,7 +95,7 @@ fn spawn_name_tags(
 	for entity in entities.iter() {
 		commands.entity(entity).remove::<SpawnNameTag>();
 
-		let name = {
+		let (name, tier) = {
 			let opt = asset
 				.names
 				.iter()
@@ -96,7 +106,7 @@ fn spawn_name_tags(
 				asset.names.swap_remove(i);
 				name
 			} else {
-				rand::random::<FirstName>().to_string()
+				(rand::random::<FirstName>().to_string(), NameTier::Past)
 			}
 		};
 

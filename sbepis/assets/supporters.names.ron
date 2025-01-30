@@ -1,9 +1,18 @@
 (
 	names: [
-		"CampfireCollective",
-		"Viri",
-		"Conchors",
-		"Marinik",
-		"Thought Blob",
+		("CampfireCollective", Captcha),
+		("Viri", Captcha),
+		("Conchors", Alchemiter),
+		("Marinik", Master),
+		("Thought Blob", Captcha),
+		("Colby Lawson", Alchemiter),
+		("Vee", Past),
+		("heartsRemedy", Past),
+		("Kirby", Past),
+		("ivysprout", Past),
+		("willofthestars", Past),
+		("Viridian", Past),
+		("FourPointedStar", Past),
+		("White Crow", Past)
 	]
 )
