@@ -55,16 +55,30 @@ pub struct NameTag {
 
 #[derive(Resource)]
 #[resource(plugin = NpcPlugin)]
-pub struct FontMeshGenerator(MeshGenerator<Face<'static>>);
+pub struct FontMeshGenerator {
+	regular: MeshGenerator<Face<'static>>,
+	bold: MeshGenerator<Face<'static>>,
+}
+
 impl FontMeshGenerator {
-	pub fn new(font_data: &'static [u8]) -> Self {
-		Self(MeshGenerator::new(font_data))
+	pub fn new(regular_font_data: &'static [u8], bold_font_data: &'static [u8]) -> Self {
+		Self {
+			regular: MeshGenerator::new(regular_font_data),
+			bold: MeshGenerator::new(bold_font_data),
+		}
 	}
 
-	pub fn generate(&mut self, text: &str) -> (MeshText, Mesh) {
+	pub fn generate_regular(&mut self, text: &str) -> (MeshText, Mesh) {
+		Self::generate(text, &mut self.regular)
+	}
+
+	pub fn generate_bold(&mut self, text: &str) -> (MeshText, Mesh) {
+		Self::generate(text, &mut self.bold)
+	}
+
+	fn generate(text: &str, generator: &mut MeshGenerator<Face<'static>>) -> (MeshText, Mesh) {
 		let transform = Mat4::from_scale(Vec3::new(1.0, 1.0, 0.2)).to_cols_array();
-		let mesh_text: MeshText = self
-			.0
+		let mesh_text: MeshText = generator
 			.generate_section(text, false, Some(&transform))
 			.unwrap();
 
@@ -85,7 +99,11 @@ impl FontMeshGenerator {
 }
 impl Default for FontMeshGenerator {
 	fn default() -> Self {
-		Self::new(include_bytes!("../../assets/FiraSans-Regular.ttf")) // Cascadia Code is broken (Err: GlyphTriangulationError(PointOnFixedEdge(1)))
+		// Cascadia Code is broken (Err: GlyphTriangulationError(PointOnFixedEdge(1)))
+		Self::new(
+			include_bytes!("../../assets/FiraSans-Regular.ttf"),
+			include_bytes!("../../assets/FiraSans-Bold.ttf"),
+		)
 	}
 }
 
@@ -148,7 +166,15 @@ fn spawn_name_tags(
 			}
 		};
 
-		let (mesh_text, mesh) = font_mesh_generator.generate(&name_tag.name);
+		let (mesh_text, mesh) = match name_tag.tier {
+			None => font_mesh_generator.generate_regular(&name_tag.name),
+			Some(NameTier::Past) => font_mesh_generator.generate_regular(&name_tag.name),
+			Some(NameTier::Pgo) => font_mesh_generator.generate_regular(&name_tag.name),
+			Some(NameTier::Captcha) => font_mesh_generator.generate_regular(&name_tag.name),
+			Some(NameTier::Alchemiter) => font_mesh_generator.generate_bold(&name_tag.name),
+			Some(NameTier::Denizen) => font_mesh_generator.generate_regular(&name_tag.name),
+			Some(NameTier::Master) => font_mesh_generator.generate_bold(&name_tag.name),
+		};
 		let material = match name_tag.tier {
 			None => asset.generated_material.clone(),
 			Some(NameTier::Past) => asset.past_material.clone(),
@@ -162,7 +188,15 @@ fn spawn_name_tags(
 				.clone(),
 			Some(NameTier::Master) => asset.master_material.clone(),
 		};
-		let scale = 0.2;
+		let scale = match name_tag.tier {
+			None => 0.2,
+			Some(NameTier::Past) => 0.2,
+			Some(NameTier::Pgo) => 0.2,
+			Some(NameTier::Captcha) => 0.2,
+			Some(NameTier::Alchemiter) => 0.2,
+			Some(NameTier::Denizen) => 0.3,
+			Some(NameTier::Master) => 0.3,
+		};
 
 		commands
 			.spawn((
