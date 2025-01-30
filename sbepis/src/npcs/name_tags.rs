@@ -27,18 +27,29 @@ pub struct NameTagAssets {
 
 #[derive(Asset, Deserialize, TypePath)]
 pub struct AvailableNames {
-	names: Vec<(String, NameTier)>,
+	names: Vec<NameTag>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize)]
 enum NameTier {
-	Generated,
 	Past,
 	Pgo,
 	Captcha,
 	Alchemiter,
 	Denizen,
 	Master,
+}
+
+#[derive(Component)]
+pub struct SpawnNameTag;
+
+#[derive(Component)]
+pub struct NameTagged(pub NameTag);
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct NameTag {
+	name: String,
+	tier: Option<NameTier>,
 }
 
 #[derive(Resource)]
@@ -76,9 +87,6 @@ impl Default for FontMeshGenerator {
 		Self::new(include_bytes!("../../assets/FiraSans-Regular.ttf")) // Cascadia Code is broken (Err: GlyphTriangulationError(PointOnFixedEdge(1)))
 	}
 }
-
-#[derive(Component)]
-pub struct SpawnNameTag;
 
 #[system(
 	plugin = NpcPlugin, schedule = Startup,
@@ -121,36 +129,37 @@ fn spawn_name_tags(
 	let names = some_or_return!(assets.get_mut(&asset.names));
 
 	for entity in entities.iter() {
-		commands.entity(entity).remove::<SpawnNameTag>();
-
-		let (name, tier) = {
+		let name_tag = {
 			let opt = names
 				.names
 				.iter()
 				.enumerate()
 				.choose(&mut rand::thread_rng())
 				.map(|(i, name)| (i, name.clone()));
-			if let Some((i, name)) = opt {
+			if let Some((i, name_tag)) = opt {
 				names.names.swap_remove(i);
-				name
+				name_tag
 			} else {
-				(rand::random::<FirstName>().to_string(), NameTier::Generated)
+				NameTag {
+					name: rand::random::<FirstName>().to_string(),
+					tier: None,
+				}
 			}
 		};
 
-		let (mesh_text, mesh) = font_mesh_generator.generate(&name);
-		let material = match tier {
-			NameTier::Generated => asset.generated_material.clone(),
-			NameTier::Past => asset.past_material.clone(),
-			NameTier::Pgo => asset.pgo_material.clone(),
-			NameTier::Captcha => asset.captcha_material.clone(),
-			NameTier::Alchemiter => asset.alchemiter_material.clone(),
-			NameTier::Denizen => asset
+		let (mesh_text, mesh) = font_mesh_generator.generate(&name_tag.name);
+		let material = match name_tag.tier {
+			None => asset.generated_material.clone(),
+			Some(NameTier::Past) => asset.past_material.clone(),
+			Some(NameTier::Pgo) => asset.pgo_material.clone(),
+			Some(NameTier::Captcha) => asset.captcha_material.clone(),
+			Some(NameTier::Alchemiter) => asset.alchemiter_material.clone(),
+			Some(NameTier::Denizen) => asset
 				.denizen_materials
 				.choose(&mut rand::thread_rng())
 				.unwrap()
 				.clone(),
-			NameTier::Master => asset.master_material.clone(),
+			Some(NameTier::Master) => asset.master_material.clone(),
 		};
 		let scale = 0.2;
 
@@ -163,5 +172,10 @@ fn spawn_name_tags(
 					.with_scale(Vec3::splat(scale)),
 			))
 			.set_parent(entity);
+
+		commands
+			.entity(entity)
+			.remove::<SpawnNameTag>()
+			.insert(NameTagged(name_tag));
 	}
 }

@@ -1,18 +1,60 @@
 (
 	names: [
-		("CampfireCollective", Captcha),
-		("Viri", Captcha),
-		("Conchors", Alchemiter),
-		("Marinik", Master),
-		("Thought Blob", Captcha),
-		("Colby Lawson", Alchemiter),
-		("Vee", Past),
-		("heartsRemedy", Past),
-		("Kirby", Past),
-		("ivysprout", Past),
-		("willofthestars", Past),
-		("Viridian", Past),
-		("FourPointedStar", Past),
-		("White Crow", Past)
+		NameTag (
+			name: "CampfireCollective",
+			tier: Some(Captcha),
+		),
+		NameTag (
+			name: "Viri",
+			tier: Some(Captcha),
+		),
+		NameTag (
+			name: "Conchors",
+			tier: Some(Alchemiter),
+		),
+		NameTag (
+			name: "Marinik",
+			tier: Some(Master),
+		),
+		NameTag (
+			name: "Thought Blob",
+			tier: Some(Captcha),
+		),
+		NameTag (
+			name: "Colby Lawson",
+			tier: Some(Alchemiter),
+		),
+		NameTag (
+			name: "Vee",
+			tier: Some(Past),
+		),
+		NameTag (
+			name: "heartsRemedy",
+			tier: Some(Past),
+		),
+		NameTag (
+			name: "Kirby",
+			tier: Some(Past),
+		),
+		NameTag (
+			name: "ivysprout",
+			tier: Some(Past),
+		),
+		NameTag (
+			name: "willofthestars",
+			tier: Some(Past),
+		),
+		NameTag (
+			name: "Viridian",
+			tier: Some(Past),
+		),
+		NameTag (
+			name: "FourPointedStar",
+			tier: Some(Past),
+		),
+		NameTag (
+			name: "White Crow",
+			tier: Some(Past),
+		),
 	]
 )
