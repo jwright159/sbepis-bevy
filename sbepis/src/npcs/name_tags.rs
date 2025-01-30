@@ -2,6 +2,7 @@ use std::f32::consts::PI;
 
 use bevy::prelude::*;
 use bevy::render::render_asset::RenderAssetUsages;
+use bevy::render::render_resource::{AsBindGroup, ShaderRef};
 use bevy_butler::*;
 use bevy_hanabi::prelude::*;
 use faker_rand::en_us::names::FirstName;
@@ -24,7 +25,7 @@ pub struct NameTagAssets {
 	captcha_material: Handle<StandardMaterial>,
 	alchemiter_material: Handle<StandardMaterial>,
 	denizen_materials: [Handle<StandardMaterial>; 4],
-	master_material: Handle<StandardMaterial>,
+	master_material: Handle<CandyMaterial>,
 
 	denizen_particles: Handle<EffectAsset>,
 	master_particles: [Handle<EffectAsset>; 2],
@@ -88,14 +89,27 @@ impl FontMeshGenerator {
 
 		let vertices = mesh_text.vertices.clone();
 		let positions: Vec<[f32; 3]> = vertices.chunks(3).map(|c| [c[0], c[1], c[2]]).collect();
-		let uvs = vec![[0.0, 0.0]; positions.len()];
+		let uvs_0 = positions
+			.iter()
+			.map(|&[x, y, _]| [x, y])
+			.collect::<Vec<[f32; 2]>>();
+		let uvs_1 = positions
+			.iter()
+			.map(|&[x, y, _]| {
+				[
+					x - mesh_text.bbox.size().x * 0.5,
+					y - mesh_text.bbox.size().y * 0.5,
+				]
+			})
+			.collect::<Vec<[f32; 2]>>();
 
 		let mut mesh = Mesh::new(
 			bevy::render::render_resource::PrimitiveTopology::TriangleList,
 			RenderAssetUsages::RENDER_WORLD,
 		);
 		mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions);
-		mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, uvs);
+		mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, uvs_0);
+		mesh.insert_attribute(Mesh::ATTRIBUTE_UV_1, uvs_1);
 		mesh.compute_flat_normals();
 
 		(mesh_text, mesh)
@@ -200,6 +214,7 @@ fn load_names(
 	asset_server: Res<AssetServer>,
 	mut materials: ResMut<Assets<StandardMaterial>>,
 	mut particles: ResMut<Assets<EffectAsset>>,
+	mut candy_materials: ResMut<Assets<CandyMaterial>>,
 ) {
 	let names: Handle<AvailableNames> = asset_server.load("supporters.names.ron");
 
@@ -212,12 +227,19 @@ fn load_names(
 		captcha_material: materials.add(Color::from(Srgba::hex("ff067c").unwrap())),
 		alchemiter_material: materials.add(Color::from(Srgba::hex("03a9f4").unwrap())),
 		denizen_materials: [
-			materials.add(Color::from(Srgba::hex("0715cd").unwrap())),
-			materials.add(Color::from(Srgba::hex("b536da").unwrap())),
-			materials.add(Color::from(Srgba::hex("e00707").unwrap())),
-			materials.add(Color::from(Srgba::hex("4ac925").unwrap())),
-		],
-		master_material: materials.add(Color::from(Srgba::hex("ff0000").unwrap())),
+			Color::from(Srgba::hex("0715cd").unwrap()),
+			Color::from(Srgba::hex("b536da").unwrap()),
+			Color::from(Srgba::hex("e00707").unwrap()),
+			Color::from(Srgba::hex("4ac925").unwrap()),
+		]
+		.map(|color| {
+			materials.add(StandardMaterial {
+				base_color: color,
+				unlit: true,
+				..default()
+			})
+		}),
+		master_material: candy_materials.add(CandyMaterial::default()),
 
 		denizen_particles: particles
 			.add(create_particles(Color::from(Srgba::hex("efbf04").unwrap()))),
@@ -271,17 +293,21 @@ fn spawn_name_tags(
 			Some(NameTier::Master) => font_mesh_generator.generate_bold(&name_tag.name),
 		};
 		let material = match name_tag.tier {
-			None => asset.generated_material.clone(),
-			Some(NameTier::Past) => asset.past_material.clone(),
-			Some(NameTier::Pgo) => asset.pgo_material.clone(),
-			Some(NameTier::Captcha) => asset.captcha_material.clone(),
-			Some(NameTier::Alchemiter) => asset.alchemiter_material.clone(),
-			Some(NameTier::Denizen) => asset
-				.denizen_materials
-				.choose(&mut rand::thread_rng())
-				.unwrap()
-				.clone(),
-			Some(NameTier::Master) => asset.master_material.clone(),
+			None => NameTagShader::Standard(asset.generated_material.clone()),
+			Some(NameTier::Past) => NameTagShader::Standard(asset.past_material.clone()),
+			Some(NameTier::Pgo) => NameTagShader::Standard(asset.pgo_material.clone()),
+			Some(NameTier::Captcha) => NameTagShader::Standard(asset.captcha_material.clone()),
+			Some(NameTier::Alchemiter) => {
+				NameTagShader::Standard(asset.alchemiter_material.clone())
+			}
+			Some(NameTier::Denizen) => NameTagShader::Standard(
+				asset
+					.denizen_materials
+					.choose(&mut rand::thread_rng())
+					.unwrap()
+					.clone(),
+			),
+			Some(NameTier::Master) => NameTagShader::Candy(asset.master_material.clone()),
 		};
 		let scale = match name_tag.tier {
 			None => 0.2,
@@ -293,16 +319,21 @@ fn spawn_name_tags(
 			Some(NameTier::Master) => 0.3,
 		};
 
-		let text_entity = commands
-			.spawn((
-				Mesh3d(meshes.add(mesh)),
-				MeshMaterial3d(material),
-				Transform::from_xyz(mesh_text.bbox.size().x * scale * 0.5, 1.1, 0.0)
-					.with_rotation(Quat::from_rotation_y(PI))
-					.with_scale(Vec3::splat(scale)),
-			))
-			.set_parent(entity)
-			.id();
+		let mut text_entity = commands.spawn((
+			Mesh3d(meshes.add(mesh)),
+			Transform::from_xyz(mesh_text.bbox.size().x * scale * 0.5, 1.1, 0.0)
+				.with_rotation(Quat::from_rotation_y(PI))
+				.with_scale(Vec3::splat(scale)),
+		));
+		match material {
+			NameTagShader::Standard(material) => {
+				text_entity.insert(MeshMaterial3d(material));
+			}
+			NameTagShader::Candy(material) => {
+				text_entity.insert(MeshMaterial3d(material));
+			}
+		}
+		let text_entity = text_entity.set_parent(entity).id();
 
 		let particles = match name_tag.tier {
 			None => vec![],
@@ -354,4 +385,18 @@ fn add_killed_name_back(
 			}
 		}
 	}
+}
+
+#[derive(Asset, TypePath, AsBindGroup, Debug, Clone, Default)]
+pub struct CandyMaterial {}
+
+impl Material for CandyMaterial {
+	fn fragment_shader() -> ShaderRef {
+		"candy shader.wgsl".into()
+	}
+}
+
+enum NameTagShader {
+	Standard(Handle<StandardMaterial>),
+	Candy(Handle<CandyMaterial>),
 }
