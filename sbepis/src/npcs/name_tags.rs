@@ -9,6 +9,7 @@ use rand::seq::{IteratorRandom, SliceRandom};
 use serde::Deserialize;
 
 use crate::entity::spawner::EntitySpawnedSet;
+use crate::entity::{EntityKilled, EntityKilledSet};
 use crate::npcs::NpcPlugin;
 use crate::some_or_return;
 
@@ -177,5 +178,23 @@ fn spawn_name_tags(
 			.entity(entity)
 			.remove::<SpawnNameTag>()
 			.insert(NameTagged(name_tag));
+	}
+}
+
+#[system(
+	plugin = NpcPlugin, schedule = Update,
+	after = EntityKilledSet,
+)]
+fn add_killed_name_back(
+	mut ev_killed: EventReader<EntityKilled>,
+	mut names: ResMut<Assets<AvailableNames>>,
+	assets: Res<NameTagAssets>,
+	name_tagged: Query<&NameTagged>,
+) {
+	let names = names.get_mut(&assets.names).unwrap();
+	for ev in ev_killed.read() {
+		if let Ok(name_tagged) = name_tagged.get(ev.0) {
+			names.names.push(name_tagged.0.clone());
+		}
 	}
 }
