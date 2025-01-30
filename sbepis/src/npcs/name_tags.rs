@@ -5,7 +5,7 @@ use bevy::render::render_asset::RenderAssetUsages;
 use bevy_butler::*;
 use faker_rand::en_us::names::FirstName;
 use meshtext::{Face, MeshGenerator, MeshText, TextSection};
-use rand::seq::IteratorRandom;
+use rand::seq::{IteratorRandom, SliceRandom};
 use serde::Deserialize;
 
 use crate::entity::spawner::EntitySpawnedSet;
@@ -13,7 +13,17 @@ use crate::npcs::NpcPlugin;
 use crate::some_or_return;
 
 #[derive(Resource)]
-pub struct AvailableNamesAsset(Handle<AvailableNames>);
+pub struct NameTagAssets {
+	names: Handle<AvailableNames>,
+
+	generated_material: Handle<StandardMaterial>,
+	past_material: Handle<StandardMaterial>,
+	pgo_material: Handle<StandardMaterial>,
+	captcha_material: Handle<StandardMaterial>,
+	alchemiter_material: Handle<StandardMaterial>,
+	denizen_materials: [Handle<StandardMaterial>; 4],
+	master_material: Handle<StandardMaterial>,
+}
 
 #[derive(Asset, Deserialize, TypePath)]
 pub struct AvailableNames {
@@ -22,6 +32,7 @@ pub struct AvailableNames {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize)]
 enum NameTier {
+	Generated,
 	Past,
 	Pgo,
 	Captcha,
@@ -72,9 +83,27 @@ pub struct SpawnNameTag;
 #[system(
 	plugin = NpcPlugin, schedule = Startup,
 )]
-fn load_names(mut commands: Commands, asset_server: Res<AssetServer>) {
-	let asset: Handle<AvailableNames> = asset_server.load("supporters.names.ron");
-	commands.insert_resource(AvailableNamesAsset(asset));
+fn load_names(
+	mut commands: Commands,
+	asset_server: Res<AssetServer>,
+	mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+	let names: Handle<AvailableNames> = asset_server.load("supporters.names.ron");
+	commands.insert_resource(NameTagAssets {
+		names,
+		generated_material: materials.add(Color::srgb(0.4, 0.4, 0.4)),
+		past_material: materials.add(Color::WHITE),
+		pgo_material: materials.add(Color::from(Srgba::hex("4bec13").unwrap())),
+		captcha_material: materials.add(Color::from(Srgba::hex("ff067c").unwrap())),
+		alchemiter_material: materials.add(Color::from(Srgba::hex("03a9f4").unwrap())),
+		denizen_materials: [
+			materials.add(Color::from(Srgba::hex("0715cd").unwrap())),
+			materials.add(Color::from(Srgba::hex("b536da").unwrap())),
+			materials.add(Color::from(Srgba::hex("e00707").unwrap())),
+			materials.add(Color::from(Srgba::hex("4ac925").unwrap())),
+		],
+		master_material: materials.add(Color::from(Srgba::hex("ff0000").unwrap())),
+	});
 }
 
 #[system(
@@ -83,40 +112,52 @@ fn load_names(mut commands: Commands, asset_server: Res<AssetServer>) {
 )]
 fn spawn_name_tags(
 	mut commands: Commands,
-	asset: Res<AvailableNamesAsset>,
+	asset: Res<NameTagAssets>,
 	mut assets: ResMut<Assets<AvailableNames>>,
 	entities: Query<Entity, With<SpawnNameTag>>,
 	mut meshes: ResMut<Assets<Mesh>>,
-	mut materials: ResMut<Assets<StandardMaterial>>,
 	mut font_mesh_generator: ResMut<FontMeshGenerator>,
 ) {
-	let asset = some_or_return!(assets.get_mut(&asset.0));
+	let names = some_or_return!(assets.get_mut(&asset.names));
 
 	for entity in entities.iter() {
 		commands.entity(entity).remove::<SpawnNameTag>();
 
 		let (name, tier) = {
-			let opt = asset
+			let opt = names
 				.names
 				.iter()
 				.enumerate()
 				.choose(&mut rand::thread_rng())
 				.map(|(i, name)| (i, name.clone()));
 			if let Some((i, name)) = opt {
-				asset.names.swap_remove(i);
+				names.names.swap_remove(i);
 				name
 			} else {
-				(rand::random::<FirstName>().to_string(), NameTier::Past)
+				(rand::random::<FirstName>().to_string(), NameTier::Generated)
 			}
 		};
 
 		let (mesh_text, mesh) = font_mesh_generator.generate(&name);
+		let material = match tier {
+			NameTier::Generated => asset.generated_material.clone(),
+			NameTier::Past => asset.past_material.clone(),
+			NameTier::Pgo => asset.pgo_material.clone(),
+			NameTier::Captcha => asset.captcha_material.clone(),
+			NameTier::Alchemiter => asset.alchemiter_material.clone(),
+			NameTier::Denizen => asset
+				.denizen_materials
+				.choose(&mut rand::thread_rng())
+				.unwrap()
+				.clone(),
+			NameTier::Master => asset.master_material.clone(),
+		};
 		let scale = 0.2;
 
 		commands
 			.spawn((
 				Mesh3d(meshes.add(mesh)),
-				MeshMaterial3d(materials.add(Color::WHITE)),
+				MeshMaterial3d(material),
 				Transform::from_xyz(mesh_text.bbox.size().x * scale * 0.5, 1.1, 0.0)
 					.with_rotation(Quat::from_rotation_y(PI))
 					.with_scale(Vec3::splat(scale)),
