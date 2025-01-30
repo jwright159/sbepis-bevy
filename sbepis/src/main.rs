@@ -68,6 +68,7 @@ fn main() {
 			bevy_inspector_egui::quick::WorldInspectorPlugin::new(),
 			#[cfg(feature = "overview_camera")]
 			overview_camera::OverviewCameraPlugin,
+			bevy_hanabi::HanabiPlugin,
 		));
 
 	app.add_plugins((

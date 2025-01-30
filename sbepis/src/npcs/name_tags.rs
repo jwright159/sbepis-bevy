@@ -3,6 +3,7 @@ use std::f32::consts::PI;
 use bevy::prelude::*;
 use bevy::render::render_asset::RenderAssetUsages;
 use bevy_butler::*;
+use bevy_hanabi::prelude::*;
 use faker_rand::en_us::names::FirstName;
 use meshtext::{Face, MeshGenerator, MeshText, TextSection};
 use rand::seq::{IteratorRandom, SliceRandom};
@@ -24,6 +25,9 @@ pub struct NameTagAssets {
 	alchemiter_material: Handle<StandardMaterial>,
 	denizen_materials: [Handle<StandardMaterial>; 4],
 	master_material: Handle<StandardMaterial>,
+
+	denizen_particles: Handle<EffectAsset>,
+	master_particles: [Handle<EffectAsset>; 2],
 }
 
 #[derive(Asset, Deserialize, TypePath)]
@@ -107,6 +111,87 @@ impl Default for FontMeshGenerator {
 	}
 }
 
+fn create_particles(color: Color) -> EffectAsset {
+	let color: Srgba = color.into();
+	let mut color_gradient = Gradient::new();
+	color_gradient.add_key(0.0, Vec4::new(color.red, color.green, color.blue, 1.0));
+	color_gradient.add_key(1.0, Vec4::new(color.red, color.green, color.blue, 0.0));
+
+	let mut size_gradient = Gradient::new();
+	size_gradient.add_key(0.0, Vec3::splat(0.01));
+	size_gradient.add_key(1.0, Vec3::splat(0.0));
+
+	let mut module = Module::default();
+
+	let init_pos = SetPositionSphereModifier {
+		center: module.lit(Vec3::ZERO),
+		radius: module.lit(0.01),
+		dimension: ShapeDimension::Surface,
+	};
+
+	let init_vel = SetVelocitySphereModifier {
+		center: module.lit(Vec3::ZERO),
+		speed: module.lit(2.5),
+	};
+
+	let init_lifetime = SetAttributeModifier::new(Attribute::LIFETIME, module.lit(0.1));
+
+	let init_vel_trail = SetAttributeModifier::new(Attribute::VELOCITY, module.lit(Vec3::ZERO));
+
+	let update_drag = LinearDragModifier::new(module.lit(0.5));
+
+	let lead = ParticleGroupSet::single(0);
+	let trail = ParticleGroupSet::single(1);
+
+	EffectAsset::new(16, Spawner::rate(5.0.into()), module)
+		.with_ribbons(16 * 32, 1.0 / 128.0, 0.1, 0)
+		.init_groups(init_pos, lead)
+		.init_groups(init_vel, lead)
+		.init_groups(init_lifetime, lead)
+		.init_groups(init_vel_trail, trail)
+		.update_groups(update_drag, lead)
+		.render_groups(
+			ColorOverLifetimeModifier {
+				gradient: color_gradient.clone(),
+			},
+			lead,
+		)
+		.render_groups(
+			OrientModifier {
+				mode: OrientMode::FaceCameraPosition,
+				rotation: None,
+			},
+			lead,
+		)
+		.render_groups(
+			SizeOverLifetimeModifier {
+				gradient: size_gradient.clone(),
+				screen_space_size: false,
+			},
+			lead,
+		)
+		.render_groups(
+			ColorOverLifetimeModifier {
+				gradient: color_gradient,
+			},
+			trail,
+		)
+		.render_groups(
+			OrientModifier {
+				mode: OrientMode::FaceCameraPosition,
+				rotation: None,
+			},
+			trail,
+		)
+		.render_groups(
+			SizeOverLifetimeModifier {
+				gradient: size_gradient,
+				screen_space_size: false,
+			},
+			trail,
+		)
+}
+
 #[system(
 	plugin = NpcPlugin, schedule = Startup,
 )]
@@ -114,11 +199,14 @@ fn load_names(
 	mut commands: Commands,
 	asset_server: Res<AssetServer>,
 	mut materials: ResMut<Assets<StandardMaterial>>,
+	mut particles: ResMut<Assets<EffectAsset>>,
 ) {
 	let names: Handle<AvailableNames> = asset_server.load("supporters.names.ron");
+
 	commands.insert_resource(NameTagAssets {
 		names,
 		generated_material: materials.add(Color::srgb(0.4, 0.4, 0.4)),
+
 		past_material: materials.add(Color::WHITE),
 		pgo_material: materials.add(Color::from(Srgba::hex("4bec13").unwrap())),
 		captcha_material: materials.add(Color::from(Srgba::hex("ff067c").unwrap())),
@@ -130,6 +218,13 @@ fn load_names(
 			materials.add(Color::from(Srgba::hex("4ac925").unwrap())),
 		],
 		master_material: materials.add(Color::from(Srgba::hex("ff0000").unwrap())),
+
+		denizen_particles: particles
+			.add(create_particles(Color::from(Srgba::hex("efbf04").unwrap()))),
+		master_particles: [
+			particles.add(create_particles(Color::from(Srgba::hex("ff0000").unwrap()))),
+			particles.add(create_particles(Color::from(Srgba::hex("00ff00").unwrap()))),
+		],
 	});
 }
 
@@ -198,7 +293,7 @@ fn spawn_name_tags(
 			Some(NameTier::Master) => 0.3,
 		};
 
-		commands
+		let text_entity = commands
 			.spawn((
 				Mesh3d(meshes.add(mesh)),
 				MeshMaterial3d(material),
@@ -206,7 +301,33 @@ fn spawn_name_tags(
 					.with_rotation(Quat::from_rotation_y(PI))
 					.with_scale(Vec3::splat(scale)),
 			))
-			.set_parent(entity);
+			.set_parent(entity)
+			.id();
+
+		let particles = match name_tag.tier {
+			None => vec![],
+			Some(NameTier::Past) => vec![],
+			Some(NameTier::Pgo) => vec![],
+			Some(NameTier::Captcha) => vec![],
+			Some(NameTier::Alchemiter) => vec![],
+			Some(NameTier::Denizen) => vec![asset.denizen_particles.clone()],
+			Some(NameTier::Master) => asset.master_particles.to_vec(),
+		};
+		if !particles.is_empty() {
+			let distance = 0.5;
+			let num_instances = (mesh_text.bbox.size().x / distance).floor().max(1.0);
+			let start_x = mesh_text.bbox.size().x * 0.5 - (num_instances - 1.0) * distance * 0.5;
+			for i in 0..num_instances as usize {
+				let particle = particles[i % particles.len()].clone();
+				commands
+					.spawn(ParticleEffectBundle {
+						effect: ParticleEffect::new(particle),
+						transform: Transform::from_xyz(start_x + i as f32 * distance, 0.2, 0.0),
+						..default()
+					})
+					.set_parent(text_entity);
+			}
+		}
 
 		commands
 			.entity(entity)
@@ -228,7 +349,9 @@ fn add_killed_name_back(
 	let names = names.get_mut(&assets.names).unwrap();
 	for ev in ev_killed.read() {
 		if let Ok(name_tagged) = name_tagged.get(ev.0) {
-			names.names.push(name_tagged.0.clone());
+			if name_tagged.0.tier.is_some() {
+				names.names.push(name_tagged.0.clone());
+			}
 		}
 	}
 }
