@@ -1,8 +1,10 @@
 use std::f32::consts::PI;
 
+use bevy::gltf::GltfMaterialName;
 use bevy::prelude::*;
 use bevy::render::render_asset::RenderAssetUsages;
 use bevy::render::render_resource::{AsBindGroup, ShaderRef};
+use bevy::scene::SceneInstanceReady;
 use bevy_butler::*;
 use bevy_hanabi::prelude::*;
 use faker_rand::en_us::names::FirstName;
@@ -17,18 +19,18 @@ use crate::some_or_return;
 
 #[derive(Resource)]
 pub struct NameTagAssets {
-	names: Handle<AvailableNames>,
+	pub names: Handle<AvailableNames>,
 
-	generated_material: Handle<StandardMaterial>,
-	past_material: Handle<StandardMaterial>,
-	pgo_material: Handle<StandardMaterial>,
-	captcha_material: Handle<StandardMaterial>,
-	alchemiter_material: Handle<StandardMaterial>,
-	denizen_materials: [Handle<StandardMaterial>; 4],
-	master_material: Handle<CandyMaterial>,
+	pub generated_material: Handle<StandardMaterial>,
+	pub past_material: Handle<StandardMaterial>,
+	pub pgo_material: Handle<StandardMaterial>,
+	pub captcha_material: Handle<StandardMaterial>,
+	pub alchemiter_material: Handle<StandardMaterial>,
+	pub denizen_materials: [Handle<StandardMaterial>; 4],
+	pub master_material: Handle<CandyMaterial>,
 
-	denizen_particles: Handle<EffectAsset>,
-	master_particles: [Handle<EffectAsset>; 2],
+	pub denizen_particles: Handle<EffectAsset>,
+	pub master_particles: [Handle<EffectAsset>; 2],
 }
 
 #[derive(Asset, Deserialize, TypePath)]
@@ -358,6 +360,23 @@ fn spawn_name_tags(
 					})
 					.set_parent(text_entity);
 			}
+		}
+
+		if !matches!(name_tag.tier, Some(NameTier::Master)) {
+			commands.entity(entity).observe(
+				|trigger: Trigger<SceneInstanceReady>,
+				 material_names: Query<&GltfMaterialName>,
+				 mut commands: Commands,
+				 children: Query<&Children>| {
+					for child in children.iter_descendants(trigger.entity()).filter(|child| {
+						material_names
+							.get(*child)
+							.is_ok_and(|name| name.0 == "Candy")
+					}) {
+						commands.entity(child).insert(Visibility::Hidden);
+					}
+				},
+			);
 		}
 
 		commands

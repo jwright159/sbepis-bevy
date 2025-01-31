@@ -1,6 +1,7 @@
 use std::f32::consts::PI;
 use std::time::Duration;
 
+use bevy::gltf::GltfMaterialName;
 use bevy::prelude::*;
 use bevy::scene::SceneInstanceReady;
 use bevy_butler::*;
@@ -19,7 +20,7 @@ use crate::player_controller::weapons::EntityDamaged;
 use crate::util::AnimationRootReference;
 use crate::{ok_or_continue, some_or_return};
 
-use super::name_tags::SpawnNameTag;
+use super::name_tags::{NameTagAssets, SpawnNameTag};
 
 #[derive(Component)]
 pub struct Imp;
@@ -150,7 +151,9 @@ fn spawn_imp(
 				 imp_assets: Res<ImpAssets>,
 				 gltfs: Res<Assets<Gltf>>,
 				 mut animation_graphs: ResMut<Assets<AnimationGraph>>,
-				 children: Query<&Children>| {
+				 children: Query<&Children>,
+				 material_names: Query<&GltfMaterialName>,
+				 name_tag_assets: Res<NameTagAssets>| {
 					let imp_gltf = gltfs
 						.get(&imp_assets.model)
 						.expect("Gltf should be loaded by now");
@@ -183,6 +186,17 @@ fn spawn_imp(
 						animation_player,
 						imp_animations,
 					));
+
+					for child in children.iter_descendants(trigger.entity()).filter(|child| {
+						material_names
+							.get(*child)
+							.is_ok_and(|name| name.0 == "Candy")
+					}) {
+						commands
+							.entity(child)
+							.remove::<MeshMaterial3d<StandardMaterial>>()
+							.insert(MeshMaterial3d(name_tag_assets.master_material.clone()));
+					}
 
 					commands
 						.entity(trigger.entity())
