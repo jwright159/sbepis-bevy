@@ -11,6 +11,7 @@ use crate::prelude::InteractedWithSet;
 
 #[derive(Component, Reflect)]
 #[reflect(Component)]
+#[register_type(plugin = FrayPlugin)]
 pub struct TrackSwitcher;
 
 #[event(plugin = FrayPlugin, generics = TrackSwitcher)]

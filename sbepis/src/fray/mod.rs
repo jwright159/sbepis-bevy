@@ -15,10 +15,7 @@ use crate::util::MapRange;
 
 mod tracks;
 
-#[butler_plugin(build(
-	add_plugins(SoundyPlugin),
-	register_type::<TrackSwitcher>(),
-))]
+#[butler_plugin(build(add_plugins(SoundyPlugin)))]
 pub struct FrayPlugin;
 
 #[system(

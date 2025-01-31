@@ -27,10 +27,6 @@ pub use quest_markers::SpawnQuestMarker;
 pub struct QuestingPlugin;
 
 #[butler_plugin(build(
-	register_type::<Quests>(),
-	register_type::<QuestGiver>(),
-	register_type::<QuestId>(),
-	register_type::<Quest>(),
 	add_plugins(InputManagerMenuPlugin::<QuestProposalAction>::default()),
 ))]
 impl Plugin for QuestingPlugin {
@@ -41,11 +37,13 @@ impl Plugin for QuestingPlugin {
 }
 
 #[derive(Resource, Default, Debug, Reflect)]
-#[resource(plugin = QuestingPlugin)]
 #[reflect(Resource)]
+#[resource(plugin = QuestingPlugin)]
+#[register_type(plugin = QuestingPlugin)]
 pub struct Quests(pub HashMap<QuestId, Quest>);
 
 #[derive(Clone, Copy, Hash, PartialEq, Eq, Debug, Reflect)]
+#[register_type(plugin = QuestingPlugin)]
 pub struct QuestId(Uuid);
 impl QuestId {
 	#[allow(clippy::new_without_default)]
@@ -137,6 +135,7 @@ impl Distribution<QuestType> for Standard {
 }
 
 #[derive(Debug, Reflect)]
+#[register_type(plugin = QuestingPlugin)]
 pub struct Quest {
 	pub id: QuestId,
 	pub quest_type: QuestType,
@@ -166,6 +165,7 @@ impl Distribution<Quest> for Standard {
 }
 
 #[derive(Component, Default, Reflect)]
+#[register_type(plugin = QuestingPlugin)]
 pub struct QuestGiver {
 	pub given_quest: Option<QuestId>,
 	quest_marker: Option<Entity>,

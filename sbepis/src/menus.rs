@@ -10,7 +10,6 @@ use leafwing_input_manager::{Actionlike, InputControlKind};
 use crate::input::InputManagerReference;
 
 #[butler_plugin(build(
-	register_type::<MenuStack>(),
 	add_plugins(InputManagerMenuPlugin::<CloseMenuAction>::default()),
 ))]
 pub struct MenusPlugin;
@@ -59,6 +58,7 @@ pub struct MenuDespawnsWhenClosed;
 
 #[derive(Resource, Default, Debug, Reflect)]
 #[resource(plugin = MenusPlugin)]
+#[register_type(plugin = MenusPlugin)]
 pub struct MenuStack {
 	stack: Vec<Entity>,
 	current: Option<Entity>,

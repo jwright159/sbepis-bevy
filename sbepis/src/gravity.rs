@@ -5,13 +5,11 @@ use itertools::Itertools;
 
 use crate::util::{IterElements, TransformEx};
 
-#[butler_plugin(build(
-	register_type::<GravityPriority>(),
-	register_type::<GravityPoint>(),
-))]
+#[butler_plugin]
 pub struct GravityPlugin;
 
 #[derive(Component, Reflect)]
+#[register_type(plugin = GravityPlugin)]
 pub struct GravityPriority(pub u32);
 
 pub trait GravitationalField {
@@ -21,6 +19,7 @@ pub trait GravitationalField {
 }
 
 #[derive(Component, Reflect)]
+#[register_type(plugin = GravityPlugin)]
 pub struct GravityPoint {
 	pub standard_radius: f32,
 	pub acceleration_at_radius: f32,

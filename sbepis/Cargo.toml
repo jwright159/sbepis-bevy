@@ -35,7 +35,7 @@ faker_rand = "0.1.1"
 meshtext = "0.3.1"
 soundyrust = { path = "../soundyrust" }
 blenvy = { git = "https://github.com/jwright159/Blenvy.git" }
-bevy-butler = { git = "https://github.com/jwright159/bevy-butler.git" }
+bevy-butler = "0.5.4-alpha.3"
 bevy_hanabi = "0.14.0"
 typetag = "0.2.19"
 
