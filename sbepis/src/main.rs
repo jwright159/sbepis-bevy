@@ -7,6 +7,8 @@ use bevy::input::common_conditions::input_just_pressed;
 use bevy::log::LogPlugin;
 use bevy::prelude::*;
 use bevy::winit::WinitWindows;
+use bevy_edge_detection::EdgeDetectionPlugin;
+use bevy_mod_outline::OutlinePlugin;
 use bevy_rapier3d::prelude::*;
 use winit::window::Icon;
 
@@ -58,20 +60,22 @@ fn main() {
 					},
 				})
 				.set(LogPlugin {
-					filter: "info,sbepis=debug,avian3d=debug,wgpu=error,naga=warn,calloop=error,symphonia_core=warn,symphonia_bundle_mp3=warn,blenvy=error".into(),
+					filter: "info,sbepis=debug,avian3d=debug,wgpu=error,naga=warn,calloop=error,symphonia_core=warn,symphonia_bundle_mp3=warn,blenvy=error,bevy_mod_outline=error".into(),
 					..default()
 				}),
-			RapierPhysicsPlugin::<NoUserData>::default(),
-			#[cfg(feature = "rapier_debug")]
-			RapierDebugRenderPlugin::default(),
-			#[cfg(feature = "inspector")]
-			bevy_inspector_egui::quick::WorldInspectorPlugin::new(),
-			#[cfg(feature = "overview_camera")]
-			overview_camera::OverviewCameraPlugin,
-			bevy_hanabi::HanabiPlugin,
+				OutlinePlugin,
 		));
 
 	app.add_plugins((
+		#[cfg(feature = "rapier_debug")]
+		RapierDebugRenderPlugin::default(),
+		#[cfg(feature = "inspector")]
+		bevy_inspector_egui::quick::WorldInspectorPlugin::new(),
+		#[cfg(feature = "overview_camera")]
+		overview_camera::OverviewCameraPlugin,
+		EdgeDetectionPlugin::default(),
+		RapierPhysicsPlugin::<NoUserData>::default(),
+		bevy_hanabi::HanabiPlugin,
 		player_commands::PlayerCommandsPlugin,
 		camera::PlayerCameraPlugin,
 		skybox::SkyboxPlugin,
