@@ -3,6 +3,7 @@ use std::marker::PhantomData;
 
 use bevy::prelude::*;
 use bevy_butler::*;
+use bevy_mod_outline::OutlineVolume;
 use bevy_rapier3d::prelude::*;
 use leafwing_input_manager::prelude::*;
 
@@ -64,21 +65,24 @@ fn rotate_camera_and_body(
 	}
 }
 
+#[resource(plugin = PlayerControllerPlugin, init = LastHitEntity(None))]
+#[derive(Resource)]
+pub struct LastHitEntity(pub Option<Entity>);
+
+#[derive(Component)]
+pub struct InteractOutlineComponentTarget(pub Entity);
+
 pub fn interact_with<T: Component>(
 	rapier_context: Query<&RapierContext>,
 	player_camera: Query<&GlobalTransform, With<PlayerCamera>>,
 	entities: Query<Entity, With<T>>,
 	parents: Query<&Parent>,
 	input: Query<&ActionState<PlayerAction>>,
+	outline_targets: Query<&InteractOutlineComponentTarget>,
+	mut commands: Commands,
+	mut last_hit: ResMut<LastHitEntity>,
 	mut ev_interact: EventWriter<InteractedWith<T>>,
 ) {
-	if !match input.iter().find(|input| !input.disabled()) {
-		Some(input) => input.just_pressed(&PlayerAction::Interact),
-		None => false,
-	} {
-		return;
-	}
-
 	let player_camera = player_camera.get_single().expect("Player camera missing");
 	let mut hit_entity: Option<(Option<Entity>, f32)> = None;
 	rapier_context.single().intersections_with_ray(
@@ -101,6 +105,52 @@ pub fn interact_with<T: Component>(
 			true
 		},
 	);
+
+	if let Some((Some(entity), _)) = hit_entity {
+		if last_hit.0.is_none() {
+			for target in outline_targets.get(entity).iter() {
+				commands.entity(target.0).insert(OutlineVolume {
+					colour: Color::Srgba(Srgba {
+						red: 1.0,
+						green: 1.0,
+						blue: 1.0,
+						alpha: 1.0,
+					}),
+					visible: true,
+					width: 1.0,
+				});
+			}
+		}
+		match last_hit.0 {
+			None => {}
+			Some(last_hit_entity) => {
+				if last_hit_entity != entity {
+					for target in outline_targets.get(last_hit_entity).iter() {
+						commands.entity(target.0).remove::<OutlineVolume>();
+					}
+					last_hit.0 = None;
+				}
+			}
+		}
+		last_hit.0 = Some(entity);
+	} else {
+		match last_hit.0 {
+			None => {}
+			Some(last_hit_entity) => {
+				for target in outline_targets.get(last_hit_entity).iter() {
+					commands.entity(target.0).remove::<OutlineVolume>();
+				}
+				last_hit.0 = None;
+			}
+		}
+	}
+
+	if !match input.iter().find(|input| !input.disabled()) {
+		Some(input) => input.just_pressed(&PlayerAction::Interact),
+		None => false,
+	} {
+		return;
+	}
 
 	if let Some((Some(entity), _)) = hit_entity {
 		ev_interact.send(InteractedWith::new(entity));

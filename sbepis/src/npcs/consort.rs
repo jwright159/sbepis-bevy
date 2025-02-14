@@ -10,6 +10,7 @@ use crate::entity::{Healing, RandomInput, RotateTowardMovement, SpawnHealthBar};
 use crate::gridbox_material;
 use crate::main_bundles::Mob;
 use crate::npcs::NpcPlugin;
+use crate::player_controller::camera_controls::InteractOutlineComponentTarget;
 use crate::questing::{QuestGiver, SpawnQuestMarker};
 
 use super::name_tags::SpawnNameTag;
@@ -39,36 +40,44 @@ fn spawn_consort(
 			continue;
 		}
 
+		commands.entity(ev.entity).insert((
+			Name::new("Consort"),
+			Transform::from_translation(ev.position),
+			Mob,
+			SpawnHealthBar,
+			RandomInput::default(),
+			Healing(0.2),
+			RotateTowardMovement,
+			Consort,
+			QuestGiver::default(),
+			SpawnQuestMarker,
+			SpawnNameTag,
+		));
+		let mut id = None;
+		commands.entity(ev.entity).with_children(|parent| {
+			id = Some(
+				parent
+					.spawn((
+						Transform::from_translation(Vec3::Y * 0.5),
+						Mesh3d(
+							meshes.add(
+								Capsule3d::new(0.25, 0.5)
+									.mesh()
+									.rings(1)
+									.latitudes(8)
+									.longitudes(16)
+									.uv_profile(CapsuleUvProfile::Fixed),
+							),
+						),
+						MeshMaterial3d(gridbox_material("magenta", &mut materials, &asset_server)),
+						Collider::capsule_y(0.25, 0.25),
+					))
+					.id(),
+			);
+		});
 		commands
 			.entity(ev.entity)
-			.insert((
-				Name::new("Consort"),
-				Transform::from_translation(ev.position),
-				Mob,
-				SpawnHealthBar,
-				RandomInput::default(),
-				Healing(0.2),
-				RotateTowardMovement,
-				Consort,
-				QuestGiver::default(),
-				SpawnQuestMarker,
-				SpawnNameTag,
-			))
-			.with_child((
-				Transform::from_translation(Vec3::Y * 0.5),
-				Mesh3d(
-					meshes.add(
-						Capsule3d::new(0.25, 0.5)
-							.mesh()
-							.rings(1)
-							.latitudes(8)
-							.longitudes(16)
-							.uv_profile(CapsuleUvProfile::Fixed),
-					),
-				),
-				MeshMaterial3d(gridbox_material("magenta", &mut materials, &asset_server)),
-				Collider::capsule_y(0.25, 0.25),
-			));
+			.insert(InteractOutlineComponentTarget(id.unwrap()));
 		ev_spawned.send(EntitySpawned(ev.entity));
 	}
 }

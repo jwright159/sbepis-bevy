@@ -1,11 +1,5 @@
 use std::f32::consts::PI;
 
-use bevy::prelude::*;
-use bevy::render::mesh::CapsuleUvProfile;
-use bevy_butler::*;
-use bevy_rapier3d::prelude::*;
-use leafwing_input_manager::prelude::*;
-
 use crate::camera::PlayerCamera;
 use crate::gridbox_material;
 use crate::input::*;
@@ -14,6 +8,12 @@ use crate::main_bundles::Mob;
 use crate::menus::{
 	InputManagerMenuPlugin, Menu, MenuStack, MenuWithInputManager, MenuWithoutMouse,
 };
+use bevy::prelude::*;
+use bevy::render::mesh::CapsuleUvProfile;
+use bevy_butler::*;
+use bevy_edge_detection::EdgeDetection;
+use bevy_rapier3d::prelude::*;
+use leafwing_input_manager::prelude::*;
 
 use self::camera_controls::*;
 use self::weapons::hammer::*;
@@ -98,6 +98,8 @@ fn setup(
 				..default()
 			}),
 			PlayerCamera,
+			Msaa::Off,
+			EdgeDetection::default(),
 			Pitch(0.0),
 			SpatialListener::new(-0.25),
 		))
